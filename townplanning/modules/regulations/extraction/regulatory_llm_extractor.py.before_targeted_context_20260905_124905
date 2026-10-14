@@ -1,0 +1,334 @@
+from __future__ import annotations
+
+import json
+import re
+from typing import Any
+
+import requests
+
+from townplanning.core.settings import get_settings
+
+from .regulatory_context import RegulatoryContext
+
+
+class RegulatoryLLMExtractor:
+    """
+    Source-grounded semantic extraction of regulatory data.
+
+    Ollama interprets the supplied source material.
+
+    It does NOT:
+      - search the internet
+      - invent regulations
+      - calculate planning outcomes
+      - determine final applicability
+      - replace the deterministic rule engine
+    """
+
+    SYSTEM_PROMPT = """
+You are a regulatory-data extraction engine for Maharashtra UDCPR.
+
+You receive source material retrieved from the project's authoritative
+UDCPR database and Chroma index.
+
+Your ONLY task is to extract regulatory information explicitly supported
+by that supplied material.
+
+STRICT RULES:
+
+1. Use ONLY the supplied source material.
+2. Never use outside knowledge.
+3. Never invent a regulatory value.
+4. Never calculate a regulatory value.
+5. Never infer a missing value.
+6. Preserve the exact meaning of the source.
+7. Preserve units.
+8. Preserve ranges.
+9. Preserve lower and upper bounds.
+10. Preserve inclusive/exclusive boundaries when stated.
+11. Preserve authority-specific branches.
+12. Preserve building-use branches.
+13. Preserve occupancy branches.
+14. Preserve exceptions.
+15. Preserve footnotes and qualifiers.
+16. Preserve cross-references.
+17. Never assign a number to a field merely because that number appears
+    somewhere in a table.
+18. Determine the meaning of a value from its row/column/header context.
+19. Multi-level table headers must be represented in the condition.
+20. "Up to", "above", "below", "more than", "less than", etc. are
+    conditions and must not be discarded.
+21. Do not merge conflicting provisions.
+22. If two source provisions differ, return them separately.
+23. Every extracted concept MUST contain source_refs.
+24. Every extracted concept MUST contain source_text copied from the
+    supplied source.
+25. Do not decide whether a provision applies to the current project.
+26. Extract the conditions required for later deterministic applicability.
+27. If a requested field is not supported by the source, omit it.
+28. Return ONLY valid JSON.
+
+IMPORTANT:
+
+A value such as:
+
+    1.10
+
+must only be called "basic_fsi" if the source/header context supports
+that interpretation.
+
+Likewise:
+
+    300
+
+must NOT automatically become an FSI or setback value merely because
+"300" appears in the table.
+
+For ranges, preserve their semantic meaning.
+
+Example:
+
+"9.0 to below 12.0 m"
+
+should become a condition such as:
+
+{
+  "field": "road_width",
+  "operator": "between",
+  "min": 9.0,
+  "max": 12.0,
+  "min_inclusive": true,
+  "max_inclusive": false,
+  "unit": "m"
+}
+
+Do not invent such a condition unless it is supported by the source.
+"""
+
+    def __init__(
+        self,
+        base_url: str | None = None,
+        model: str | None = None,
+        timeout: int = 180,
+    ):
+        settings = get_settings()
+
+        self.base_url = (
+            base_url
+            or getattr(
+                settings,
+                "OLLAMA_HOST",
+                "http://localhost:11434",
+            )
+        ).rstrip("/")
+
+        self.model = (
+            model
+            or getattr(
+                settings,
+                "OLLAMA_MODEL",
+                None,
+            )
+        )
+
+        if not self.model:
+            raise ValueError(
+                "OLLAMA_MODEL is not configured"
+            )
+
+        self.timeout = timeout
+
+    def extract(
+        self,
+        context: RegulatoryContext,
+    ) -> dict[str, Any]:
+
+        prompt = self._build_prompt(context)
+
+        response = requests.post(
+            f"{self.base_url}/api/generate",
+            json={
+                "model": self.model,
+                "system": self.SYSTEM_PROMPT,
+                "prompt": prompt,
+                "stream": False,
+                "format": "json",
+            },
+            timeout=self.timeout,
+        )
+
+        response.raise_for_status()
+
+        payload = response.json()
+
+        raw = payload.get(
+            "response",
+            "",
+        )
+
+        return self._parse_json(raw)
+
+    def _build_prompt(
+        self,
+        context: RegulatoryContext,
+    ) -> str:
+
+        source_blocks = []
+
+        for index, source in enumerate(
+            context.sources
+        ):
+
+            source_blocks.append(
+                "\n".join(
+                    [
+                        f"===== SOURCE {index + 1} =====",
+                        f"SOURCE_ID: {source.source_id}",
+                        (
+                            "REGULATION_NUMBER: "
+                            f"{source.regulation_number or ''}"
+                        ),
+                        f"PAGE: {source.page or ''}",
+                        f"SOURCE_TYPE: {source.source_type}",
+                        (
+                            "TABLE_ID: "
+                            f"{source.table_id or ''}"
+                        ),
+                        (
+                            "TABLE_NUMBER: "
+                            f"{source.table_number or ''}"
+                        ),
+                        (
+                            "TABLE_TITLE: "
+                            f"{source.table_title or ''}"
+                        ),
+                        "",
+                        source.text,
+                        "",
+                        f"===== END SOURCE {index + 1} =====",
+                    ]
+                )
+            )
+
+        requested_fields = (
+            context.requested_fields
+            or ["all source-supported regulatory concepts"]
+        )
+
+        return f"""
+Extract regulatory data from the supplied UDCPR source material.
+
+REQUESTED CONCEPTS:
+{", ".join(requested_fields)}
+
+RETRIEVAL QUERY:
+{context.query}
+
+Return ONLY this JSON structure:
+
+{{
+  "regulations": [
+    {{
+      "regulation_number": "",
+      "title": "",
+      "concepts": [
+        {{
+          "field": "",
+          "value": null,
+          "unit": null,
+
+          "condition": {{
+            "raw": "",
+            "items": []
+          }},
+
+          "qualifiers": [],
+
+          "authority": null,
+
+          "source_refs": [],
+
+          "source_text": "",
+
+          "confidence": 0.0
+        }}
+      ],
+
+      "exceptions": [],
+
+      "cross_references": []
+    }}
+  ]
+}}
+
+Each condition item may contain fields such as:
+
+{{
+  "field": "road_width",
+  "operator": "between",
+  "min": 9.0,
+  "max": 12.0,
+  "min_inclusive": true,
+  "max_inclusive": false,
+  "unit": "m"
+}}
+
+Possible operators include:
+
+- equals
+- between
+- at_least
+- greater_than
+- at_most
+- less_than
+- up_to
+- below
+- above
+- not_applicable
+- textual
+
+Only use an operator when supported by the source.
+
+SOURCE MATERIAL:
+
+{chr(10).join(source_blocks)}
+"""
+
+    @staticmethod
+    def _parse_json(
+        raw: str,
+    ) -> dict[str, Any]:
+
+        raw = raw.strip()
+
+        if not raw:
+            raise ValueError(
+                "Ollama returned an empty response"
+            )
+
+        try:
+            data = json.loads(raw)
+
+        except json.JSONDecodeError:
+
+            match = re.search(
+                r"\{.*\}",
+                raw,
+                flags=re.DOTALL,
+            )
+
+            if not match:
+                raise ValueError(
+                    "Ollama response was not valid JSON"
+                )
+
+            data = json.loads(
+                match.group(0)
+            )
+
+        if not isinstance(data, dict):
+            raise ValueError(
+                "Ollama JSON root must be an object"
+            )
+
+        return data

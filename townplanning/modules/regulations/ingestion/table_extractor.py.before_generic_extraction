@@ -1,0 +1,82 @@
+"""
+Extract tables using PyMuPDF.
+"""
+
+from townplanning.modules.regulations.ingestion.table import (
+    ExtractedTable,
+)
+
+
+class TableExtractor:
+
+    
+
+    def extract(
+        self,
+        reader,
+        page_number: int,
+    ) -> list[ExtractedTable]:
+
+        document = reader._document
+
+        page = document.load_page(
+            page_number - 1
+        )
+
+        tables = page.find_tables()
+        
+
+        output = []
+
+        for index, table in enumerate(
+            tables.tables,
+            start=1,
+        ):
+            markdown = table.to_markdown() if hasattr(table, "to_markdown") else ""
+            data = table.extract()
+
+            if not data:
+                continue
+
+            headers = [
+                str(x).strip()
+                if x is not None
+                else ""
+                for x in data[0]
+            ]
+
+            rows = []
+
+            for row in data[1:]:
+
+                rows.append(
+
+                    [
+
+                        str(x).strip()
+                        if x is not None
+                        else ""
+
+                        for x in row
+
+                    ]
+
+                )
+
+            output.append(
+
+                ExtractedTable(
+
+                    page=page_number,
+
+                    index=index,
+
+                    headers=headers,
+
+                    rows=rows,
+                    markdown=markdown,
+                )
+
+            )
+
+        return output

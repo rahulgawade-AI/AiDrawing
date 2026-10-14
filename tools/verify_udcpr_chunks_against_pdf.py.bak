@@ -1,0 +1,1050 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from difflib import SequenceMatcher
+from pathlib import Path
+
+
+# ============================================================
+# NORMALIZATION
+# ============================================================
+
+def normalize(text: str) -> str:
+    if not text:
+        return ""
+
+    text = str(text)
+
+    # Remove common PDF extraction artifacts.
+    text = text.replace("\u00ad", "")
+    text = text.replace("\u2010", "-")
+    text = text.replace("\u2011", "-")
+    text = text.replace("\u2012", "-")
+    text = text.replace("\u2013", "-")
+    text = text.replace("\u2014", "-")
+    text = text.replace("\u2212", "-")
+
+    # Normalize whitespace.
+    text = re.sub(r"\s+", " ", text)
+
+    return text.strip().lower()
+
+
+def normalize_for_search(text: str) -> str:
+    text = normalize(text)
+
+    # Make PDF/OCR matching more tolerant.
+    text = re.sub(
+        r"[^a-z0-9%./()&'\-]+",
+        " ",
+        text,
+    )
+
+    text = re.sub(r"\s+", " ", text)
+
+    return text.strip()
+
+
+def strip_canonical_tables(text: str) -> str:
+    """
+    Canonical chunks contain:
+
+        [TABLE]
+        ...
+        [/TABLE]
+
+    Tables are verified separately through their page/index
+    information. Remove them when checking ordinary body text
+    against PDF extraction.
+    """
+
+    return re.sub(
+        r"\[TABLE\].*?\[/TABLE\]",
+        " ",
+        text,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+
+
+def regulation_key(number, title):
+    return (
+        str(number or "").strip().lower()
+        + "|"
+        + str(title or "").strip().lower()
+    )
+
+
+# ============================================================
+# LOAD SOURCE JSON
+# ============================================================
+
+def load_chunks(path: Path):
+
+    with path.open(
+        "r",
+        encoding="utf-8",
+    ) as f:
+        data = json.load(f)
+
+    if not isinstance(data, dict):
+        raise RuntimeError(
+            "Source JSON root is not a dictionary."
+        )
+
+    chunks = data.get("chunks")
+
+    if not isinstance(chunks, list):
+        raise RuntimeError(
+            "Source JSON does not contain a chunks list."
+        )
+
+    return chunks
+
+
+# ============================================================
+# PDF READER
+# ============================================================
+
+def open_pdf(path: Path):
+
+    # Prefer PyMuPDF because it is normally what is used
+    # for this project's PDF extraction.
+    try:
+        import fitz
+
+        doc = fitz.open(str(path))
+
+        return (
+            "pymupdf",
+            doc,
+        )
+
+    except ImportError:
+        pass
+
+    # Fallback to pypdf.
+    try:
+        from pypdf import PdfReader
+
+        reader = PdfReader(str(path))
+
+        return (
+            "pypdf",
+            reader,
+        )
+
+    except ImportError:
+        raise RuntimeError(
+            "Neither PyMuPDF (fitz) nor pypdf is installed.\n"
+            "Install one with:\n"
+            "  pip install pymupdf\n"
+        )
+
+
+def pdf_page_count(pdf_kind, pdf):
+
+    if pdf_kind == "pymupdf":
+        return len(pdf)
+
+    return len(pdf.pages)
+
+
+def extract_page_text(
+    pdf_kind,
+    pdf,
+    page_number,
+):
+    """
+    page_number is 1-based.
+    """
+
+    index = page_number - 1
+
+    if index < 0:
+        return ""
+
+    if pdf_kind == "pymupdf":
+
+        page = pdf[index]
+
+        return page.get_text(
+            "text"
+        ) or ""
+
+    page = pdf.pages[index]
+
+    return page.extract_text() or ""
+
+
+# ============================================================
+# HEADING MATCH
+# ============================================================
+
+def build_heading_candidates(
+    number,
+    title,
+):
+
+    number = str(
+        number or ""
+    ).strip()
+
+    title = str(
+        title or ""
+    ).strip()
+
+    candidates = []
+
+    if number and title:
+
+        candidates.append(
+            f"{number} {title}"
+        )
+
+        candidates.append(
+            f"{number} {title.replace('and', '&')}"
+        )
+
+    if number:
+        candidates.append(number)
+
+    # Remove duplicates while preserving order.
+    result = []
+
+    seen = set()
+
+    for x in candidates:
+
+        key = normalize_for_search(x)
+
+        if not key:
+            continue
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+
+        result.append(x)
+
+    return result
+
+
+def heading_found(
+    page_text,
+    number,
+    title,
+):
+
+    normalized_page = normalize_for_search(
+        page_text
+    )
+
+    candidates = build_heading_candidates(
+        number,
+        title,
+    )
+
+    for candidate in candidates:
+
+        candidate_normalized = normalize_for_search(
+            candidate
+        )
+
+        if candidate_normalized in normalized_page:
+            return True, candidate
+
+    # More tolerant fallback:
+    #
+    # Search separately for regulation number and a
+    # meaningful portion of title.
+
+    number_norm = normalize_for_search(
+        number
+    )
+
+    title_norm = normalize_for_search(
+        title
+    )
+
+    if (
+        number_norm
+        and number_norm in normalized_page
+        and title_norm
+    ):
+
+        words = title_norm.split()
+
+        # Require several meaningful title words.
+        meaningful = [
+            w
+            for w in words
+            if len(w) >= 4
+        ]
+
+        if meaningful:
+
+            hits = sum(
+                1
+                for word in meaningful
+                if word in normalized_page
+            )
+
+            required = min(
+                3,
+                len(meaningful),
+            )
+
+            if hits >= required:
+
+                return True, (
+                    "number + title-word match"
+                )
+
+    return False, None
+
+
+# ============================================================
+# TEXT COVERAGE
+# ============================================================
+
+def make_search_phrases(text):
+
+    # Remove tables because PDF extraction and canonical
+    # markdown tables are structurally different.
+    body = strip_canonical_tables(
+        text
+    )
+
+    body = normalize_for_search(
+        body
+    )
+
+    if not body:
+        return []
+
+    words = body.split()
+
+    phrases = []
+
+    # First 10-20 meaningful words.
+    if len(words) >= 8:
+
+        phrases.append(
+            " ".join(words[:12])
+        )
+
+    # Last 10-20 meaningful words.
+    if len(words) >= 16:
+
+        phrases.append(
+            " ".join(words[-12:])
+        )
+
+    # Middle phrase.
+    if len(words) >= 30:
+
+        middle = len(words) // 2
+
+        phrases.append(
+            " ".join(
+                words[
+                    max(0, middle - 6):
+                    middle + 6
+                ]
+            )
+        )
+
+    return phrases
+
+
+def text_coverage(
+    canonical_text,
+    pdf_text,
+):
+
+    canonical_body = strip_canonical_tables(
+        canonical_text
+    )
+
+    canonical_norm = normalize_for_search(
+        canonical_body
+    )
+
+    pdf_norm = normalize_for_search(
+        pdf_text
+    )
+
+    if not canonical_norm:
+        return {
+            "coverage": 1.0,
+            "matched_phrases": 0,
+            "total_phrases": 0,
+            "status": "NO_BODY_TEXT",
+        }
+
+    if not pdf_norm:
+        return {
+            "coverage": 0.0,
+            "matched_phrases": 0,
+            "total_phrases": 0,
+            "status": "PDF_TEXT_EMPTY",
+        }
+
+    phrases = make_search_phrases(
+        canonical_text
+    )
+
+    if not phrases:
+
+        ratio = SequenceMatcher(
+            None,
+            canonical_norm[:2000],
+            pdf_norm[:2000],
+        ).ratio()
+
+        return {
+            "coverage": ratio,
+            "matched_phrases": 0,
+            "total_phrases": 0,
+            "status": "SHORT_TEXT",
+        }
+
+    matched = 0
+
+    for phrase in phrases:
+
+        if phrase in pdf_norm:
+            matched += 1
+            continue
+
+        # Try shorter phrase because PDF line wrapping can
+        # produce different extraction.
+        words = phrase.split()
+
+        if len(words) > 6:
+
+            short_phrase = " ".join(
+                words[:6]
+            )
+
+            if short_phrase in pdf_norm:
+                matched += 1
+
+    coverage = (
+        matched / len(phrases)
+        if phrases
+        else 0.0
+    )
+
+    return {
+        "coverage": round(
+            coverage,
+            4,
+        ),
+        "matched_phrases": matched,
+        "total_phrases": len(phrases),
+        "status": (
+            "GOOD"
+            if coverage >= 0.66
+            else "WEAK"
+        ),
+    }
+
+
+# ============================================================
+# TABLE VALIDATION
+# ============================================================
+
+def validate_tables(
+    chunk,
+    pdf_page_count_value,
+):
+
+    tables = chunk.get(
+        "tables"
+    ) or []
+
+    failures = []
+
+    for table in tables:
+
+        if not isinstance(
+            table,
+            dict,
+        ):
+            failures.append(
+                "table entry is not a dictionary"
+            )
+            continue
+
+        page = table.get(
+            "pdf_page"
+        )
+
+        index = table.get(
+            "table_index"
+        )
+
+        if page is None:
+
+            failures.append(
+                "table missing pdf_page"
+            )
+
+        else:
+
+            try:
+                page_int = int(page)
+
+                if (
+                    page_int < 1
+                    or page_int > pdf_page_count_value
+                ):
+
+                    failures.append(
+                        f"table page {page_int} "
+                        f"outside PDF"
+                    )
+
+            except (
+                TypeError,
+                ValueError,
+            ):
+
+                failures.append(
+                    f"invalid table page: {page}"
+                )
+
+        if index is None:
+
+            failures.append(
+                "table missing table_index"
+            )
+
+        else:
+
+            try:
+
+                if int(index) <= 0:
+                    failures.append(
+                        f"invalid table_index: {index}"
+                    )
+
+            except (
+                TypeError,
+                ValueError,
+            ):
+
+                failures.append(
+                    f"invalid table_index: {index}"
+                )
+
+    return failures
+
+
+# ============================================================
+# MAIN VERIFICATION
+# ============================================================
+
+def verify(
+    pdf_path,
+    chunks_path,
+    report_path,
+):
+
+    print("=" * 120)
+    print("UDCPR CANONICAL CHUNKS vs ACTUAL PDF VERIFICATION")
+    print("=" * 120)
+
+    print()
+    print("PDF    :", pdf_path)
+    print("CHUNKS :", chunks_path)
+    print("REPORT :", report_path)
+
+    chunks = load_chunks(
+        chunks_path
+    )
+
+    print()
+    print("=" * 120)
+    print("SOURCE")
+    print("=" * 120)
+
+    print(
+        "Canonical chunks:",
+        len(chunks),
+    )
+
+    if len(chunks) != 329:
+
+        raise RuntimeError(
+            f"Expected 329 canonical chunks, "
+            f"found {len(chunks)}"
+        )
+
+    pdf_kind, pdf = open_pdf(
+        pdf_path
+    )
+
+    page_count = pdf_page_count(
+        pdf_kind,
+        pdf,
+    )
+
+    print(
+        "PDF pages:",
+        page_count,
+    )
+
+    results = []
+
+    failures = []
+
+    warnings = []
+
+    heading_ok_count = 0
+    text_good_count = 0
+    page_ok_count = 0
+    table_ok_count = 0
+
+    for position, chunk in enumerate(
+        chunks,
+        start=1,
+    ):
+
+        result = {
+            "position": position,
+            "key": None,
+            "number": None,
+            "title": None,
+            "pdf_page_start": None,
+            "pdf_page_end": None,
+            "heading_found": False,
+            "heading_match": None,
+            "text_coverage": None,
+            "table_failures": [],
+            "status": "PASS",
+            "problems": [],
+        }
+
+        if not isinstance(
+            chunk,
+            dict,
+        ):
+
+            result["status"] = "FAIL"
+
+            result["problems"].append(
+                "chunk is not a dictionary"
+            )
+
+            failures.append(
+                result
+            )
+
+            results.append(
+                result
+            )
+
+            continue
+
+        number = str(
+            chunk.get("number")
+            or ""
+        ).strip()
+
+        title = str(
+            chunk.get("title")
+            or ""
+        ).strip()
+
+        key = regulation_key(
+            number,
+            title,
+        )
+
+        page_start = chunk.get(
+            "pdf_page_start"
+        )
+
+        page_end = (
+            chunk.get(
+                "pdf_page_end"
+            )
+            or page_start
+        )
+
+        result.update(
+            {
+                "key": key,
+                "number": number,
+                "title": title,
+                "pdf_page_start": page_start,
+                "pdf_page_end": page_end,
+            }
+        )
+
+        # ----------------------------------------------------
+        # Page validation
+        # ----------------------------------------------------
+
+        valid_pages = True
+
+        try:
+
+            start = int(page_start)
+            end = int(page_end)
+
+            if (
+                start < 1
+                or end < start
+                or end > page_count
+            ):
+
+                valid_pages = False
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            valid_pages = False
+
+        if not valid_pages:
+
+            result["problems"].append(
+                "invalid PDF page range"
+            )
+
+        else:
+
+            page_ok_count += 1
+
+            # ------------------------------------------------
+            # Extract complete canonical page range.
+            # ------------------------------------------------
+
+            page_texts = []
+
+            for page_number in range(
+                start,
+                end + 1,
+            ):
+
+                page_texts.append(
+                    extract_page_text(
+                        pdf_kind,
+                        pdf,
+                        page_number,
+                    )
+                )
+
+            combined_pdf_text = "\n".join(
+                page_texts
+            )
+
+            # ------------------------------------------------
+            # Heading check on start page.
+            # ------------------------------------------------
+
+            start_page_text = extract_page_text(
+                pdf_kind,
+                pdf,
+                start,
+            )
+
+            found, match = heading_found(
+                start_page_text,
+                number,
+                title,
+            )
+
+            result["heading_found"] = found
+            result["heading_match"] = match
+
+            if found:
+
+                heading_ok_count += 1
+
+            else:
+
+                result["problems"].append(
+                    "canonical heading not found "
+                    "on pdf_page_start"
+                )
+
+            # ------------------------------------------------
+            # Body text coverage.
+            # ------------------------------------------------
+
+            coverage = text_coverage(
+                chunk.get(
+                    "regulation_text"
+                )
+                or "",
+                combined_pdf_text,
+            )
+
+            result["text_coverage"] = coverage
+
+            if coverage["status"] == "GOOD":
+
+                text_good_count += 1
+
+            elif coverage["status"] == "WEAK":
+
+                warnings.append(
+                    {
+                        "key": key,
+                        "reason": (
+                            "weak PDF text coverage"
+                        ),
+                        "coverage": coverage,
+                    }
+                )
+
+            elif coverage["status"] == "PDF_TEXT_EMPTY":
+
+                result["problems"].append(
+                    "PDF extracted text is empty"
+                )
+
+            # ------------------------------------------------
+            # Tables.
+            # ------------------------------------------------
+
+            table_failures = validate_tables(
+                chunk,
+                page_count,
+            )
+
+            result[
+                "table_failures"
+            ] = table_failures
+
+            if table_failures:
+
+                result["problems"].extend(
+                    table_failures
+                )
+
+            else:
+
+                table_ok_count += 1
+
+        if result["problems"]:
+
+            result["status"] = "FAIL"
+
+            failures.append(
+                result
+            )
+
+        results.append(
+            result
+        )
+
+        # Progress.
+        if position % 25 == 0:
+
+            print(
+                f"Verified {position} / "
+                f"{len(chunks)}"
+            )
+
+    # ========================================================
+    # FINAL REPORT
+    # ========================================================
+
+    report = {
+        "verification": "udcpr-canonical-vs-pdf-v1",
+        "pdf": str(pdf_path),
+        "chunks": str(chunks_path),
+        "pdf_page_count": page_count,
+        "canonical_chunk_count": len(chunks),
+        "page_range_ok": page_ok_count,
+        "heading_ok": heading_ok_count,
+        "text_good": text_good_count,
+        "table_metadata_ok": table_ok_count,
+        "warning_count": len(warnings),
+        "failure_count": len(failures),
+        "passed": len(failures) == 0,
+        "warnings": warnings,
+        "failures": failures,
+        "results": results,
+    }
+
+    report_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    with report_path.open(
+        "w",
+        encoding="utf-8",
+    ) as f:
+
+        json.dump(
+            report,
+            f,
+            indent=2,
+            ensure_ascii=False,
+        )
+
+    # ========================================================
+    # SUMMARY
+    # ========================================================
+
+    print()
+    print("=" * 120)
+    print("VERIFICATION SUMMARY")
+    print("=" * 120)
+
+    print(
+        f"Canonical chunks       : {len(chunks)}"
+    )
+
+    print(
+        f"Valid PDF ranges       : {page_ok_count}"
+    )
+
+    print(
+        f"Headings found         : {heading_ok_count}"
+    )
+
+    print(
+        f"Good text coverage     : {text_good_count}"
+    )
+
+    print(
+        f"Table metadata valid   : {table_ok_count}"
+    )
+
+    print(
+        f"Warnings               : {len(warnings)}"
+    )
+
+    print(
+        f"Failures               : {len(failures)}"
+    )
+
+    print()
+    print("=" * 120)
+
+    if failures:
+
+        print(
+            "FAIL: canonical chunks do not completely "
+            "match the actual PDF."
+        )
+
+        print()
+        print(
+            "First failures:"
+        )
+
+        for item in failures[:20]:
+
+            print(
+                f"  {item['position']:03d} "
+                f"{item.get('key')}"
+            )
+
+            for problem in item[
+                "problems"
+            ]:
+
+                print(
+                    "       -",
+                    problem,
+                )
+
+        print()
+        print(
+            "Detailed report:",
+            report_path,
+        )
+
+        return 1
+
+    print(
+        "PASS: all canonical chunks passed "
+        "PDF page/heading/table validation."
+    )
+
+    if warnings:
+
+        print()
+        print(
+            "NOTE:",
+            len(warnings),
+            "chunks have weaker text coverage."
+        )
+
+        print(
+            "These are warnings only and require "
+            "manual review before changing data."
+        )
+
+    print()
+    print(
+        "Detailed report:",
+        report_path,
+    )
+
+    return 0
+
+
+# ============================================================
+# CLI
+# ============================================================
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Verify UDCPR canonical chunks "
+            "against the actual PDF."
+        )
+    )
+
+    parser.add_argument(
+        "--pdf",
+        default="data/regulations/UDCPR.pdf",
+    )
+
+    parser.add_argument(
+        "--chunks",
+        default=(
+            "data/regulations/"
+            "udcpr_source_chunks.json"
+        ),
+    )
+
+    parser.add_argument(
+        "--report",
+        default=(
+            "/tmp/"
+            "udcpr_pdf_verification.json"
+        ),
+    )
+
+    args = parser.parse_args()
+
+    return verify(
+        Path(args.pdf),
+        Path(args.chunks),
+        Path(args.report),
+    )
+
+
+if __name__ == "__main__":
+    sys.exit(
+        main()
+    )

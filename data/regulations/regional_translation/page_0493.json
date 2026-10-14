@@ -1,0 +1,32 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 493,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0493.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "प्रत -\n१. मा.मुख्यमंत्री महोदय यांचे अपर मुख्य सचिव, मंत्रालय, मुंबई. \n २. मा.उप मुख्यमंत्री महोदय यांचे सचिव, मंत्रालय, मुंबई. \n ३. मा.विरोधी पक्षनेता, विधानपरिषद / विधानसभा, महाराष्ट्र विधानमंडळ सचिवालय, मुंबई. \n ४. मा.उपसभापती, महाराष्ट्र विधानपरिषद, महाराष्ट्र विधानमंडळ सचिवालय, मुंबई. \n ५. मा.उपाध्यक्ष, महाराष्ट्र विधानसभा, महाराष्ट्र विधानमंडळ सचिवालय, मुंबई. \n ६. अपर मुख्य सचिव (नवि-१), नगर विकास विभाग, मंत्रालय, मुंबई. \n ७. अपर मुख्य सचिव, महसूल व वन विभाग, मंत्रालय, मुंबई. \n ८. प्रधान सचिव, (नवि-२) नगर विकास विभाग, मंत्रालय, मुंबई. \n ९. संचालक (नगर रचना) तथा सह सचिव, नगर विकास विभाग, मंत्रालय, मुंबई.\nप्रत माहितीस्तव व कार्यवाहीसाठी -\n१) संचालक, नगर रचना, महाराष्ट्र राज्य, पुणे. \n २) विभागीय सहसंचालक, नगर रचना, पुणे / नागपूर / अमरावती / कोकण / औरंगाबाद / नाशिक. \n ३) विभागीय आयुक्त, पुणे / नागपूर / अमरावती / कोकण / औरंगाबाद / नाशिक. \n ४) सहायक संचालक, नगर रचना / नगर रचनाकार, नगर रचना व मूल्यनिर्धारण विभाग, सर्व शाखा कार्यालये. \n ५) अवर सचिव, नवि -११ / नवि-३०, कक्ष अधिकारी, नवि-९ / नवि -१२, नगर विकास विभाग, मंत्रालय, मुंबई. \n ६) कक्ष अधिकारी (नवि-२९), नगर विकास विभाग, मंत्रालय, मुंबई.\n       \n -/सदर आदेश विभागाच्या संकेतस्थळावर प्रसिध्द करण्यात यावेत. \n \n \n ७) कक्ष अधिकारी, माहिती व तंत्रज्ञान विभाग, मंत्रालय, मुंबई.\n       \n -/सदर आदेश शासनाच्या संकेतस्थळावर प्रसिध्द करण्याबाबत कार्यवाही करण्यात यावी. \n \n \n ८) निवड नस्ती, कार्यासन (नवि-१३).\nE:\\2023\\UOR\\भोगवटा वर्ग - २.docx\n477",
+  "translated_english_text": "To -\n1. Shri/Madam Chief Minister's Principal Secretary, Ministry, Mumbai. \n2. Shri/Madam Deputy Chief Minister's Secretary, Ministry, Mumbai. \n3. Shri/Madam Leader of Opposition, Legislative Council / Legislative Assembly, Maharashtra Legislative Assembly Secretariat, Mumbai. \n4. Shri/Madam Deputy Chairman, Maharashtra Legislative Council, Maharashtra Legislative Assembly Secretariat, Mumbai. \n5. Shri/Madam Deputy Chairman, Maharashtra Legislative Assembly, Maharashtra Legislative Assembly Secretariat, Mumbai. \n6. Principal Secretary (New-1), Urban Development Department, Ministry, Mumbai. \n7. Principal Secretary, Revenue and Forest Department, Ministry, Mumbai. \n8. Director (Urban Development) (New-2), Urban Development Department, Ministry, Mumbai. \n9. Director (Urban Planning) and Additional Secretary, Urban Development Department, Ministry, Mumbai.\nFor Information and Action -\n1) Director, Urban Planning, Maharashtra State, Pune. \n2) District Additional Director, Urban Planning, Pune / Nagpur / Amaravati / Konkan / Aurangabad / Nashik. \n3) District Commissioner, Pune / Nagpur / Amaravati / Konkan / Aurangabad / Nashik. \n4) Deputy Director, Urban Planning / Urban Planner, Urban Planning and Valuation Department, All Branch Offices. \n5) Under Secretary, New-11 / New-30, Departmental Officer, New-9 / New-12, Urban Development Department, Ministry, Mumbai. \n6) Departmental Officer (New-29), Urban Development Department, Ministry, Mumbai.\n-/The said order shall be published on the Department's website. \n7) Departmental Officer, Information and Technology Department, Ministry, Mumbai.\n-/Action shall be taken to publish the said order on the Government's website. \n8) Selection Notice, Office (New-13).\nE:\\2023\\UOR\\भोगवटा वर्ग - २.docx\n477",
+  "validation": {
+    "original_regulation_numbers": [],
+    "translated_regulation_numbers": [],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 1406,
+    "translated_characters": 1765,
+    "elapsed_seconds": 120.16
+  }
+}

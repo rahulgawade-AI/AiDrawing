@@ -1,0 +1,1983 @@
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import logging
+import re
+import sys
+from dataclasses import dataclass, asdict
+from pathlib import Path
+from typing import Any
+
+import fitz
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from townplanning.infrastructure.database.session import SessionLocal
+from townplanning.infrastructure.database.models.regulation_model import (
+    RegulationModel,
+)
+from townplanning.infrastructure.database.models.rule_model import RuleModel
+from townplanning.infrastructure.database.models.table import Table
+from townplanning.infrastructure.database.models.knowledge_card_model import (
+    KnowledgeCardModel,
+)
+
+LOG = logging.getLogger("udcpr-rebuild")
+
+INDEX_PDF_PAGE = 5
+DEFAULT_CANONICAL_MANIFEST = "data/regulations/udcpr_canonical_manifest.json"
+IGNORE_PDF_PAGES = {1, 2}
+GOVERNMENT_ORDER_PDF_PAGES = {3, 4}
+REGIONAL_LANGUAGE_PRINTED_PAGE = 423
+
+
+# ============================================================
+# DATA STRUCTURES
+# ============================================================
+
+@dataclass
+class PageInfo:
+    pdf_page: int
+    printed_page: int | None
+    text: str
+
+
+@dataclass
+class IndexEntry:
+    number: str
+    title: str
+    chapter: str | None
+    printed_page_start: int
+    printed_page_end: int | None = None
+
+
+@dataclass
+class RebuildRecord:
+    number: str
+    chapter: str
+    title: str
+    page_start: int
+    page_end: int
+    text_hash: str
+    status: str
+    existing_id: str | None = None
+    reason: str = ""
+
+
+# ============================================================
+# NORMALIZATION
+# ============================================================
+
+def normalize_space(value: str) -> str:
+    value = value.replace("\u00a0", " ")
+    value = re.sub(r"[ \t]+", " ", value)
+    value = re.sub(r"\n{3,}", "\n\n", value)
+    return value.strip()
+
+
+def normalize_number(value: str) -> str:
+    value = value.strip()
+    value = value.replace(" ", "")
+    value = value.rstrip(".")
+    return value
+
+
+def normalize_title(value: str) -> str:
+    value = normalize_space(value)
+    return value.strip(" :-")
+
+
+def text_hash(value: str) -> str:
+    return hashlib.sha256(
+        normalize_space(value).encode("utf-8")
+    ).hexdigest()
+
+
+# ============================================================
+# PRINTED PAGE NUMBER
+# ============================================================
+
+def detect_printed_page(text: str) -> int | None:
+    """
+    Detect the printed UDCPR page number.
+
+    We deliberately inspect the beginning/end of the page and
+    prefer footer-like numbers.
+
+    Example:
+        ...
+        UDCPR-2020
+        85
+
+    returns 85.
+    """
+
+    if not text:
+        return None
+
+    lines = [
+        x.strip()
+        for x in text.splitlines()
+        if x.strip()
+    ]
+
+    candidates: list[int] = []
+
+    # Prefer the last ~12 lines because the printed page number
+    # is normally in the footer.
+    for line in lines[-12:]:
+        m = re.fullmatch(r"(\d{1,4})", line)
+        if m:
+            candidates.append(int(m.group(1)))
+
+    if candidates:
+        return candidates[-1]
+
+    return None
+
+
+# ============================================================
+# PDF
+# ============================================================
+
+class PDFDocument:
+    def __init__(self, path: str):
+        self.path = path
+        self.doc = fitz.open(path)
+
+    def close(self):
+        self.doc.close()
+
+    @property
+    def page_count(self) -> int:
+        return len(self.doc)
+
+    def read_page(self, pdf_page: int) -> PageInfo:
+        """
+        pdf_page is 1-based.
+        """
+
+        page = self.doc[pdf_page - 1]
+
+        text_value = page.get_text(
+            "text",
+            sort=True,
+        )
+
+        text_value = normalize_space(text_value)
+
+        printed = detect_printed_page(text_value)
+
+        return PageInfo(
+            pdf_page=pdf_page,
+            printed_page=printed,
+            text=text_value,
+        )
+
+    def read_all_pages(self) -> list[PageInfo]:
+        pages: list[PageInfo] = []
+
+        for pdf_page in range(1, self.page_count + 1):
+            pages.append(
+                self.read_page(pdf_page)
+            )
+
+        return pages
+
+
+# ============================================================
+# PAGE MAP
+# ============================================================
+
+class PrintedPageMap:
+    """
+    Maps:
+
+        printed UDCPR page -> PDF page
+
+    We never assume that the two numbers are equal.
+    """
+
+    def __init__(self, pages: list[PageInfo]):
+        self.pages = pages
+
+        self.by_printed: dict[int, PageInfo] = {}
+
+        for page in pages:
+            if page.printed_page is not None:
+                self.by_printed[
+                    page.printed_page
+                ] = page
+
+    def get_pdf_page(
+        self,
+        printed_page: int,
+    ) -> int:
+        page = self.by_printed.get(
+            printed_page
+        )
+
+        if page is None:
+            raise ValueError(
+                f"Printed page {printed_page} "
+                f"could not be mapped to a PDF page."
+            )
+
+        return page.pdf_page
+
+
+# ============================================================
+# CANONICAL UDCPR INDEX PARSER
+# ============================================================
+
+@dataclass
+class IndexEntry:
+    number: str
+    title: str
+    chapter: str | None
+    printed_page_start: int
+    printed_page_end: int | None = None
+    variant: str | None = None
+
+    @property
+    def canonical_key(self) -> str:
+        """
+        Unique identity for an index entry.
+
+        UDCPR contains cases such as:
+
+            2.2.5 (a) Sub-division Layout Plan
+            2.2.5 (b) Amalgamation Plan
+
+        Therefore regulation number alone is NOT always unique.
+        """
+
+        if self.variant:
+            return (
+                f"{self.number}"
+                f"{self.variant}"
+            )
+
+        return self.number
+
+
+# ============================================================
+# INDEX BLOCK PARSER
+# ============================================================
+
+class UDCPRIndexParser:
+
+    """
+    Parse the actual UDCPR index using PyMuPDF blocks.
+
+    Page 5 is authoritative for:
+
+        regulation number
+        chapter
+        title
+        printed page
+
+    We do NOT infer regulation identity from arbitrary
+    regulation pages.
+    """
+
+    NUMBER_RE = re.compile(
+        r"^(?P<number>\d+(?:\.\d+)*)"
+        r"\s*"
+        r"(?P<markers>[\*\#\(\)\w\s]*)?"
+        r"$"
+    )
+
+    VARIANT_RE = re.compile(
+        r"^\((?P<variant>[a-z])\)$",
+        re.IGNORECASE,
+    )
+
+    PAGE_RE = re.compile(
+        r"^\d{1,4}$"
+    )
+
+    CHAPTER_RE = re.compile(
+        r"CHAPTER\s*[-–—]\s*"
+        r"(?P<number>\d+)",
+        re.IGNORECASE,
+    )
+
+    def parse(
+        self,
+        page: PageInfo,
+    ) -> list[IndexEntry]:
+
+        """
+        Extract index rows from PyMuPDF blocks.
+
+        Each normal TOC row in the actual document appears
+        as one block, for example:
+
+            '2.2.5
+             (a) Sub-division Layout Plan
+             25'
+
+        """
+
+        if not page.text:
+            return []
+
+        # We cannot reconstruct coordinates from PageInfo,
+        # so the caller must provide raw blocks through
+        # parse_pdf_page().
+        raise RuntimeError(
+            "UDCPRIndexParser.parse() requires "
+            "parse_pdf_page()."
+        )
+
+    def parse_pdf_page(
+        self,
+        pdf_page,
+    ) -> list[IndexEntry]:
+
+        blocks = pdf_page.get_text(
+            "blocks",
+            sort=True,
+        )
+
+        entries: list[IndexEntry] = []
+
+        current_chapter: str | None = None
+
+        for block in blocks:
+
+            if len(block) < 5:
+                continue
+
+            raw = normalize_space(
+                block[4]
+            )
+
+            if not raw:
+                continue
+
+            # --------------------------------------------------
+            # CHAPTER
+            # --------------------------------------------------
+
+            chapter_match = self.CHAPTER_RE.search(
+                raw
+            )
+
+            if chapter_match:
+
+                current_chapter = (
+                    chapter_match.group("number")
+                )
+
+                continue
+
+            # --------------------------------------------------
+            # Ignore INDEX headers / page furniture
+            # --------------------------------------------------
+
+            upper = raw.upper()
+
+            if upper in {
+                "INDEX",
+                "REGULATION",
+                "NO.",
+                "PARTICULARS",
+                "PAGE NO.",
+                "UDCPR-2020",
+            }:
+                continue
+
+            # --------------------------------------------------
+            # Split block into logical lines
+            # --------------------------------------------------
+
+            lines = [
+                normalize_space(x)
+                for x in raw.splitlines()
+                if normalize_space(x)
+            ]
+
+            if not lines:
+                continue
+
+            # --------------------------------------------------
+            # PAGE NUMBER
+            # --------------------------------------------------
+
+            page_number = None
+
+            if self.PAGE_RE.fullmatch(lines[-1]):
+                page_number = int(lines[-1])
+                body_lines = lines[:-1]
+            else:
+                body_lines = lines
+
+            if (
+                page_number is None
+                or not body_lines
+            ):
+                continue
+
+            # --------------------------------------------------
+            # Join body first.
+            #
+            # This handles both:
+            #
+            #   2.2.5 (a) Sub-division Layout Plan
+            #
+            # and:
+            #
+            #   2.2.5
+            #   (a) Sub-division Layout Plan
+            # --------------------------------------------------
+
+            body = normalize_space(
+                " ".join(body_lines)
+            )
+
+            # --------------------------------------------------
+            # REGULATION NUMBER
+            # --------------------------------------------------
+
+            number_match = re.match(
+                r"^(?P<number>\d+(?:\.\d+)*)"
+                r"(?P<rest>.*)$",
+                body,
+            )
+
+            if not number_match:
+                continue
+
+            number = normalize_number(
+                number_match.group("number")
+            )
+
+            rest = normalize_space(
+                number_match.group("rest")
+            )
+
+            # --------------------------------------------------
+            # Remove INDEX marker characters.
+            #
+            # Examples:
+            #
+            #   1.1 *
+            #   1.3 * #
+            #   1.5 **
+            #
+            # Do this BEFORE variant extraction.
+            # --------------------------------------------------
+
+            rest = re.sub(
+                r"^[\s\*\#]+",
+                "",
+                rest,
+            )
+
+            rest = normalize_space(
+                rest
+            )
+
+            # --------------------------------------------------
+            # PARENTHETICAL VARIANT
+            #
+            # IMPORTANT:
+            #
+            #   2.2.5 (a) Sub-division Layout Plan
+            #       ^^^
+            #
+            # must become:
+            #
+            # number  = 2.2.5
+            # variant = (a)
+            # title   = Sub-division Layout Plan
+            #
+            # and NOT:
+            #
+            # number = 2.2.5
+            # title  = (a) Sub-division...
+            # --------------------------------------------------
+
+            variant = None
+
+            variant_match = re.match(
+                r"^\(\s*(?P<v>[A-Za-z]+)\s*\)"
+                r"(?:\s+|$)",
+                rest,
+            )
+
+            if variant_match:
+
+                variant = (
+                    "("
+                    + variant_match.group("v").lower()
+                    + ")"
+                )
+
+                rest = normalize_space(
+                    rest[
+                        variant_match.end():
+                    ]
+                )
+
+            # --------------------------------------------------
+            # TITLE
+            # --------------------------------------------------
+
+            title = normalize_title(
+                rest
+            )
+
+            if not title:
+                continue
+
+            entries.append(
+                IndexEntry(
+                    number=number,
+                    title=title,
+                    chapter=current_chapter,
+                    printed_page_start=page_number,
+                    variant=variant,
+                )
+            )
+
+        return entries
+
+
+# ============================================================
+# INDEX VALIDATION
+# ============================================================
+
+
+def validate_index(
+    entries: list[IndexEntry],
+):
+    """
+    Validate the canonical UDCPR manifest.
+
+    Regulation number alone is NOT unique.
+
+    Examples:
+        2.2.5(a)
+        2.2.5(b)
+
+    Therefore canonical_key is used for uniqueness.
+    """
+
+    errors: list[str] = []
+    seen: set[str] = set()
+
+    for entry in entries:
+
+        key = entry.canonical_key
+
+        if key in seen:
+            errors.append(
+                f"Duplicate canonical regulation: {key}"
+            )
+
+        seen.add(key)
+
+        if not entry.number:
+            errors.append(
+                f"{key}: missing regulation number"
+            )
+
+        if not entry.title:
+            errors.append(
+                f"{key}: missing title"
+            )
+
+        if entry.printed_page_start <= 0:
+            errors.append(
+                f"{key}: invalid start page"
+            )
+
+        if (
+            entry.printed_page_end is not None
+            and entry.printed_page_end
+            < entry.printed_page_start
+        ):
+            errors.append(
+                f"{key}: invalid page range"
+            )
+
+    if errors:
+        raise RuntimeError(
+            "CANONICAL MANIFEST VALIDATION FAILED:\n"
+            + "\n".join(errors)
+        )
+
+    LOG.info(
+        "Canonical manifest validation passed: %d entries",
+        len(entries),
+    )
+
+
+# ============================================================
+# CANONICAL MANIFEST LOADER
+# ============================================================
+
+def load_canonical_manifest(
+    manifest_path: str,
+) -> list[IndexEntry]:
+    """
+    Load the already validated canonical UDCPR manifest.
+
+    The manifest was generated from the complete INDEX
+    spanning PDF pages 5-14.
+
+    The database rebuild MUST NOT re-parse only PDF page 5.
+    """
+
+    path = Path(manifest_path)
+
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Canonical manifest not found: {path}"
+        )
+
+    with path.open(
+        "r",
+        encoding="utf-8",
+    ) as f:
+        manifest = json.load(f)
+
+    raw_entries = manifest.get(
+        "regulations"
+    )
+
+    if not isinstance(raw_entries, list):
+        raw_entries = manifest.get(
+            "entries"
+        )
+
+    if not isinstance(raw_entries, list):
+        raise RuntimeError(
+            "Canonical manifest does not contain "
+            "'regulations' or 'entries'."
+        )
+
+    entries: list[IndexEntry] = []
+
+    for item in raw_entries:
+
+        if not isinstance(item, dict):
+            continue
+
+        number = normalize_number(
+            item.get("number", "")
+        )
+
+        title = normalize_title(
+            item.get("title", "")
+        )
+
+        if not number or not title:
+            raise RuntimeError(
+                f"Invalid manifest entry: {item!r}"
+            )
+
+        printed_start = item.get(
+            "printed_page_start"
+        )
+
+        if printed_start is None:
+            printed_start = item.get(
+                "printed_page"
+            )
+
+        if printed_start is None:
+            raise RuntimeError(
+                f"{number}: missing printed_page_start"
+            )
+
+        printed_end = item.get(
+            "printed_page_end"
+        )
+
+        # ----------------------------------------------------
+        # Parenthetical suffix is part of canonical identity.
+        #
+        # 2.2.5(a)
+        # 2.2.5(b)
+        #
+        # Store:
+        #   number  = 2.2.5
+        #   variant = (a)/(b)
+        # ----------------------------------------------------
+
+        variant = item.get("variant")
+
+        if not variant:
+            match = re.search(
+                r"(\([a-z]+\))$",
+                number,
+                re.IGNORECASE,
+            )
+
+            if match:
+                variant = match.group(1)
+                number = number[
+                    :match.start()
+                ]
+
+        if variant:
+            variant = normalize_space(
+                str(variant)
+            )
+
+            if not variant.startswith("("):
+                variant = f"({variant})"
+
+            variant = variant.lower()
+
+        entries.append(
+            IndexEntry(
+                number=number,
+                title=title,
+                chapter=(
+                    item.get("chapter")
+                    or item.get("chapter_number")
+                ),
+                printed_page_start=int(
+                    printed_start
+                ),
+                printed_page_end=(
+                    int(printed_end)
+                    if printed_end is not None
+                    else None
+                ),
+                variant=variant,
+            )
+        )
+
+    if not entries:
+        raise RuntimeError(
+            "Canonical manifest contains zero entries."
+        )
+
+    validate_index(entries)
+
+    return entries
+
+
+# ============================================================
+# COMPUTE REGULATION RANGES
+# ============================================================
+
+def calculate_ranges(
+    entries: list[IndexEntry],
+    max_printed_page: int,
+) -> list[IndexEntry]:
+    """
+    Calculate regulation ranges strictly in CANONICAL INDEX order.
+
+    The INDEX order is authoritative.
+
+    This is critical because lexical/numeric sorting can produce:
+
+        2.2.10
+        2.2.9
+
+    even though the INDEX contains:
+
+        2.2.9
+        2.2.10
+
+    Such sorting previously caused 2.2.9 to consume the remainder
+    of the document.
+
+    Multiple canonical entries may start on the same page:
+
+        2.2.5(a)
+        2.2.5(b)
+        2.2.6
+
+    Therefore the next INDEX entry is the boundary, not the next
+    numerically sorted regulation number.
+    """
+
+    # IMPORTANT:
+    # Preserve the exact order produced by the canonical INDEX parser.
+    ordered = list(entries)
+
+    result: list[IndexEntry] = []
+
+    for index, entry in enumerate(ordered):
+
+        current = entry
+
+        # Explicit INDEX end page, when available, remains authoritative.
+        if current.printed_page_end is not None:
+
+            end = current.printed_page_end
+
+        elif index + 1 < len(ordered):
+
+            next_entry = ordered[index + 1]
+
+            # The next canonical INDEX entry starts the next
+            # regulation. Therefore the current regulation ends
+            # immediately before it.
+            end = (
+                next_entry.printed_page_start
+                if next_entry.printed_page_start
+                > current.printed_page_start
+                else current.printed_page_start
+            )
+
+        else:
+
+            end = max_printed_page
+
+        # Same-page regulations are NOT allowed to create a
+        # backwards range. They are later separated by their
+        # heading positions during extraction.
+        if end < current.printed_page_start:
+            end = current.printed_page_start
+
+        current.printed_page_end = end
+
+        result.append(current)
+
+    return result
+
+
+# ============================================================
+# REGULATION TEXT
+# ============================================================
+
+def extract_printed_page_range(
+    page_map: PrintedPageMap,
+    pages: list[PageInfo],
+    start: int,
+    end: int,
+) -> tuple[str, int, int]:
+
+    selected: list[str] = []
+
+    pdf_start = page_map.get_pdf_page(
+        start
+    )
+
+    pdf_end = page_map.get_pdf_page(
+        end
+    )
+
+    if pdf_end < pdf_start:
+        raise ValueError(
+            f"Invalid mapped range: "
+            f"{start}-{end}"
+        )
+
+    for pdf_page in range(
+        pdf_start,
+        pdf_end + 1,
+    ):
+
+        page = pages[pdf_page - 1]
+
+        selected.append(
+            page.text
+        )
+
+    return (
+        normalize_space(
+            "\n\n".join(selected)
+        ),
+        pdf_start,
+        pdf_end,
+    )
+
+
+# ============================================================
+# REGULATION MATCHING
+# ============================================================
+
+def existing_regulation_map(
+    db: Session,
+) -> dict[tuple[str, str], RegulationModel]:
+
+    rows = (
+        db.query(
+            RegulationModel
+        )
+        .all()
+    )
+
+    result: dict[
+        tuple[str, str],
+        RegulationModel
+    ] = {}
+
+    for row in rows:
+
+        key = (
+            normalize_number(
+                row.number
+            ),
+            normalize_title(
+                row.title
+            ).lower(),
+        )
+
+        result[key] = row
+
+    return result
+
+
+def regulation_matches(
+    existing: RegulationModel,
+    entry: IndexEntry,
+    text_value: str,
+) -> bool:
+
+    if normalize_number(
+        existing.number
+    ) != normalize_number(
+        entry.number
+    ):
+        return False
+
+    if normalize_title(
+        existing.title
+    ).lower() != normalize_title(
+        entry.title
+    ).lower():
+        return False
+
+    if existing.page_start != (
+        entry.printed_page_start
+    ):
+        return False
+
+    if existing.page_end != (
+        entry.printed_page_end
+    ):
+        return False
+
+    if text_hash(existing.text) != (
+        text_hash(text_value)
+    ):
+        return False
+
+    return True
+
+
+# ============================================================
+# DELETE DEPENDENCIES
+# ============================================================
+
+def delete_regulation_dependencies(
+    db: Session,
+    regulation_id: str,
+):
+    """
+    Delete dependent data before deleting/replacing
+    the regulation.
+
+    We deliberately use ORM queries so this works with
+    the existing models.
+    """
+
+    db.query(
+        RuleModel
+    ).filter(
+        RuleModel.regulation_id
+        == regulation_id
+    ).delete(
+        synchronize_session=False
+    )
+
+    db.query(
+        Table
+    ).filter(
+        Table.regulation_id
+        == regulation_id
+    ).delete(
+        synchronize_session=False
+    )
+
+    db.query(
+        KnowledgeCardModel
+    ).filter(
+        KnowledgeCardModel.regulation_id
+        == regulation_id
+    ).delete(
+        synchronize_session=False
+    )
+
+
+# ============================================================
+# UPSERT
+# ============================================================
+
+def upsert_regulation(
+    db: Session,
+    entry: IndexEntry,
+    text_value: str,
+    source_document: str = "UDCPR",
+    version: str = "2020",
+) -> RebuildRecord:
+
+    existing = (
+    db.query(
+        RegulationModel
+    )
+    .filter(
+        RegulationModel.number
+        == entry.number
+    )
+    .filter(
+        RegulationModel.title
+        == entry.title
+    )
+    .all()
+)
+
+    if len(existing) > 1:
+
+        for row in existing:
+            delete_regulation_dependencies(
+                db,
+                row.id,
+            )
+            db.delete(row)
+
+        db.flush()
+
+        existing = []
+
+    if len(existing) == 1:
+
+        row = existing[0]
+
+        if regulation_matches(
+            row,
+            entry,
+            text_value,
+        ):
+            return RebuildRecord(
+                number=entry.number,
+                chapter=entry.chapter or "",
+                title=entry.title,
+                page_start=(
+                    entry.printed_page_start
+                ),
+                page_end=(
+                    entry.printed_page_end
+                    or entry.printed_page_start
+                ),
+                text_hash=text_hash(
+                    text_value
+                ),
+                status="unchanged",
+                existing_id=row.id,
+                reason=(
+                    "Existing PostgreSQL record "
+                    "matches canonical UDCPR index "
+                    "and extracted page text."
+                ),
+            )
+
+        # Existing regulation is stale/wrong.
+        delete_regulation_dependencies(
+            db,
+            row.id,
+        )
+
+        db.delete(row)
+        db.flush()
+
+        from uuid import uuid4
+
+        row = RegulationModel(
+            id=str(uuid4()),
+            number=entry.number,
+            chapter=entry.chapter or "",
+            title=entry.title,
+            text=text_value,
+            page_start=(
+                entry.printed_page_start
+            ),
+            page_end=(
+                entry.printed_page_end
+                or entry.printed_page_start
+            ),
+            source_document=source_document,
+            version=version,
+            metadata_json={
+                "canonical_source": (
+                    "UDCPR canonical manifest (INDEX pages 5-14)"
+                ),
+                "index_page": INDEX_PDF_PAGE,
+                "pdf_page_range": None,
+                "printed_page_range": [
+                    entry.printed_page_start,
+                    entry.printed_page_end,
+                ],
+                "text_sha256": text_hash(
+                    text_value
+                ),
+            },
+        )
+
+        db.add(row)
+
+        return RebuildRecord(
+            number=entry.number,
+            chapter=entry.chapter or "",
+            title=entry.title,
+            page_start=(
+                entry.printed_page_start
+            ),
+            page_end=(
+                entry.printed_page_end
+                or entry.printed_page_start
+            ),
+            text_hash=text_hash(
+                text_value
+            ),
+            status="replaced",
+            existing_id=row.id,
+            reason=(
+                "Existing record did not match "
+                "canonical index/page content."
+            ),
+        )
+
+    # New regulation.
+    from uuid import uuid4
+
+    row = RegulationModel(
+        id=str(uuid4()),
+        number=entry.number,
+        chapter=entry.chapter or "",
+        title=entry.title,
+        text=text_value,
+        page_start=(
+            entry.printed_page_start
+        ),
+        page_end=(
+            entry.printed_page_end
+            or entry.printed_page_start
+        ),
+        source_document=source_document,
+        version=version,
+        metadata_json={
+            "canonical_source": (
+                "UDCPR canonical manifest (INDEX pages 5-14)"
+            ),
+            "index_page": INDEX_PDF_PAGE,
+            "printed_page_range": [
+                entry.printed_page_start,
+                entry.printed_page_end,
+            ],
+            "text_sha256": text_hash(
+                text_value
+            ),
+        },
+    )
+
+    db.add(row)
+
+    return RebuildRecord(
+        number=entry.number,
+        chapter=entry.chapter or "",
+        title=entry.title,
+        page_start=(
+            entry.printed_page_start
+        ),
+        page_end=(
+            entry.printed_page_end
+            or entry.printed_page_start
+        ),
+        text_hash=text_hash(
+            text_value
+        ),
+        status="inserted",
+        existing_id=row.id,
+        reason="New canonical regulation.",
+    )
+
+
+# ============================================================
+# DRY RUN
+# ============================================================
+
+def build_rebuild_plan(
+    pdf: PDFDocument,
+    manifest_path: str = DEFAULT_CANONICAL_MANIFEST,
+) -> tuple[
+    list[PageInfo],
+    list[IndexEntry],
+    list[RebuildRecord],
+]:
+
+    pages = pdf.read_all_pages()
+
+    if len(pages) < INDEX_PDF_PAGE:
+        raise RuntimeError(
+            "UDCPR PDF has fewer than 5 pages."
+        )
+
+    # ----------------------------------------------------------
+    # IMPORTANT:
+    #
+    # Page 5 has no useful footer page number.
+    # That is expected.
+    #
+    # The index itself contains the printed page numbers.
+    # --------------------------------------------------------
+    # AUTHORITATIVE CANONICAL INDEX
+    # --------------------------------------------------------
+    #
+    # IMPORTANT:
+    #
+    # Do NOT parse only PDF page 5.
+    #
+    # The canonical manifest was generated from the complete
+    # UDCPR INDEX spanning PDF pages 5-14.
+    #
+    # It contains all 329 canonical regulations.
+    # --------------------------------------------------------
+
+    entries = load_canonical_manifest(
+        manifest_path
+    )
+
+    print()
+    print("=" * 100)
+    print("CANONICAL UDCPR INDEX")
+    print("=" * 100)
+
+    for entry in entries[:40]:
+
+        print(
+            f"{entry.canonical_key:16} | "
+            f"{entry.title[:75]:75} | "
+            f"PAGE {entry.printed_page_start}"
+        )
+
+    print()
+    print(
+        f"INDEX ENTRIES: {len(entries)}"
+    )
+
+    validate_index(entries)
+
+    # ----------------------------------------------------------
+    # Validate canonical identity.
+    # ----------------------------------------------------------
+
+    validate_index(
+        entries
+    )
+
+    # ----------------------------------------------------------
+    # Build printed-page map.
+    #
+    # We need actual PDF page -> printed page mapping.
+    # ----------------------------------------------------------
+
+    page_map = PrintedPageMap(
+        pages
+    )
+
+    # ----------------------------------------------------------
+    # Verify every index page exists in PDF.
+    # ----------------------------------------------------------
+
+    for entry in entries:
+
+        try:
+
+            page_map.get_pdf_page(
+                entry.printed_page_start
+            )
+
+        except Exception as exc:
+
+            raise RuntimeError(
+                "INDEX PAGE MAPPING FAILED: "
+                f"{entry.canonical_key} "
+                f"requires printed page "
+                f"{entry.printed_page_start}: "
+                f"{exc}"
+            ) from exc
+
+    # ----------------------------------------------------------
+    # Determine end page from the next canonical entry.
+    #
+    # This happens ONLY after page-5 parsing has succeeded.
+    # ----------------------------------------------------------
+
+    ordered = sorted(
+        entries,
+        key=lambda x: (
+            x.printed_page_start,
+            x.canonical_key,
+        ),
+    )
+
+    calculated: list[IndexEntry] = []
+
+    for i, entry in enumerate(
+        ordered
+    ):
+
+        if (
+            entry.printed_page_end
+            is not None
+        ):
+            end_page = (
+                entry.printed_page_end
+            )
+
+        elif i + 1 < len(ordered):
+
+            next_entry = ordered[
+                i + 1
+            ]
+
+            # Same page is valid. It means several
+            # regulations begin on the same printed page.
+            #
+            # We do NOT subtract 1 when the next regulation
+            # starts on the same page.
+            if (
+                next_entry.printed_page_start
+                == entry.printed_page_start
+            ):
+                end_page = (
+                    entry.printed_page_start
+                )
+            else:
+                end_page = (
+                    next_entry.printed_page_start
+                    - 1
+                )
+
+        else:
+
+            # Last indexed entry before regional-language
+            # material.
+            end_page = (
+                REGIONAL_LANGUAGE_PRINTED_PAGE
+            )
+
+        calculated.append(
+            IndexEntry(
+                number=entry.number,
+                title=entry.title,
+                chapter=entry.chapter,
+                printed_page_start=(
+                    entry.printed_page_start
+                ),
+                printed_page_end=end_page,
+                variant=entry.variant,
+            )
+        )
+
+    entries = calculated
+
+    # ----------------------------------------------------------
+    # PostgreSQL comparison.
+    # ----------------------------------------------------------
+
+    db = SessionLocal()
+
+    records: list[RebuildRecord] = []
+
+    try:
+
+        existing = existing_regulation_map(
+            db
+        )
+
+        for entry in entries:
+
+            try:
+
+                text_value, pdf_start, pdf_end = (
+                    extract_printed_page_range(
+                        page_map,
+                        pages,
+                        entry.printed_page_start,
+                        entry.printed_page_end
+                        or entry.printed_page_start,
+                    )
+                )
+
+                # Existing DB lookup must account for variants.
+                existing_row = existing.get(
+    (
+        normalize_number(
+            entry.number
+        ),
+        normalize_title(
+            entry.title
+        ).lower(),
+    )
+)
+
+                if existing_row is None:
+
+                    status = "inserted"
+
+                    reason = (
+                        "No existing PostgreSQL "
+                        "regulation."
+                    )
+
+                    existing_id = None
+
+                else:
+
+                    # For a normal regulation compare normally.
+                    #
+                    # For variants such as 2.2.5(a)/(b),
+                    # title comparison prevents accidental
+                    # merging.
+                    if regulation_matches(
+                        existing_row,
+                        entry,
+                        text_value,
+                    ):
+
+                        status = "unchanged"
+
+                        reason = (
+                            "Existing record matches "
+                            "canonical UDCPR index "
+                            "and extracted PDF pages."
+                        )
+
+                    else:
+
+                        status = "replaced"
+
+                        reason = (
+                            "Existing record differs "
+                            "from canonical UDCPR "
+                            "content."
+                        )
+
+                    existing_id = (
+                        existing_row.id
+                    )
+
+                records.append(
+                    RebuildRecord(
+                        number=entry.canonical_key,
+                        chapter=(
+                            entry.chapter or ""
+                        ),
+                        title=entry.title,
+                        page_start=(
+                            entry.printed_page_start
+                        ),
+                        page_end=(
+                            entry.printed_page_end
+                            or entry.printed_page_start
+                        ),
+                        text_hash=text_hash(
+                            text_value
+                        ),
+                        status=status,
+                        existing_id=existing_id,
+                        reason=(
+                            reason
+                            + f" PDF pages "
+                            f"{pdf_start}-{pdf_end}."
+                        ),
+                    )
+                )
+
+            except Exception as exc:
+
+                records.append(
+                    RebuildRecord(
+                        number=entry.canonical_key,
+                        chapter=(
+                            entry.chapter
+                            or ""
+                        ),
+                        title=entry.title,
+                        page_start=(
+                            entry.printed_page_start
+                        ),
+                        page_end=(
+                            entry.printed_page_end
+                            or entry.printed_page_start
+                        ),
+                        text_hash="",
+                        status="ERROR",
+                        reason=str(exc),
+                    )
+                )
+
+    finally:
+        db.close()
+
+    return (
+        pages,
+        entries,
+        records,
+    )
+# ============================================================
+# APPLY
+# ============================================================
+
+def apply_rebuild(
+    pdf: PDFDocument,
+    pages: list[PageInfo],
+    entries: list[IndexEntry],
+):
+    page_map = PrintedPageMap(
+        pages
+    )
+
+    db = SessionLocal()
+
+    try:
+
+        records: list[RebuildRecord] = []
+
+        for index, entry in enumerate(
+            entries,
+            start=1,
+        ):
+
+            LOG.info(
+                "[%s/%s] %s %s",
+                index,
+                len(entries),
+                entry.number,
+                entry.title,
+            )
+
+            text_value, pdf_start, pdf_end = (
+                extract_printed_page_range(
+                    page_map,
+                    pages,
+                    entry.printed_page_start,
+                    entry.printed_page_end
+                    or entry.printed_page_start,
+                )
+            )
+
+            record = upsert_regulation(
+                db,
+                entry,
+                text_value,
+            )
+
+            # Save exact PDF range in metadata.
+            if record.existing_id:
+
+                row = db.get(
+                    RegulationModel,
+                    record.existing_id,
+                )
+
+                if row:
+                    metadata = dict(
+                        row.metadata_json
+                        or {}
+                    )
+
+                    metadata[
+                        "pdf_page_range"
+                    ] = [
+                        pdf_start,
+                        pdf_end,
+                    ]
+
+                    metadata[
+                        "printed_page_range"
+                    ] = [
+                        entry.printed_page_start,
+                        entry.printed_page_end,
+                    ]
+
+                    row.metadata_json = (
+                        metadata
+                    )
+
+            records.append(
+                record
+            )
+
+            # Commit each regulation so one bad
+            # record doesn't leave a giant transaction.
+            db.commit()
+
+        LOG.info(
+            "PostgreSQL rebuild completed: %s "
+            "regulations.",
+            len(records),
+        )
+
+        return records
+
+    except Exception:
+        db.rollback()
+        raise
+
+    finally:
+        db.close()
+
+
+# ============================================================
+# GOVERNMENT ORDERS
+# ============================================================
+
+def extract_government_order_pages(
+    pages: list[PageInfo],
+) -> dict[str, Any]:
+
+    """
+    Pages 3-4 are preserved as government-order material.
+
+    This first version does not attempt to invent a
+    regulation relationship.
+    """
+
+    selected = []
+
+    for pdf_page in sorted(
+        GOVERNMENT_ORDER_PDF_PAGES
+    ):
+
+        if pdf_page > len(pages):
+            continue
+
+        page = pages[
+            pdf_page - 1
+        ]
+
+        selected.append(
+            {
+                "pdf_page": pdf_page,
+                "printed_page": (
+                    page.printed_page
+                ),
+                "text": page.text,
+            }
+        )
+
+    combined = "\n\n".join(
+        x["text"]
+        for x in selected
+    )
+
+    return {
+        "document_type": "government_order",
+        "source_document": "UDCPR",
+        "pdf_pages": selected,
+        "text": combined,
+        "text_sha256": text_hash(
+            combined
+        ),
+    }
+
+
+# ============================================================
+# REGIONAL LANGUAGE
+# ============================================================
+
+def classify_regional_pages(
+    pages: list[PageInfo],
+) -> list[dict[str, Any]]:
+
+    result = []
+
+    for page in pages:
+
+        if (
+            page.printed_page is not None
+            and page.printed_page
+            > REGIONAL_LANGUAGE_PRINTED_PAGE
+        ):
+            result.append(
+                {
+                    "pdf_page": page.pdf_page,
+                    "printed_page": (
+                        page.printed_page
+                    ),
+                    "document_type": (
+                        "regional_language"
+                    ),
+                    "text": page.text,
+                }
+            )
+
+    return result
+
+
+# ============================================================
+# REPORT
+# ============================================================
+
+def save_report(
+    output: Path,
+    pages: list[PageInfo],
+    entries: list[IndexEntry],
+    records: list[RebuildRecord],
+):
+
+    output.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    payload = {
+        "pdf": str(output),
+        "index_pdf_page": INDEX_PDF_PAGE,
+        "ignored_pdf_pages": sorted(
+            IGNORE_PDF_PAGES
+        ),
+        "government_order_pdf_pages": sorted(
+            GOVERNMENT_ORDER_PDF_PAGES
+        ),
+        "regional_language_after_printed_page": (
+            REGIONAL_LANGUAGE_PRINTED_PAGE
+        ),
+        "page_count": len(pages),
+        "index_entries": [
+            asdict(x)
+            for x in entries
+        ],
+        "records": [
+            asdict(x)
+            for x in records
+        ],
+    }
+
+    output.write_text(
+        json.dumps(
+            payload,
+            indent=2,
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--pdf",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--manifest",
+        default=DEFAULT_CANONICAL_MANIFEST,
+        help=(
+            "Canonical UDCPR manifest generated from "
+            "the complete INDEX pages 5-14."
+        ),
+    )
+
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "--report",
+        default=(
+            "/tmp/"
+            "udcpr_rebuild/"
+            "rebuild_report.json"
+        ),
+    )
+
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format=(
+            "%(asctime)s "
+            "%(levelname)s "
+            "%(message)s"
+        ),
+    )
+
+    pdf_path = Path(
+        args.pdf
+    )
+
+    if not pdf_path.exists():
+        raise FileNotFoundError(
+            pdf_path
+        )
+
+    LOG.info(
+        "UDCPR DATABASE REBUILD"
+    )
+
+    LOG.info(
+        "PDF: %s",
+        pdf_path,
+    )
+
+    pdf = PDFDocument(
+        str(pdf_path)
+    )
+
+    try:
+
+        pages, entries, records = (
+            build_rebuild_plan(pdf, args.manifest)
+        )
+
+        print()
+        print("=" * 100)
+        print("UDCPR CANONICAL REBUILD")
+        print("=" * 100)
+
+        print(
+            f"PDF pages       : {len(pages)}"
+        )
+
+        print(
+            f"Index entries   : {len(entries)}"
+        )
+
+        print()
+        print(
+            "REGULATION PLAN"
+        )
+        print("-" * 100)
+
+        for record in records:
+
+            print(
+                f"{record.status:10} "
+                f"{record.number:15} "
+                f"{record.page_start:4}-"
+                f"{record.page_end:<4} "
+                f"{record.title}"
+            )
+
+        errors = [
+            x
+            for x in records
+            if x.status == "ERROR"
+        ]
+
+        if errors:
+
+            print()
+            print(
+                "ERRORS DETECTED"
+            )
+
+            for error in errors:
+                print(
+                    f" - {error.number}: "
+                    f"{error.reason}"
+                )
+
+            raise SystemExit(
+                "Dry-run aborted because "
+                "canonical mappings contain errors."
+            )
+
+        report_path = Path(
+            args.report
+        )
+
+        save_report(
+            report_path,
+            pages,
+            entries,
+            records,
+        )
+
+        print()
+        print(
+            f"Report: {report_path}"
+        )
+
+        if not args.apply:
+
+            print()
+            print(
+                "=" * 100
+            )
+            print(
+                "DRY-RUN COMPLETE"
+            )
+            print(
+                "=" * 100
+            )
+
+            print(
+                "No PostgreSQL records were modified."
+            )
+
+            print()
+            print(
+                "Review the report and run "
+                "again with --apply."
+            )
+
+            return
+
+        print()
+        print(
+            "=" * 100
+        )
+        print(
+            "APPLYING POSTGRESQL REBUILD"
+        )
+        print(
+            "=" * 100
+        )
+
+        applied = apply_rebuild(
+            pdf,
+            pages,
+            entries,
+        )
+
+        print()
+        print(
+            "APPLY COMPLETE"
+        )
+
+        from collections import Counter
+
+        counts = Counter(
+            x.status
+            for x in applied
+        )
+
+        for key, value in sorted(
+            counts.items()
+        ):
+            print(
+                f"{key:12}: {value}"
+            )
+
+    finally:
+        pdf.close()
+
+
+if __name__ == "__main__":
+    main()

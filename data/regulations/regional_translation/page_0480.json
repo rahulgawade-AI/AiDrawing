@@ -1,0 +1,72 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 480,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0480.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\nमहाराष्ट्र शासन\nनगर विकास विभाग\nमादाम कामा मार्ग, हुतात्मा राजगुरु चौक, मंत्रालय, मुंबई - ४०० ०३२.\nEmail ID : soudd12-mh@mah.gov.in\nआदेश क्र.९\nक्रमांक:- टिपीएस-१८१८/प्र.क्र.२३६/१८(भाग-२)/नवि-१३ दिनांक :- १२ ऑक्टोबर, २०२२.\nविषय :-  एकत्रिकृत विकास नियंत्रण व प्रोत्साहन नियमावली (UDCPR) मंजूर नियमावलीमधील विनियम क्र.१.९(v) अन्वये स्पष्टीकरण देणेबाबत.\nसंदर्भ :-  १) शासनाचे आदेश क्र.टिपीएस-१८१८/प्र.क्र.२३६/१८(भाग-२)/नवि-१३, दि.१४/१/२०२१. (स्पष्टीकरण आदेश क्र.१)\n२) शासनाचे आदेश क्र.टिपीएस-१८२१/३४०/प्र.क्र.६८/२०२१/नवि-१३, दि.१०/५/२०२१. (स्पष्टीकरण आदेश क्र.२)\n३) शासनाचे आदेश क्र.टिपीएस-१२२१/९९०/प्र.क्र.४४/२१/नवि-१२, दि.१०/६/२०२१. (स्पष्टीकरण आदेश क्र.३)\n४) शासनाचे आदेश क्र.टिपीएस-१२२१/९०३९/प्र.क्र.४२/२१/नवि-१२, दि.१४/६/२०२१. (स्पष्टीकरण आदेश क्र.४)\n५) शासनाचे आदेश क्र.टिपीएस-१८१८/प्र.क्र.२३६/१८(भाग-२)/नवि-१३, दि.१७/९/२०२१. (स्पष्टीकरण आदेश क्र.५)\n६) शासनाचे आदेश क्र.टिपीएस-१८१८/प्र.क्र.२३६/१८(भाग-२)/नवि-१३, दि.२३/१२/२०२१. (स्पष्टीकरण आदेश क्र.६)\n७) शासनाचे आदेश क्र.टिपीएस-१८२१/९३३/नवि-१३, दि.२३/१२/२०२१. (स्पष्टीकरण आदेश क्र.७)\n८) शासनाचे आदेश क्र.टिपीएस-१८१८/२३६/१८(भाग-२)/नवि-१३, दि.२६/९/२०२२. (स्पष्टीकरण आदेश क्र.८)\nज्याअर्थी, शासनाने अधिसूचना क्र. टिपीएस १८१८/प्र.क्र.३३६/१८/कलम ३७(१कक)(ग) व कलम २०(४)/नवि-१३, दि.०२/१२/२०२० अन्वये राज्यातील सर्व नियोजन प्राधिकरणे (काही अपवाद वगळता) आणि प्रादेशिक योजना क्षेत्राकरिता एकत्रिकृत विकास नियंत्रण व प्रोत्साहन नियमावली मंजूर केली असून ती दि.०३/१२/२०२० पासून अंमलात आली आहे;\nआणि ज्याअर्थी, शासनाने महाराष्ट्र प्रादेशिक नियोजन व नगर रचना अधिनियम, १९६६ (यापुढे ज्याचा उल्लेख \"उक्त अधिनियम\" असा केलेला आहे) चे कलम ३७(१कक) अन्वये दि.२/१२/२०२० रोजी सुचना प्रसिध्द केली आहे. त्यानुसार सदरची प्रारूप नियमावली ही \"सिडको\n464",
+  "translated_english_text": "UDCPR-2020\nMaharashtra Government\nNagar Vikas Vibhag\nMadam Kama Marg, Hutatma Rajguru Chowk, Ministry, Mumbai - 400 032.\nEmail ID : soudd12-mh@mah.gov.in\nOrder No. 9\nNo.: TPS-1818/Pr. Kr. 236/18 (Part-2)/Navi-13 Date: 12 October, 2022.\nSubject: Regarding the Explanation of Regulation 1.9(v) of the Approved Regulation of the Unified Development Control and Promotion Regulations (UDCPR).\nReference: 1) Government Order No. TPS-1818/Pr. Kr. 236/18 (Part-2)/Navi-13, dated 14/1/2021. (Explanation Order No. 1)\n2) Government Order No. TPS-1821/340/Pr. Kr. 68/2021/Navi-13, dated 10/5/2021. (Explanation Order No. 2)\n3) Government Order No. TPS-1221/990/Pr. Kr. 44/21/Navi-12, dated 10/6/2021. (Explanation Order No. 3)\n4) Government Order No. TPS-1221/9039/Pr. Kr. 42/21/Navi-12, dated 14/6/2021. (Explanation Order No. 4)\n5) Government Order No. TPS-1818/Pr. Kr. 236/18 (Part-2)/Navi-13, dated 17/9/2021. (Explanation Order No. 5)\n6) Government Order No. TPS-1818/Pr. Kr. 236/18 (Part-2)/Navi-13, dated 23/12/2021. (Explanation Order No. 6)\n7) Government Order No. TPS-1821/933/Navi-13, dated 23/12/2021. (Explanation Order No. 7)\n8) Government Order No. TPS-1818/236/18 (Part-2)/Navi-13, dated 26/9/2022. (Explanation Order No. 8)\nWhereby, the Government has issued Notification No. TPS 1818/Pr. Kr. 336/18/Section 37(1kk)(g) and Section 20(4)/Navi-13, dated 02/12/2020, approving the Unified Development Control and Promotion Regulations for all planning authorities (except some exceptions) and regional planning areas, which came into force from 03/12/2020;\nand whereby, the Government has issued the Notification dated 02/12/2020 under Section 37(1kk) of the Maharashtra Regional Planning and Town Planning Act, 1966 (hereinafter referred to as \"the said Act\"). Accordingly, the said model regulation is \"Siddhko\n464",
+  "validation": {
+    "original_regulation_numbers": [
+      "1.9(v)"
+    ],
+    "translated_regulation_numbers": [
+      "1.9(v)"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [
+      "14/1/2021",
+      "10/5/2021",
+      "10/6/2021",
+      "14/6/2021",
+      "17/9/2021",
+      "23/12/2021",
+      "26/9/2022",
+      "02/12/2020",
+      "03/12/2020",
+      "2/12/2020"
+    ],
+    "translated_dates": [
+      "14/1/2021",
+      "10/5/2021",
+      "10/6/2021",
+      "14/6/2021",
+      "17/9/2021",
+      "23/12/2021",
+      "26/9/2022",
+      "02/12/2020",
+      "03/12/2020"
+    ],
+    "missing_dates": [
+      "2/12/2020"
+    ],
+    "original_emails": [
+      "soudd12-mh@mah.gov.in"
+    ],
+    "translated_emails": [
+      "soudd12-mh@mah.gov.in"
+    ],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [
+      "TPS-1818/Pr. Kr. 236/18 (Part-2)/Navi-13 Date: 12 October",
+      "TPS-1818/Pr. Kr. 236/18 (Part-2)/Navi-13",
+      "TPS-1821/340/Pr. Kr. 68/2021/Navi-13",
+      "TPS-1221/990/Pr. Kr. 44/21/Navi-12",
+      "TPS-1221/9039/Pr. Kr. 42/21/Navi-12",
+      "TPS-1821/933/Navi-13",
+      "TPS-1818/236/18 (Part-2)/Navi-13",
+      "TPS-1818/Pr. Kr. 236/18 (Part-2)/Navi-13 Date"
+    ],
+    "missing_notification_numbers": [],
+    "passed": false
+  },
+  "statistics": {
+    "source_characters": 1684,
+    "translated_characters": 1820,
+    "elapsed_seconds": 154.41
+  }
+}

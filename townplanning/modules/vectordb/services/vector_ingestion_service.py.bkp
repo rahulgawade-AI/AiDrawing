@@ -1,0 +1,63 @@
+from __future__ import annotations
+
+from townplanning.modules.chunking.services.chunking_service import (
+    ChunkingService,
+)
+from townplanning.modules.embeddings.services.embedding_service import (
+    EmbeddingService,
+)
+from townplanning.modules.retrieval.domain.source_document import (
+    SourceDocument,
+)
+from townplanning.modules.vectordb.repositories.base_repository import (
+    BaseVectorRepository,
+)
+
+
+class VectorIngestionService:
+    """
+    Complete ingestion pipeline.
+
+    SourceDocument
+        ↓
+    Chunking
+        ↓
+    Embedding
+        ↓
+    ChromaDB
+    """
+
+    def __init__(
+        self,
+        chunking_service: ChunkingService,
+        embedding_service: EmbeddingService,
+        repository: BaseVectorRepository,
+    ) -> None:
+
+        self.chunking = chunking_service
+
+        self.embedding = embedding_service
+
+        self.repository = repository
+
+    def ingest(
+        self,
+        document: SourceDocument,
+    ) -> int:
+
+        chunks = self.chunking.chunk_document(
+            document,
+        )
+
+        if not chunks:
+            return 0
+
+        records = self.embedding.embed_chunks(
+            chunks,
+        )
+
+        self.repository.add(
+            records,
+        )
+
+        return len(records)

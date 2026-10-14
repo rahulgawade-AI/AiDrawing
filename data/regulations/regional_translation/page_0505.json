@@ -1,0 +1,80 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 505,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0505.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "महाराष्ट्र शासन\nनगर विकास विभाग\nमादाम कामा मार्ग, हुतात्मा राजगुरु चौक, मंत्रालय, मुंबई - ४०० ०३२.\nदुरध्वनी क्र.०२२-२२७९४१९६\nEmail ID : kishor.gokhale@gov.in\nआदेश क्र. १२\nक्रमांक:-टिपीएस-१८१८/प्र.क्र.५४/२०२३/नवि-१३\nदिनांक:-२८.०८.२०२३.\nविषय :- मंजूर एकत्रिकृत विकास नियंत्रण व प्रोत्साहन नियमावली (UDCPR) मधील विनियम क्र.१४.२.१.२.४ संदर्भात स्पष्टीकरण देणेबाबत.\nसंदर्भ :- १) शासनाचे आदेश क्र.टिपीएस-१८१८/प्र.क्र.२३६/१८(भाग-२)/नवि-१३,\nदि.१४/१/२०२१. (स्पष्टीकरण आदेश क्र.१)\n२) शासनाचे आदेश क्र.टिपीएस-१८२१/३४०/प्र.क्र.६८/२०२१/नवि-१३, दि.१०/५/२०२१. (स्पष्टीकरण आदेश क्र.२)\n३) शासनाचे आदेश क्र.टिपीएस-१२२१/९९०/प्र.क्र.४४/२१/नवि-१२, दि.१०/६/२०२१. (स्पष्टीकरण आदेश क्र.३)\n४) शासनाचे आदेश क्र.टिपीएस-१२२१/१०३९/प्र.क्र.४२/२१/नवि-१२, दि.१४/६/२०२१. (स्पष्टीकरण आदेश क्र.४)\n५) शासनाचे आदेश क्र.टिपीएस-१८१८/प्र.क्र.२३६/१८(भाग-२)/नवि-१३, दि.१७/९/२०२१. (स्पष्टीकरण आदेश क्र.५)\n६) शासनाचे आदेश क्र.टिपीएस-१८१८/प्र.क्र.२३६/१८(भाग-२)/नवि-१३, दि.२३/१२/२०२१. (स्पष्टीकरण आदेश क्र.६)\n७) शासनाचे आदेश क्र.टिपीएस-१८२१/९३३/नवि-१३, दि.२३/१२/२०२१. (स्पष्टीकरण आदेश क्र.७)\n८) शासनाचे आदेश क्र.टिपीएस-१८१८/२३६/१८(भाग-२)/नवि-१३, दि.२६/९/२०२२ (स्पष्टीकरण आदेश क्र.८)\n९) शासनाचे आदेश क्र.टिपीएस-१८१८/२३६/१८(भाग-२)/नवि-१३, दि.१२/१०/२०२२ (स्पष्टीकरण आदेश क्र.९)\n१०) शासनाचे आदेश क्र.टिपीएस-१८१८/२३६/१८(भाग-२)/नवि-१३, दि.१२/१०/२०२२ (स्पष्टीकरण आदेश क्र.१०)\n११) शासनाचे आदेश क्र.टिपीएस-१८२१/२०२३/प्र.क्र.१०४/२०२२/नवि-३०, दि.२९/११/२०२२ (स्पष्टीकरण आदेश क्र.११)\n१२) शासनाचे आदेश क्र.टिपीएस-१८२१/२०२३/प्र.क्र.१०४/२०२२/नवि-३०, दि.०२/०६/२०२३ (शुध्दीपत्रक, आदेश क्र.११ संदर्भात)\nज्याअर्थी, शासनाने अधिसूचना क्र. टिपीएस १८१८/प्र.क्र.३३६/१८/कलम ३७(१कक)(ग) व कलम २०(४)/नवि-१३, दि.०२/१२/२०२० अन्वये राज्यातील सर्व नियोजन प्राधिकरणे (काही अपवाद वगळता) आणि प्रादेशिक योजना क्षेत्राकरिता एकत्रिकृत विकास नियंत्रण व प्रोत्साहन नियमावली मंजूर केली असून ती दि. ०३/१२/२०२० पासून अंमलात आली आहे;\n489",
+  "translated_english_text": "Maharashtra Government  \nUrban Development Department  \nMadam Kama Marg, Hutatma Rajguru Chowk, Ministry, Mumbai - 400 032.  \nPhone No. 022-22794196  \nEmail ID : kishor.gokhale@gov.in  \nOrder No. 12  \nSerial No.:-TPS-1818/Pr. No. 54/2023/Nav-13  \nDate:-28.08.2023.  \nSubject :- Clarification regarding Regulation No. 14.2.1.2.4 of the Approved Unified Development Control and Promotion Regulations (UDCPR).  \nReference :- 1) Government Order No. TPS-1818/Pr. No. 236/18 (Part-2)/Nav-13, dated 14/1/2021. (Clarification Order No. 1)  \n2) Government Order No. TPS-1821/340/Pr. No. 68/2021/Nav-13, dated 10/5/2021. (Clarification Order No. 2)  \n3) Government Order No. TPS-1221/990/Pr. No. 44/21/Nav-12, dated 10/6/2021. (Clarification Order No. 3)  \n4) Government Order No. TPS-1221/1039/Pr. No. 42/21/Nav-12, dated 14/6/2021. (Clarification Order No. 4)  \n5) Government Order No. TPS-1818/Pr. No. 236/18 (Part-2)/Nav-13, dated 17/9/2021. (Clarification Order No. 5)  \n6) Government Order No. TPS-1818/Pr. No. 236/18 (Part-2)/Nav-13, dated 23/12/2021. (Clarification Order No. 6)  \n7) Government Order No. TPS-1821/933/Nav-13, dated 23/12/2021. (Clarification Order No. 7)  \n8) Government Order No. TPS-1818/236/18 (Part-2)/Nav-13, dated 26/9/2022 (Clarification Order No. 8)  \n9) Government Order No. TPS-1818/236/18 (Part-2)/Nav-13, dated 12/10/2022 (Clarification Order No. 9)  \n10) Government Order No. TPS-1821/2023/Pr. No. 104/2022/Nav-30, dated 29/11/2022 (Clarification Order No. 11)  \n11) Government Order No. TPS-1821/2023/Pr. No. 104/2022/Nav-30, dated 02/06/2023 (Amendment Document, regarding Order No. 11)  \nWhereby, the Government has, by Notification No. TPS 1818/Pr. No. 336/18/Section 37(1)(g) and Section 20(4)/Nav-13, dated 02/12/2020, approved the Unified Development Control and Promotion Regulations for all Planning Authorities (except some exceptions) and for Regional Plan Areas, which came into force from 03/12/2020;",
+  "validation": {
+    "original_regulation_numbers": [
+      "28.08.2023",
+      "14.2.1.2.4"
+    ],
+    "translated_regulation_numbers": [
+      "28.08.2023",
+      "14.2.1.2.4"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [
+      "28.08.2023",
+      "14/1/2021",
+      "10/5/2021",
+      "10/6/2021",
+      "14/6/2021",
+      "17/9/2021",
+      "23/12/2021",
+      "26/9/2022",
+      "12/10/2022",
+      "29/11/2022",
+      "02/06/2023",
+      "02/12/2020",
+      "03/12/2020"
+    ],
+    "translated_dates": [
+      "28.08.2023",
+      "14/1/2021",
+      "10/5/2021",
+      "10/6/2021",
+      "14/6/2021",
+      "17/9/2021",
+      "23/12/2021",
+      "26/9/2022",
+      "12/10/2022",
+      "29/11/2022",
+      "02/06/2023",
+      "02/12/2020",
+      "03/12/2020"
+    ],
+    "missing_dates": [],
+    "original_emails": [
+      "kishor.gokhale@gov.in"
+    ],
+    "translated_emails": [
+      "kishor.gokhale@gov.in"
+    ],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [
+      "TPS-1818/Pr. No. 54/2023/Nav-13 Date:-28.08.2023. Subject :- Clarification regarding Regulation No. 14.2.1.2.4 of the Approved Unified Development Control and Promotion Regulations (UDCPR). Reference :- 1) Government Order No. TPS-1818/Pr. No. 236/18 (Part-2)/Nav-13",
+      "TPS-1821/340/Pr. No. 68/2021/Nav-13",
+      "TPS-1221/990/Pr. No. 44/21/Nav-12",
+      "TPS-1221/1039/Pr. No. 42/21/Nav-12",
+      "TPS-1818/Pr. No. 236/18 (Part-2)/Nav-13",
+      "TPS-1821/933/Nav-13",
+      "TPS-1818/236/18 (Part-2)/Nav-13",
+      "TPS-1821/2023/Pr. No. 104/2022/Nav-30",
+      "TPS-1818/Pr. No. 54/2023/Nav-13 Date"
+    ],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 1846,
+    "translated_characters": 1942,
+    "elapsed_seconds": 172.09
+  }
+}

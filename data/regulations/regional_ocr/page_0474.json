@@ -1,0 +1,71 @@
+{
+  "schema": "udcpr.regional.ocr.v3",
+  "created_at": "2026-09-02T14:41:15.827704",
+  "pdf_page": 474,
+  "dpi": 200,
+  "image": "data/regulations/regional_ocr/page_0474.png",
+  "ocr_engine": "surya",
+  "ocr_mode": "full_page",
+  "language": "automatic_multilingual",
+  "text": "UDCPR-2020\n458",
+  "lines": [
+    {
+      "block_index": 0,
+      "text": "UDCPR-2020",
+      "classification": "english",
+      "confidence": 0.8258246568716572,
+      "polygon": [
+        [
+          1310.7,
+          6.6000000000000005
+        ],
+        [
+          1480.7,
+          6.6000000000000005
+        ],
+        [
+          1480.7,
+          41.8
+        ],
+        [
+          1310.7,
+          41.8
+        ]
+      ],
+      "label": "PageHeader"
+    },
+    {
+      "block_index": 1,
+      "text": "458",
+      "classification": "unknown",
+      "confidence": 0.8258246568716572,
+      "polygon": [
+        [
+          1407.6,
+          2061.4
+        ],
+        [
+          1480.7,
+          2061.4
+        ],
+        [
+          1480.7,
+          2105.4
+        ],
+        [
+          1407.6,
+          2105.4
+        ]
+      ],
+      "label": "PageFooter"
+    }
+  ],
+  "statistics": {
+    "line_count": 2,
+    "regional_lines": 0,
+    "english_lines": 1,
+    "mixed_lines": 0,
+    "regional_or_mixed_lines": 0,
+    "character_count": 14
+  }
+}

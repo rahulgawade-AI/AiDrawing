@@ -1,0 +1,110 @@
+"""
+Persists extracted regulations into the database.
+"""
+
+from sqlalchemy.orm import Session
+from townplanning.modules.regulations.ingestion.regulation_document import (
+    RegulationDocument,
+)
+from townplanning.infrastructure.database.repositories import (
+    SQLAlchemyKnowledgeRepository,
+    SQLAlchemyRegulationRepository,
+    SQLAlchemyRuleRepository,
+)
+
+
+class PersistenceService:
+
+    def __init__(
+        self,
+        session: Session,
+    ):
+
+        self.session = session
+
+        self.regulation_repository = (
+            SQLAlchemyRegulationRepository(session)
+        )
+
+        self.knowledge_repository = (
+            SQLAlchemyKnowledgeRepository(session)
+        )
+
+        self.rule_repository = (
+            SQLAlchemyRuleRepository(session)
+        )
+
+    # ---------------------------------------------------------
+
+    def persist(
+        self,
+        regulation,
+        knowledge,
+        rules,
+    ):
+
+        try:
+
+            # -----------------------------------------
+            # Save Regulation
+            # -----------------------------------------
+
+            self.regulation_repository.save(
+                regulation
+            )
+
+            # Flush parent so FK exists
+            self.session.flush()
+
+            # -----------------------------------------
+            # Save Knowledge Card
+            # -----------------------------------------
+
+            self.knowledge_repository.save(
+                knowledge
+            )
+
+            self.session.flush()
+
+            # -----------------------------------------
+            # Save Rules
+            # -----------------------------------------
+
+            for rule in rules:
+
+                self.rule_repository.save(
+                    rule
+                )
+
+            # -----------------------------------------
+            # Commit everything
+            # -----------------------------------------
+
+            self.session.commit()
+
+            return {
+
+                "regulation": regulation,
+
+                "knowledge": knowledge,
+
+                "rules": rules,
+            }
+
+        except Exception as exc:
+
+            self.session.rollback()
+
+            raise exc
+
+    # ---------------------------------------------------------
+
+    def rollback(self):
+
+        self.session.rollback()
+
+    # ---------------------------------------------------------
+
+    def close(self):
+
+        self.session.close()

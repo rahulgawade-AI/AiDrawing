@@ -1,0 +1,36 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 451,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0451.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\nभविष्यामधील मंजूर रेखांकनानुसार अनुज्ञेय आहे. तसेच तक्ता क्र.६D नुसार रस्त्याच्या रुंदीनुसार किमान भूखंडाचे क्षेत्र, इमारतीपासून सोडावयाचे सामासिक अंतरे व इमारत उंची नमूद असून त्याखालील नोट क्र.१३ नुसार पुर्व मंजूर रेखांकनामधील विकास हा पुर्व मंजूर रेखांकनानुसार करावयाचा आहे. त्यामुळे सिडकोच्या १२.५% भूखंडासाठी सामासिक अंतराबाबत वेगळ्या विनियमाची आवश्यकता नाही. तसेच संपूर्ण अनुज्ञेय चटई क्षेत्र निर्देशांक वापरणे बंधनकारक नाही.\nआपला\n(पु.म.शिंदे) कार्यासन अधिकारी\nप्रत माहितीसाठी व उचित कार्यवाहीसाठी:\n१) व्यवस्थापकीय संचालक, सिडको, सिडको भवन, बेलापूर, नवी मुंबई. \n २) संचालक, नगर रचना, महाराष्ट्र राज्य, पुणे. \n ३) सहसंचालक, नगर रचना, कोकण विभाग, नवी मुंबई. \n ४) सहायक संचालक, नगर रचना, अलिबाग शाखा, रायगड.\n435",
+  "translated_english_text": "UDCPR-2020\nAuthorization is granted as per the future approved plan. Likewise, as per Table No. 6D, minimum plot area as per road width, social distances and building height are specified, and as per Note No. 13, development in the previously approved plan is to be done as per the previously approved plan. Therefore, there is no need for a separate regulation regarding social distance for Sidco's 12.5% plot area. Additionally, the use of the entire authorized plot area reference is not mandatory.\nP. M. Shinde\nDesignation Officer\nFor information and proper action:\n1) Administrative Officer, Sidco, Sidco Building, Belapur, New Mumbai.\n2) Director, Town Planning, Maharashtra State, Pune.\n3) Deputy Director, Town Planning, Konkan Division, New Mumbai.\n4) Assistant Director, Town Planning, Alibag Branch, Raigad.\n435",
+  "validation": {
+    "original_regulation_numbers": [
+      "12.5"
+    ],
+    "translated_regulation_numbers": [
+      "12.5"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 724,
+    "translated_characters": 822,
+    "elapsed_seconds": 121.69
+  }
+}

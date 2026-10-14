@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-town-planning"
+version = "2.0.0"
+description = "AI Town Planning & Building Approval Assistant"
+readme = "README.md"
+requires-python = ">=3.12"
+
+dependencies = [
+    "fastapi>=0.116.0",
+    "uvicorn[standard]>=0.35.0",
+
+    "sqlalchemy>=2.0.40",
+    "alembic>=1.16.0",
+    "psycopg[binary]>=3.2.0",
+
+    "pydantic>=2.11.0",
+    "pydantic-settings>=2.10.0",
+
+    "langgraph>=0.6.0",
+    "langchain>=0.3.0",
+    "langchain-openai>=0.3.0",
+
+    "openai>=1.99.0",
+
+    "chromadb>=1.0.0",
+
+    "ollama>=0.5.0",
+
+    "python-dotenv>=1.1.0",
+
+    "loguru>=0.7.3",
+
+    "httpx>=0.28.0",
+
+    "pytest>=8.4.0",
+]
+
+[tool.setuptools]
+packages = ["townplanning"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra -q"

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage
+    SchemaVersion="1.0"
+    Name="AIPlan"
+    AppVersion="1.0.0"
+    Author="AI Town Planning"
+    Description="AI Town Planning AutoCAD Automation bundle"
+    ProductCode="{A9B1C2D3-E4F5-4678-9012-AI0000000001}"
+    UpgradeCode="{B9C1D2E3-F4A5-4678-9012-AI0000000002}">
+
+    <Components>
+        <RuntimeRequirements
+            OS="Win64"
+            Platform="AutoCAD*"
+            SeriesMin="R26.0"
+            SeriesMax="R26.0" />
+
+        <ComponentEntry
+            AppName="AIPlan"
+            AppDescription="AI Town Planning AutoCAD automation"
+            ModuleName="./AIPlan.lsp"
+            AppType="Lisp"
+            LoadOnAutoCADStartup="True" />
+    </Components>
+</ApplicationPackage>

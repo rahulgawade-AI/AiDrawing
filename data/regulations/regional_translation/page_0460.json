@@ -1,0 +1,32 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 460,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0460.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\nप्रत :-\n१. मा.मुख्यमंत्री महोदय यांचे प्रधान सचिव, मंत्रालय, मुंबई. \n २. मा.उप मुख्यमंत्री महोदय यांचे सचिव, मंत्रालय, मुंबई. \n ३. मा.मंत्री, नगर विकास यांचे खाजगी सचिव, मंत्रालय, मुंबई. \n ४. मा.राज्यमंत्री, नगर विकास यांचे खाजगी सचिव, मंत्रालय, मुंबई. \n ५. मा.विरोधी पक्षनेता, विधानपरिषद / विधानसभा, महाराष्ट्र विधानमंडळ सचिवालय, मुंबई. \n ६. मा.उपसभापती, महाराष्ट्र विधानपरिषद, महाराष्ट्र विधानमंडळ सचिवालय, मुंबई. \n ७. मा.उपाध्यक्ष, महाराष्ट्र विधानसभा, महाराष्ट्र विधानमंडळ सचिवालय, मुंबई. \n ८. प्रधान सचिव (नवि-१), नगर विकास विभाग, मंत्रालय, मुंबई. \n ९. संचालक (नगर रचना) तथा सह सचिव, नगर विकास विभाग, मंत्रालय, मुंबई. \n १०. सह सचिव तथा सहसंचालक (नगर रचना), नगर विकास विभाग, मंत्रालय, मुंबई.\nप्रति :-\n१) संचालक, नगर रचना, महाराष्ट्र राज्य, पुणे. /- सदरचे आदेश नगर रचना संचालनालयाच्या संकेतस्थळावर प्रसिद्ध करावेत. \n २) सर्व विभागीय सहसंचालक, नगर रचना. \n ३) सर्व विभागीय आयुक्त. \n ४) सर्व जिल्हाधिकारी. \n ५) आयुक्त, सर्व संबंधित महानगरपालिका. \n ६) महानगर आयुक्त, सर्व महानगर प्रदेश विकास प्राधिकरणे. \n ७) सर्व विशेष नियोजन प्राधिकरणे. \n ८) मुख्य कार्यकारी अधिकारी, कोल्हापूर नागरी क्षेत्र विकास प्राधिकरण, कोल्हापूर. \n ९) सर्व नवनगर विकास प्राधिकरणे. \n १०) सहायक संचालक, नगर रचना / नगर रचनाकार, नगर रचना व मूल्यनिर्धारण विभाग, सर्व शाखा कार्यालये. \n ११) मुख्य कार्यकारी अधिकारी, सर्व जिल्हापरिषद. \n १२) अवर सचिव, नवि-११/नवि-३०, कक्ष अधिकारी, नवि-९/नवि-१२, नगर विकास विभाग, मंत्रालय, मुंबई. \n १३) मुख्याधिकारी (सर्व नगरपरिषदा / नगरपंचायती) \n १४) कक्ष अधिकारी (नवि-२९), नगर विकास विभाग, मंत्रालय, मुंबई. /- सोबतचे आदेश या विभागाच्या संकेतस्थळावर प्रसिद्ध करावेत. \n १५) कक्ष अधिकारी, माहिती व तंत्रज्ञान विभाग, मंत्रालय, मुंबई. /- सोबतचे आदेश शासनाच्या संकेतस्थळावर प्रसिद्ध करावेत. \n १६) निवडनस्ती, कार्यासन (नवि-१३).\n*****\n444",
+  "translated_english_text": "UDCPR-2020\nTo :-\n1. Chief Minister, Principal Secretary, Ministry, Mumbai.\n2. Deputy Chief Minister, Secretary, Ministry, Mumbai.\n3. Minister, Urban Development, Private Secretary, Ministry, Mumbai.\n4. State Minister, Urban Development, Private Secretary, Ministry, Mumbai.\n5. Leader of Opposition, Legislative Council / Legislative Assembly, Maharashtra Legislative Assembly Secretariat, Mumbai.\n6. Deputy Chairman, Maharashtra Legislative Council, Maharashtra Legislative Assembly Secretariat, Mumbai.\n7. Deputy Chairman, Maharashtra Legislative Assembly, Maharashtra Legislative Assembly Secretariat, Mumbai.\n8. Principal Secretary (Newi-1), Urban Development Department, Ministry, Mumbai.\n9. Director (Urban Planning) and Joint Secretary, Urban Development Department, Ministry, Mumbai.\n10. Joint Secretary and Joint Director (Urban Planning), Urban Development Department, Ministry, Mumbai.\nTo :-\n1) Director, Urban Planning, Maharashtra State, Pune. /- These orders shall be published on the website of the Urban Planning Department.\n2) All District Joint Directors, Urban Planning.\n3) All District Commissioners.\n4) All District Collectors.\n5) Commissioner, all relevant Municipal Corporations.\n6) Municipal Commissioner, all Municipal Corporation Development Authorities.\n7) All Special Planning Authorities.\n8) Chief Executive Officer, Kolhapur Nagarik Mitra Kshetra Vikas Pradhikaran, Kolhapur.\n9) All New Town Development Authorities.\n10) Joint Director, Urban Planning / Urban Planner, Urban Planning and Valuation Department, all branch offices.\n11) Chief Executive Officer, all District Panchayats.\n12) Under Secretary, Newi-11/Newi-30, Department Officer, Newi-9/Newi-12, Urban Development Department, Ministry, Mumbai.\n13) Chief Officer (All Municipal Corporations / Municipal Councils)\n14) Department Officer (Newi-29), Urban Development Department, Ministry, Mumbai. /- These orders shall be published on the website of this department.\n15) Department Officer, Information and Technology Department, Ministry, Mumbai. /- These orders shall be published on the government website.\n16) Election, Office (Newi-13).\n*****",
+  "validation": {
+    "original_regulation_numbers": [],
+    "translated_regulation_numbers": [],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 1739,
+    "translated_characters": 2135,
+    "elapsed_seconds": 107.66
+  }
+}

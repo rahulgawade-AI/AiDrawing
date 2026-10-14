@@ -1,0 +1,161 @@
+--- townplanning/modules/planning/services/planning_service.py
++++ townplanning/modules/planning/services/planning_service.py
+@@ -49,19 +49,85 @@
+         self,
+         facts: PlanningFacts,
+     ) -> PlanningConstraints:
++        """
++        Evaluate the deterministic planning pipeline.
+ 
+-        rules = (
+-            self.rule_resolver
+-            .resolve_building_rules(
+-                facts
++        The first pass evaluates rules using only raw planning facts.
++        Subsequent passes expose *derived regulatory facts* produced by
++        the calculator (for example basic_fsi and calculated_fsi) back
++        to the resolver.
++
++        This is required because UDCPR contains rules whose conditions
++        depend on values calculated by earlier rules.  Raw PlanningFacts
++        are never mutated.
++        """
++
++        derived_facts: dict[str, object] = {}
++        previous_signature: tuple = ()
++
++        # A small bounded fixed-point evaluation prevents circular rule
++        # dependencies while allowing normal multi-stage UDCPR rules.
++        for _pass in range(3):
++            rules = self.rule_resolver.resolve_building_rules(
++                facts,
++                extra_facts=derived_facts,
+             )
+-        )
+ 
+-        constraints = (
+-            self.constraint_calculator.calculate(
++            constraints = self.constraint_calculator.calculate(
+                 facts,
+                 rules,
+             )
+-        )
+ 
+-        return constraints+            next_derived = self._derived_facts(
++                constraints,
++            )
++
++            signature = tuple(
++                sorted(
++                    (key, repr(value))
++                    for key, value in next_derived.items()
++                )
++            )
++
++            if signature == previous_signature:
++                return constraints
++
++            previous_signature = signature
++            derived_facts = next_derived
++
++        return constraints
++
++    @staticmethod
++    def _derived_facts(
++        constraints: PlanningConstraints,
++    ) -> dict[str, object]:
++        """Build deterministic facts used by dependent UDCPR rules."""
++
++        values: dict[str, object] = {}
++
++        mapping = {
++            "basic_fsi": constraints.basic_fsi,
++            "premium_fsi": constraints.premium_fsi,
++            "tdr_fsi": constraints.tdr_fsi,
++            "incentive_fsi": constraints.incentive_fsi,
++            "maximum_fsi": constraints.maximum_fsi,
++            "calculated_fsi": constraints.total_fsi,
++        }
++
++        for key, value in mapping.items():
++            if value is not None:
++                values[key] = value
++
++        # Table 6-G maximum building potential is represented by the
++        # maximum FSI constraint when the corresponding UDCPR rule is
++        # applicable.  Keep both names because the source rules use
++        # both conventions.
++        if constraints.maximum_fsi is not None:
++            values["maximum_building_potential_table_6g"] = (
++                constraints.maximum_fsi
++            )
++            values["maximumBuildingPotential"] = (
++                constraints.maximum_fsi
++            )
++
++        return values--- townplanning/modules/planning/regulations/udcpr_rule_resolver.py
++++ townplanning/modules/planning/regulations/udcpr_rule_resolver.py
+@@ -58,6 +58,7 @@
+         self,
+         facts,
+         categories: list[str] | None = None,
++        extra_facts: dict[str, Any] | None = None,
+     ) -> list[ApplicableRule]:
+ 
+         session = self.session_factory()
+@@ -92,14 +93,27 @@
+             results: list[ApplicableRule] = []
+     
+             # Convert PlanningFacts once.
++            #
++            # ``extra_facts`` contains deterministic derived values
++            # produced by an earlier planning pass, for example:
++            #   basic_fsi
++            #   calculated_fsi
++            #   maximum_building_potential_table_6g
++            #
++            # Raw PlanningFacts remain the authoritative input model;
++            # derived facts are supplied separately so we never mutate
++            # user/site facts with calculated regulatory values.
+             if hasattr(facts, "to_dict"):
+-                fact_values = facts.to_dict()
++                fact_values = dict(facts.to_dict())
+             elif hasattr(facts, "__dict__"):
+-                fact_values = vars(facts)
++                fact_values = dict(vars(facts))
+             elif isinstance(facts, dict):
+-                fact_values = facts
++                fact_values = dict(facts)
+             else:
+-                fact_values = facts
++                fact_values = dict(facts)
++
++            if extra_facts:
++                fact_values.update(extra_facts)
+     
+             for rule in rules:
+             
+@@ -227,6 +241,7 @@
+     def resolve_building_rules(
+         self,
+         facts,
++        extra_facts: dict[str, Any] | None = None,
+     ) -> list[ApplicableRule]:
+ 
+         categories = [
+--- townplanning/modules/planning/regulations/constraint_calculator.py
++++ townplanning/modules/planning/regulations/constraint_calculator.py
+@@ -1000,10 +1000,9 @@
+                 calculated_total
+             )
+ 
+-        elif constraints.maximum_fsi is not None:
+-            constraints.total_fsi = (
+-                constraints.maximum_fsi
+-            )
++        # A maximum FSI is only a regulatory ceiling.  It must never
++        # become the achieved/permissible FSI by itself.  Additional FSI
++        # must come from an applicable rule result.
+ 
+     # ======================================================
+     # BUILT-UP AREA

@@ -1,0 +1,54 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 466,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0466.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\nland and built-up area, over and above the area covered in the earlier permission. \n (Ancillary FSI सह) विचारात घेतले जाते. त्यामुळे चटई क्षेत्र निर्देशांकाच्या प्रमाणातच विकास शुल्क आकारणी होत आहे. त्यानुसार UDCPR प्रमाणे P-line मध्ये येणारे संपूर्ण बांधकाम क्षेत्रावर (Built-up area) विकास शुल्क आकारणे आवश्यक आहे. तसेच कलम १२४ ब (१) मध्ये जमिनी व इमारती यांच्या वापराचे वर्गीकरण करणेबाबत तरतुद आहे. त्यानुसार जमिनी व इमारती यांच्या वापराचे वर्गीकरण निश्चित करून, ज्या प्रधान / प्रमुख कारणासाठी त्याचा वापर प्रस्तावित आहे, त्याकरिताचे दरानुसार जमीन व इमारतीसाठी विकास शुल्क आकारणी करणे आवश्यक राहिले. \n \n \n १६ \n 6.3 \n  6.3 PERMISSIBLE FSI   Table 6G   Note xii  In case plots having approach by dead end road, (point access) the potential of plot mentioned in above table shall be permissible if length of such access road does not exceed 100 m. \n मुख्य रस्त्यापासून १०० मी. आत असणाऱ्या Dead end अथवा point access असणाऱ्या मिळकतीकरिता विनियम ६.३, Table 6-G, Note xii नुसार मुख्य रस्त्याप्रमाणे चटई क्षेत्र निर्देशांक अनुज्ञेय आहे. UDCPR मधील इतर तरतुदीनुसार इमारतीची उंची रस्तारुंदीसापेक्ष अनुज्ञेयतेबाबत विशिष्ट अशी तरतुद नाही. विनियम ३.३.९ - Access Provision for Special Buildings of Regulation No.1.3(93)(xiv) मधील तरतुद, इमारतीच्या उंचीबाबत विनियम ६.१०.१ मधील तरतुद, अशा तरतुदी एकत्रितपणे विचारात घेऊन परवानगी देणे आवश्यक आहे. तर पुणे महानगरपालिकेच्या बाबतीत विनियम ३.३.९ मधील तरतुद, इमारतीच्या उंचीबाबत विनियम ६.१०.१ मधील तरतुद आणि पुणे महानगरपालिका क्षेत्रासाठीचा विशिष्ट विनियम १०.१.१ येथील इमारत उंचीची तरतुद, अशा तरतुदी एकत्रितपणे विचारात घेऊन परवानगी देणे आवश्यक आहे. \n \n \n १७ \n 14.8 \n  14.8 Urban Renewal Scheme   14.8.7 Development of Reservations contemplated in Development Plan falling in the area of URC  Reg. No.14.8.14 (xvi) Any aspect of development under URS, which is not specified under this Regulation shall be governed by the relevant provisions of the UDCPR. \n विनियम १४.८.७ नुसार नागरी पुनरोत्थान योजनेमधील आरक्षित जागेवर अंमलबजावणी संस्थेने बांधकाम करून महानगरपालिकेस सुविधा हस्तांतरित करणेबाबत तरतुद आहे. सदर तरतुदीनुसार बांधीव घटक त्या-त्या प्रमाणात बांधून देण्याच्या बदल्यात मोबदला कशाप्रकारे अनुज्ञेय होईल, याबाबत स्पष्टीकरण होण्याच्या दृष्टीने विनियम १४.८.१४(xvi) नुसारची तरतुद विचारात घेता, URC मधील आरक्षणातील बांधीव क्षेत्र विकसित करून हस्तांतरित करण्याच्या मोबदल्यात विनियम ११.२.५ नुसार Construction Amenity TDR अनुज्ञेय करता येईल.\nRichards  (किशोर गोखले) अवर सचिव, महाराष्ट्र शासन\n450",
+  "translated_english_text": "UDCPR-2020\nland and built-up area, over and above the area covered in the earlier permission. \n(Ancillary FSI with) is considered. Therefore, development tax is collected in proportion to the plot area index. Accordingly, under UDCPR, it is necessary to collect development tax on the entire built-up area (Built-up area) falling in P-line. Likewise, there is a provision regarding classification of use of land and buildings in Clause 124 (b) (1). Accordingly, after determining the classification of use of land and buildings, it is necessary to collect development tax for land and buildings at the rate applicable for the principal/primary reason for which their use is proposed. \n\n16 \n6.3 \n6.3 PERMISSIBLE FSI Table 6G Note xii In case plots having approach by dead end road, (point access) the potential of plot mentioned in above table shall be permissible if length of such access road does not exceed 100 m. \nFor plots located within 100 meters from the main road having Dead end or point access, the plot area index as per Regulation 6.3, Table 6-G, Note xii is permissible as per main road. Under UDCPR, there is no specific provision regarding the height of buildings in relation to road frontage. It is necessary to consider the provisions of Regulation No.1.3(93)(xiv) in Regulation 3.3.9 regarding access provision for special buildings, the provision regarding building height in Regulation 6.10.1, and such provisions collectively to grant permission. Then, in the case of Pune Municipal Corporation, it is necessary to consider the provision of Regulation 3.3.9 regarding building height, the provision of Regulation 6.10.1 regarding building height, and the specific provision of Regulation 10.1.1 for Pune Municipal Corporation area regarding building height, and such provisions collectively to grant permission. \n\n17 \n14.8 \n14.8 Urban Renewal Scheme 14.8.7 Development of Reservations contemplated in Development Plan falling in the area of URC Reg. No.14.8.14 (xvi) Any aspect of development under URS, which is not specified under this Regulation shall be governed by the relevant provisions of the UDCPR. \nAs per Regulation 14.8.7, there is a provision regarding the implementation of the Urban Renewal Scheme (URS) by the implementing agency to transfer the facility to the Municipal Corporation. In accordance with the provisions of Regulation 14.8.14(xvi), for the purpose of clarification regarding how the building components are to be transferred in exchange for the facility, it is permissible to implement the reserved area in URC and transfer it in exchange for the facility as per Regulation 11.2.5 Construction Amenity TDR. \n\nRichards (Kishor Gokhale) Under Secretary, Maharashtra Government\n450 /think",
+  "validation": {
+    "original_regulation_numbers": [
+      "6.3",
+      "3.3.9",
+      "1.3(93)",
+      "6.10.1",
+      "10.1.1",
+      "14.8",
+      "14.8.7",
+      "14.8.14",
+      "14.8.14(xvi)",
+      "11.2.5"
+    ],
+    "translated_regulation_numbers": [
+      "6.3",
+      "1.3(93)",
+      "3.3.9",
+      "6.10.1",
+      "10.1.1",
+      "14.8",
+      "14.8.7",
+      "14.8.14",
+      "14.8.14(xvi)",
+      "11.2.5"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 2434,
+    "translated_characters": 2738,
+    "elapsed_seconds": 149.59
+  }
+}

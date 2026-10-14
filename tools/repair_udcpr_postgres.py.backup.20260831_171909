@@ -1,0 +1,2032 @@
+#!/usr/bin/env python3
+
+"""
+UDCPR PostgreSQL canonical mapping repair.
+
+IMPORTANT:
+    - PostgreSQL only.
+    - Does NOT rebuild the PDF source.
+    - Does NOT modify Chroma.
+    - Does NOT delete canonical PDF content.
+    - Dry-run is the default.
+    - --apply performs one transactional PostgreSQL repair.
+    - A before snapshot is created before repair.
+
+AUTHORITATIVE INPUTS:
+
+    data/regulations/udcpr_canonical_manifest.json
+    data/regulations/udcpr_source_chunks.json
+
+DATABASE MODELS VERIFIED FROM PROJECT:
+
+    RegulationModel
+        table: regulations
+
+    Table
+        table: tables
+
+    tables.regulation_id
+        -> regulations.id
+        ON DELETE CASCADE
+
+REPAIR STRATEGY:
+
+    1. Load canonical manifest.
+    2. Load canonical PDF source chunks.
+    3. Find PostgreSQL rows matching canonical number/title.
+    4. Select exactly one canonical keeper using exact PDF text.
+    5. Identify duplicate canonical rows.
+    6. Reparent ALL tables owned by duplicate canonical rows.
+    7. Mark non-canonical regulation fragments; do not delete them.
+    8. Match canonical source tables to PostgreSQL tables.
+    9. Reparent deterministically matched tables.
+   10. Verify duplicate rows have no remaining tables.
+   11. Delete ONLY duplicate canonical regulation rows.
+   12. Commit only in --apply mode.
+   13. Verify canonical text after repair.
+
+The script deliberately does NOT delete arbitrary regulation rows.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import re
+import shutil
+from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from sqlalchemy import text
+
+from townplanning.infrastructure.database.session import SessionLocal
+from townplanning.infrastructure.database.models import RegulationModel
+
+
+# ============================================================
+# NORMALIZATION
+# ============================================================
+
+def normalize_space(value: str | None) -> str:
+    if not value:
+        return ""
+
+    return re.sub(
+        r"\s+",
+        " ",
+        str(value),
+    ).strip()
+
+
+def normalize_number(value: str | None) -> str:
+    value = normalize_space(value)
+
+    if not value:
+        return ""
+
+    value = value.replace(" ", "")
+
+    # Normalize variants such as:
+    #
+    # 2.2.5 (a)
+    # 2.2.5(a)
+    #
+    value = re.sub(
+        r"\s*\(\s*([a-z])\s*\)",
+        r"(\1)",
+        value,
+        flags=re.IGNORECASE,
+    )
+
+    return value
+
+
+def normalize_title(value: str | None) -> str:
+    return normalize_space(value).lower()
+
+
+def normalize_compare_text(value: str | None) -> str:
+    """
+    Normalize representation-only differences when comparing
+    canonical PDF text with PostgreSQL text.
+
+    This function is ONLY for comparison.
+    It does NOT modify stored PostgreSQL text.
+
+    Normalization:
+      - None -> ""
+      - CRLF / CR -> LF
+      - leading/trailing whitespace removed
+
+    Internal content is preserved.
+    """
+    if value is None:
+        return ""
+
+    return (
+        value
+        .replace("\\r\\n", "\\n")
+        .replace("\\r", "\\n")
+        .strip()
+    )
+
+
+def sha256_text(value: str | None) -> str:
+    return hashlib.sha256(
+        normalize_compare_text(value)
+        .encode("utf-8")
+    ).hexdigest()
+
+
+def title_key(
+    number: str | None,
+    title: str | None,
+) -> str:
+
+    return (
+        normalize_number(number)
+        + "|"
+        + normalize_title(title)
+    )
+
+
+def table_hash(value: str | None) -> str:
+    return sha256_text(value)
+
+
+# ============================================================
+# LOADERS
+# ============================================================
+
+def load_json(path: str) -> Any:
+
+    with open(
+        path,
+        "r",
+        encoding="utf-8",
+    ) as f:
+        return json.load(f)
+
+
+def load_manifest(path: str) -> dict:
+
+    data = load_json(path)
+
+    if not isinstance(data, dict):
+        raise RuntimeError(
+            "Canonical manifest must be a JSON object."
+        )
+
+    return data
+
+
+def load_chunks(path: str) -> list[dict]:
+
+    data = load_json(path)
+
+    if isinstance(data, dict):
+        chunks = data.get(
+            "chunks",
+            data.get(
+                "entries",
+                [],
+            ),
+        )
+    else:
+        chunks = data
+
+    if not isinstance(chunks, list):
+        raise RuntimeError(
+            "Canonical source chunks must contain a list."
+        )
+
+    return chunks
+
+
+def manifest_entries(
+    manifest: dict,
+) -> list[dict]:
+
+    entries = manifest.get(
+        "regulations",
+        manifest.get(
+            "entries",
+            [],
+        ),
+    )
+
+    if not isinstance(entries, list):
+        raise RuntimeError(
+            "Manifest regulations/entries must be a list."
+        )
+
+    return entries
+
+
+# ============================================================
+# CANONICAL INDEX
+# ============================================================
+
+def canonical_key_from_entry(
+    entry: dict,
+) -> str:
+
+    number = normalize_number(
+        entry.get("number")
+    )
+
+    variant = normalize_space(
+        entry.get("variant")
+    )
+
+    if variant:
+        number += variant
+
+    return title_key(
+        number,
+        entry.get("title"),
+    )
+
+
+def canonical_number(
+    entry: dict,
+) -> str:
+
+    number = normalize_number(
+        entry.get("number")
+    )
+
+    variant = normalize_space(
+        entry.get("variant")
+    )
+
+    if variant and not number.endswith(
+        variant
+    ):
+        number += variant
+
+    return number
+
+
+def build_canonical_index(
+    manifest: dict,
+    chunks: list[dict],
+):
+
+    entries = manifest_entries(
+        manifest
+    )
+
+    manifest_by_key: dict[str, dict] = {}
+
+    for entry in entries:
+
+        key = canonical_key_from_entry(
+            entry
+        )
+
+        if key in manifest_by_key:
+
+            raise RuntimeError(
+                "Duplicate canonical manifest key: "
+                + key
+            )
+
+        manifest_by_key[key] = entry
+
+    chunks_by_key: dict[str, dict] = {}
+
+    for chunk in chunks:
+
+        key = title_key(
+            canonical_number(chunk),
+            chunk.get("title"),
+        )
+
+        if key in chunks_by_key:
+
+            raise RuntimeError(
+                "Duplicate canonical chunk key: "
+                + key
+            )
+
+        chunks_by_key[key] = chunk
+
+    missing_chunks = (
+        set(manifest_by_key)
+        - set(chunks_by_key)
+    )
+
+    if missing_chunks:
+
+        raise RuntimeError(
+            "Canonical chunks missing for "
+            f"{len(missing_chunks)} manifest entries."
+        )
+
+    return (
+        manifest_by_key,
+        chunks_by_key,
+    )
+
+
+# ============================================================
+# SOURCE TEXT
+# ============================================================
+
+def chunk_text(
+    chunk: dict,
+) -> str:
+
+    for field in (
+        "regulation_text",
+        "text",
+        "content",
+    ):
+
+        value = chunk.get(field)
+
+        if isinstance(value, str):
+            return value
+
+    return ""
+
+
+# ============================================================
+# SOURCE TABLES
+# ============================================================
+
+def chunk_tables(
+    chunk: dict,
+) -> list[dict]:
+
+    for field in (
+        "tables",
+        "source_tables",
+    ):
+
+        value = chunk.get(field)
+
+        if isinstance(value, list):
+            return value
+
+    return []
+
+
+def source_table_markdown(
+    table: dict,
+) -> str:
+
+    for field in (
+        "markdown",
+        "table_markdown",
+    ):
+
+        value = table.get(field)
+
+        if isinstance(value, str):
+            return value
+
+    return ""
+
+
+def source_table_page(
+    table: dict,
+) -> int | None:
+
+    value = table.get(
+        "pdf_page",
+        table.get(
+            "page_number"
+        ),
+    )
+
+    try:
+        return int(value)
+    except (
+        TypeError,
+        ValueError,
+    ):
+        return None
+
+
+def source_table_index(
+    table: dict,
+) -> int | None:
+
+    value = table.get(
+        "table_index"
+    )
+
+    try:
+        return int(value)
+    except (
+        TypeError,
+        ValueError,
+    ):
+        return None
+
+
+# ============================================================
+# POSTGRES SNAPSHOT
+# ============================================================
+
+def create_backup_snapshot(
+    db,
+    report_path: str,
+) -> str:
+
+    timestamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S"
+    )
+
+    report_parent = Path(
+        report_path
+    ).parent
+
+    snapshot_path = (
+        report_parent
+        / (
+            "udcpr_postgres_repair.before."
+            + timestamp
+            + ".json"
+        )
+    )
+
+    regulations = db.execute(
+        text(
+            """
+            SELECT
+                id,
+                number,
+                chapter,
+                title,
+                text,
+                page_start,
+                page_end,
+                source_document,
+                version,
+                metadata,
+                created_at
+            FROM regulations
+            ORDER BY number, title, id
+            """
+        )
+    ).mappings().all()
+
+    tables = db.execute(
+        text(
+            """
+            SELECT
+                id,
+                regulation_id,
+                page_number,
+                table_index,
+                title,
+                headers,
+                rows,
+                markdown,
+                metadata,
+                created_at
+            FROM tables
+            ORDER BY page_number, table_index, id
+            """
+        )
+    ).mappings().all()
+
+    def serializable(
+        value
+    ):
+        if isinstance(
+            value,
+            datetime,
+        ):
+            return value.isoformat()
+
+        return value
+
+    payload = {
+        "created_at":
+            datetime.now().isoformat(),
+
+        "regulation_count":
+            len(regulations),
+
+        "table_count":
+            len(tables),
+
+        "regulations":
+            [
+                {
+                    key:
+                        serializable(value)
+                    for key, value in row.items()
+                }
+                for row in regulations
+            ],
+
+        "tables":
+            [
+                {
+                    key:
+                        serializable(value)
+                    for key, value in row.items()
+                }
+                for row in tables
+            ],
+    }
+
+    with open(
+        snapshot_path,
+        "w",
+        encoding="utf-8",
+    ) as f:
+
+        json.dump(
+            payload,
+            f,
+            indent=2,
+            ensure_ascii=False,
+            default=str,
+        )
+
+    return str(
+        snapshot_path
+    )
+
+
+# ============================================================
+# DATABASE LOAD
+# ============================================================
+
+def load_database_rows(
+    db,
+):
+
+    regulation_rows = (
+        db.query(
+            RegulationModel
+        )
+        .order_by(
+            RegulationModel.number,
+            RegulationModel.title,
+            RegulationModel.id,
+        )
+        .all()
+    )
+
+    table_rows = db.execute(
+        text(
+            """
+            SELECT
+                id,
+                regulation_id,
+                page_number,
+                table_index,
+                title,
+                headers,
+                rows,
+                markdown,
+                metadata
+            FROM tables
+            ORDER BY page_number, table_index, id
+            """
+        )
+    ).mappings().all()
+
+    return (
+        regulation_rows,
+        table_rows,
+    )
+
+
+# ============================================================
+# CANONICAL REGULATION SELECTION
+# ============================================================
+
+def select_canonical_rows(
+    db_rows,
+    manifest_by_key,
+    chunks_by_key,
+):
+
+    selected: dict[
+        str,
+        RegulationModel
+    ] = {}
+
+    duplicates: dict[
+        str,
+        list[RegulationModel]
+    ] = {}
+
+    missing = []
+    mismatches = []
+
+    for key, entry in (
+        manifest_by_key.items()
+    ):
+
+        chunk = chunks_by_key[
+            key
+        ]
+
+        canonical_text = chunk_text(
+            chunk
+        )
+
+        canonical_hash = sha256_text(
+            canonical_text
+        )
+
+        candidates = [
+            row
+            for row in db_rows
+            if title_key(
+                row.number,
+                row.title,
+            ) == key
+        ]
+
+        exact = [
+            row
+            for row in candidates
+            if sha256_text(
+                row.text
+            )
+            == canonical_hash
+        ]
+
+        if not candidates:
+
+            missing.append(
+                {
+                    "number":
+                        entry.get("number"),
+                    "title":
+                        entry.get("title"),
+                    "reason":
+                        "No PostgreSQL row matches "
+                        "canonical number/title.",
+                }
+            )
+
+            continue
+
+        if len(exact) != 1:
+
+            mismatches.append(
+                {
+                    "number":
+                        entry.get("number"),
+                    "title":
+                        entry.get("title"),
+                    "candidate_count":
+                        len(candidates),
+                    "exact_text_count":
+                        len(exact),
+                    "candidate_ids":
+                        [
+                            str(row.id)
+                            for row in candidates
+                        ],
+                }
+            )
+
+            if len(exact) == 0:
+                continue
+
+        keeper = exact[0]
+
+        selected[
+            key
+        ] = keeper
+
+        duplicate_rows = [
+            row
+            for row in candidates
+            if str(row.id)
+            != str(keeper.id)
+        ]
+
+        if duplicate_rows:
+
+            duplicates[
+                key
+            ] = duplicate_rows
+
+    return (
+        selected,
+        duplicates,
+        missing,
+        mismatches,
+    )
+
+
+# ============================================================
+# MARK FRAGMENT
+# ============================================================
+
+def mark_fragment_metadata(
+    metadata,
+) -> dict:
+
+    if not isinstance(
+        metadata,
+        dict,
+    ):
+        metadata = {}
+
+    result = dict(
+        metadata
+    )
+
+    result[
+        "udcpr_mapping_status"
+    ] = "non_canonical_fragment"
+
+    result[
+        "udcpr_mapping_repair"
+    ] = True
+
+    return result
+
+
+# ============================================================
+# TABLE INDEXES
+# ============================================================
+
+def build_table_indexes(
+    db_tables,
+):
+
+    by_page_index = defaultdict(
+        list
+    )
+
+    by_page_hash = defaultdict(
+        list
+    )
+
+    by_hash = defaultdict(
+        list
+    )
+
+    for table in db_tables:
+
+        page = table.get(
+            "page_number"
+        )
+
+        index = table.get(
+            "table_index"
+        )
+
+        markdown = table.get(
+            "markdown"
+        ) or ""
+
+        digest = table_hash(
+            markdown
+        )
+
+        by_page_index[
+            (
+                page,
+                index,
+            )
+        ].append(table)
+
+        by_page_hash[
+            (
+                page,
+                digest,
+            )
+        ].append(table)
+
+        by_hash[
+            digest
+        ].append(table)
+
+    return (
+        by_page_index,
+        by_page_hash,
+        by_hash,
+    )
+
+
+# ============================================================
+# TABLE MATCH
+# ============================================================
+
+def match_canonical_table(
+    source_table,
+    by_page_index,
+    by_page_hash,
+    by_hash,
+):
+
+    markdown = (
+        source_table_markdown(
+            source_table
+        )
+    )
+
+    digest = table_hash(
+        markdown
+    )
+
+    page = source_table_page(
+        source_table
+    )
+
+    index = source_table_index(
+        source_table
+    )
+
+    # --------------------------------------------------------
+    # Strongest match:
+    #
+    # page + table index + exact markdown
+    # --------------------------------------------------------
+
+    candidates = by_page_index.get(
+        (
+            page,
+            index,
+        ),
+        []
+    )
+
+    exact = [
+        row
+        for row in candidates
+        if table_hash(
+            row.get("markdown") or ""
+        )
+        == digest
+    ]
+
+    if len(exact) == 1:
+
+        return (
+            exact[0],
+            "page_index_and_markdown",
+        )
+
+    # --------------------------------------------------------
+    # Page + exact markdown
+    # --------------------------------------------------------
+
+    candidates = by_page_hash.get(
+        (
+            page,
+            digest,
+        ),
+        []
+    )
+
+    if len(candidates) == 1:
+
+        return (
+            candidates[0],
+            "page_and_markdown",
+        )
+
+    # --------------------------------------------------------
+    # Exact markdown globally.
+    #
+    # Only accept if unique.
+    # --------------------------------------------------------
+
+    candidates = by_hash.get(
+        digest,
+        []
+    )
+
+    if len(candidates) == 1:
+
+        return (
+            candidates[0],
+            "unique_markdown",
+        )
+
+    return (
+        None,
+        "unresolved",
+    )
+
+
+# ============================================================
+# PERFORM REPAIR
+# ============================================================
+
+def perform_repair(
+    db,
+    manifest,
+    chunks,
+    report_path,
+    apply=False,
+):
+
+    (
+        manifest_by_key,
+        chunks_by_key,
+    ) = build_canonical_index(
+        manifest,
+        chunks,
+    )
+
+    (
+        db_rows,
+        db_tables,
+    ) = load_database_rows(
+        db
+    )
+
+    (
+        selected,
+        duplicates,
+        missing,
+        mismatches,
+    ) = select_canonical_rows(
+        db_rows,
+        manifest_by_key,
+        chunks_by_key,
+    )
+
+    if missing:
+
+        raise RuntimeError(
+            "ABORTING: "
+            f"{len(missing)} canonical regulations "
+            "have no PostgreSQL match."
+        )
+
+    if mismatches:
+
+        raise RuntimeError(
+            "ABORTING: "
+            f"{len(mismatches)} canonical regulations "
+            "do not have exactly one exact-text "
+            "PostgreSQL keeper."
+        )
+
+    duplicate_to_keeper = {}
+
+    for key, duplicate_rows in (
+        duplicates.items()
+    ):
+
+        keeper = selected[
+            key
+        ]
+
+        for duplicate in duplicate_rows:
+
+            duplicate_to_keeper[
+                str(duplicate.id)
+            ] = str(keeper.id)
+
+    report = {
+
+        "mode":
+            "apply" if apply else "dry-run",
+
+        "created_at":
+            datetime.now().isoformat(),
+
+        "canonical":
+            {
+                "regulations":
+                    len(manifest_by_key),
+
+                "selected":
+                    len(selected),
+
+                "duplicate_groups":
+                    len(duplicates),
+
+                "duplicate_rows":
+                    len(
+                        duplicate_to_keeper
+                    ),
+            },
+
+        "table_repairs":
+            [],
+
+        "table_unresolved":
+            [],
+
+        "fragment_rows":
+            [],
+
+        "duplicate_rows":
+            [],
+
+        "errors":
+            [],
+    }
+
+    # --------------------------------------------------------
+    # Reparent ALL tables from duplicate canonical rows.
+    #
+    # This MUST happen before duplicate regulation deletion.
+    #
+    # Do NOT depend on canonical table matching for this.
+    # A duplicate may own a legitimate table.
+    # --------------------------------------------------------
+
+    duplicate_table_moves = 0
+
+    for (
+        duplicate_id,
+        keeper_id,
+    ) in duplicate_to_keeper.items():
+
+        duplicate_tables = db.execute(
+            text(
+                """
+                SELECT
+                    id,
+                    regulation_id,
+                    page_number,
+                    table_index,
+                    title,
+                    markdown
+                FROM tables
+                WHERE regulation_id = :regulation_id
+                ORDER BY page_number, table_index, id
+                """
+            ),
+            {
+                "regulation_id":
+                    duplicate_id
+            },
+        ).mappings().all()
+
+        for db_table in duplicate_tables:
+
+            table_id = str(
+                db_table["id"]
+            )
+
+            if not apply:
+
+                report[
+                    "table_repairs"
+                ].append(
+                    {
+                        "table_id":
+                            table_id,
+
+                        "old_regulation_id":
+                            duplicate_id,
+
+                        "new_regulation_id":
+                            keeper_id,
+
+                        "page_number":
+                            db_table[
+                                "page_number"
+                            ],
+
+                        "table_index":
+                            db_table[
+                                "table_index"
+                            ],
+
+                        "changed":
+                            True,
+
+                        "reason":
+                            "duplicate canonical "
+                            "regulation; mandatory "
+                            "reparent before "
+                            "duplicate deletion",
+                    }
+                )
+
+                continue
+
+            db.execute(
+                text(
+                    """
+                    UPDATE tables
+                    SET regulation_id = :new_id
+                    WHERE id = :table_id
+                      AND regulation_id = :old_id
+                    """
+                ),
+                {
+                    "new_id":
+                        keeper_id,
+
+                    "table_id":
+                        table_id,
+
+                    "old_id":
+                        duplicate_id,
+                },
+            )
+
+            duplicate_table_moves += 1
+
+    # --------------------------------------------------------
+    # HARD SAFETY CHECK.
+    #
+    # Never delete a regulation that still owns tables.
+    # --------------------------------------------------------
+
+    for duplicate_id in (
+        duplicate_to_keeper
+    ):
+
+        remaining_tables = db.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM tables
+                WHERE regulation_id = :rid
+                """
+            ),
+            {
+                "rid":
+                    duplicate_id
+            },
+        ).scalar_one()
+
+        if remaining_tables:
+
+            raise RuntimeError(
+                "ABORTING: duplicate regulation "
+                f"{duplicate_id} still has "
+                f"{remaining_tables} table dependencies "
+                "after mandatory table reparenting."
+            )
+
+    # --------------------------------------------------------
+    # Mark non-canonical rows.
+    #
+    # We preserve them.
+    # --------------------------------------------------------
+
+    canonical_ids = {
+        str(row.id)
+        for row in selected.values()
+    }
+
+    for row in db_rows:
+
+        row_id = str(
+            row.id
+        )
+
+        if row_id in canonical_ids:
+
+            continue
+
+        if row_id in duplicate_to_keeper:
+
+            report[
+                "duplicate_rows"
+            ].append(
+                {
+                    "id":
+                        row_id,
+
+                    "number":
+                        row.number,
+
+                    "title":
+                        row.title,
+
+                    "page_start":
+                        row.page_start,
+
+                    "page_end":
+                        row.page_end,
+
+                    "keeper_id":
+                        duplicate_to_keeper[
+                            row_id
+                        ],
+                }
+            )
+
+            continue
+
+        row.metadata = (
+            mark_fragment_metadata(
+                row.metadata
+            )
+        )
+
+        report[
+            "fragment_rows"
+        ].append(
+            {
+                "id":
+                    row_id,
+
+                "number":
+                    row.number,
+
+                "title":
+                    row.title,
+
+                "page_start":
+                    row.page_start,
+
+                "page_end":
+                    row.page_end,
+            }
+        )
+
+    # --------------------------------------------------------
+    # Canonical table -> regulation mapping.
+    # --------------------------------------------------------
+
+    (
+        by_page_index,
+        by_page_hash,
+        by_hash,
+    ) = build_table_indexes(
+        db_tables
+    )
+
+    canonical_table_count = 0
+    table_match_count = 0
+    table_unresolved_count = 0
+
+    for key, entry in (
+        manifest_by_key.items()
+    ):
+
+        row = selected[
+            key
+        ]
+
+        chunk = chunks_by_key[
+            key
+        ]
+
+        source_tables = chunk_tables(
+            chunk
+        )
+
+        canonical_table_count += len(
+            source_tables
+        )
+
+        for source_table in source_tables:
+
+            (
+                db_table,
+                method,
+            ) = match_canonical_table(
+                source_table,
+                by_page_index,
+                by_page_hash,
+                by_hash,
+            )
+
+            if db_table is None:
+
+                table_unresolved_count += 1
+
+                report[
+                    "table_unresolved"
+                ].append(
+                    {
+                        "regulation_number":
+                            entry.get(
+                                "number"
+                            ),
+
+                        "regulation_title":
+                            entry.get(
+                                "title"
+                            ),
+
+                        "pdf_page":
+                            source_table_page(
+                                source_table
+                            ),
+
+                        "table_index":
+                            source_table_index(
+                                source_table
+                            ),
+
+                        "reason":
+                            method,
+                    }
+                )
+
+                continue
+
+            table_match_count += 1
+
+            table_id = str(
+                db_table["id"]
+            )
+
+            old_regulation_id = str(
+                db_table[
+                    "regulation_id"
+                ]
+            )
+
+            new_regulation_id = str(
+                row.id
+            )
+
+            changed = (
+                old_regulation_id
+                != new_regulation_id
+            )
+
+            if apply and changed:
+
+                db.execute(
+                    text(
+                        """
+                        UPDATE tables
+                        SET regulation_id = :regulation_id
+                        WHERE id = :table_id
+                        """
+                    ),
+                    {
+                        "regulation_id":
+                            new_regulation_id,
+
+                        "table_id":
+                            table_id,
+                    },
+                )
+
+            report[
+                "table_repairs"
+            ].append(
+                {
+                    "table_id":
+                        table_id,
+
+                    "regulation_number":
+                        entry.get(
+                            "number"
+                        ),
+
+                    "regulation_title":
+                        entry.get(
+                            "title"
+                        ),
+
+                    "pdf_page":
+                        source_table_page(
+                            source_table
+                        ),
+
+                    "table_index":
+                        source_table_index(
+                            source_table
+                        ),
+
+                    "old_regulation_id":
+                        old_regulation_id,
+
+                    "new_regulation_id":
+                        new_regulation_id,
+
+                    "changed":
+                        changed,
+
+                    "match_method":
+                        method,
+
+                    "source_markdown_sha256":
+                        table_hash(
+                            source_table_markdown(
+                                source_table
+                            )
+                        ),
+
+                    "database_markdown_sha256":
+                        table_hash(
+                            db_table.get(
+                                "markdown"
+                            ) or ""
+                        ),
+                }
+            )
+
+    # --------------------------------------------------------
+    # DELETE ONLY DUPLICATE CANONICAL ROWS.
+    #
+    # Fragments are NOT deleted.
+    # --------------------------------------------------------
+
+    deleted_duplicates = 0
+
+    for (
+        duplicate_id,
+        keeper_id,
+    ) in duplicate_to_keeper.items():
+
+        remaining_tables = db.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM tables
+                WHERE regulation_id = :rid
+                """
+            ),
+            {
+                "rid":
+                    duplicate_id
+            },
+        ).scalar_one()
+
+        if remaining_tables:
+
+            raise RuntimeError(
+                "ABORTING: duplicate regulation "
+                f"{duplicate_id} still has "
+                f"{remaining_tables} table dependencies."
+            )
+
+        if apply:
+
+            db.query(
+                RegulationModel
+            ).filter(
+                RegulationModel.id
+                == duplicate_id
+            ).delete(
+                synchronize_session=False
+            )
+
+            deleted_duplicates += 1
+
+    # --------------------------------------------------------
+    # Summary.
+    # --------------------------------------------------------
+
+    report[
+        "summary"
+    ] = {
+
+        "canonical_regulations":
+            len(manifest_by_key),
+
+        "canonical_text_verified":
+            len(selected),
+
+        "duplicate_groups":
+            len(duplicates),
+
+        "duplicate_rows_found":
+            len(duplicate_to_keeper),
+
+        "duplicate_rows_removed":
+            deleted_duplicates,
+
+        "fragment_rows_preserved":
+            len(
+                report[
+                    "fragment_rows"
+                ]
+            ),
+
+        "canonical_source_tables":
+            canonical_table_count,
+
+        "tables_deterministically_matched":
+            table_match_count,
+
+        "tables_unresolved":
+            table_unresolved_count,
+
+        "duplicate_table_moves":
+            duplicate_table_moves,
+    }
+
+    return report
+
+
+# ============================================================
+# POST-REPAIR VERIFICATION
+# ============================================================
+
+def verify_after_repair(
+    db,
+    manifest,
+    chunks,
+):
+
+    (
+        manifest_by_key,
+        chunks_by_key,
+    ) = build_canonical_index(
+        manifest,
+        chunks,
+    )
+
+    rows = (
+        db.query(
+            RegulationModel
+        )
+        .all()
+    )
+
+    by_key = defaultdict(
+        list
+    )
+
+    for row in rows:
+
+        key = title_key(
+            row.number,
+            row.title,
+        )
+
+        if key in manifest_by_key:
+
+            by_key[key].append(
+                row
+            )
+
+    failures = []
+
+    for key, entry in (
+        manifest_by_key.items()
+    ):
+
+        candidates = by_key.get(
+            key,
+            []
+        )
+
+        chunk = chunks_by_key[
+            key
+        ]
+
+        canonical_hash = sha256_text(
+            chunk_text(chunk)
+        )
+
+        exact = [
+            row
+            for row in candidates
+            if sha256_text(
+                row.text
+            )
+            == canonical_hash
+        ]
+
+        if len(exact) != 1:
+
+            failures.append(
+                {
+                    "number":
+                        entry.get(
+                            "number"
+                        ),
+
+                    "title":
+                        entry.get(
+                            "title"
+                        ),
+
+                    "canonical_candidates":
+                        len(candidates),
+
+                    "exact_text_matches":
+                        len(exact),
+                }
+            )
+
+    # --------------------------------------------------------
+    # Verify no table points to a deleted/nonexistent row.
+    # --------------------------------------------------------
+
+    orphan_tables = db.execute(
+        text(
+            """
+            SELECT COUNT(*)
+            FROM tables t
+            LEFT JOIN regulations r
+              ON r.id = t.regulation_id
+            WHERE r.id IS NULL
+            """
+        )
+    ).scalar_one()
+
+    # --------------------------------------------------------
+    # Verify canonical tables are attached to the canonical
+    # regulation ID selected by exact text.
+    # --------------------------------------------------------
+
+    canonical_table_failures = []
+
+    for key, entry in (
+        manifest_by_key.items()
+    ):
+
+        candidates = by_key.get(
+            key,
+            []
+        )
+
+        chunk = chunks_by_key[
+            key
+        ]
+
+        canonical_hash = sha256_text(
+            chunk_text(chunk)
+        )
+
+        exact = [
+            row
+            for row in candidates
+            if sha256_text(
+                row.text
+            )
+            == canonical_hash
+        ]
+
+        if len(exact) != 1:
+            continue
+
+        regulation_id = str(
+            exact[0].id
+        )
+
+        source_tables = chunk_tables(
+            chunk
+        )
+
+        for source_table in source_tables:
+
+            markdown = (
+                source_table_markdown(
+                    source_table
+                )
+            )
+
+            digest = table_hash(
+                markdown
+            )
+
+            count = db.execute(
+                text(
+                    """
+                    SELECT COUNT(*)
+                    FROM tables
+                    WHERE regulation_id = :rid
+                      AND markdown = :markdown
+                    """
+                ),
+                {
+                    "rid":
+                        regulation_id,
+
+                    "markdown":
+                        markdown,
+                },
+            ).scalar_one()
+
+            if count != 1:
+
+                canonical_table_failures.append(
+                    {
+                        "number":
+                            entry.get(
+                                "number"
+                            ),
+
+                        "title":
+                            entry.get(
+                                "title"
+                            ),
+
+                        "pdf_page":
+                            source_table_page(
+                                source_table
+                            ),
+
+                        "table_index":
+                            source_table_index(
+                                source_table
+                            ),
+
+                        "markdown_sha256":
+                            digest,
+
+                        "postgres_matches":
+                            count,
+                    }
+                )
+
+    return {
+        "canonical_text_failures":
+            failures,
+
+        "orphan_tables":
+            orphan_tables,
+
+        "canonical_table_failures":
+            canonical_table_failures,
+
+        "passed":
+            (
+                not failures
+                and orphan_tables == 0
+                and not canonical_table_failures
+            ),
+    }
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Repair existing UDCPR PostgreSQL "
+            "canonical mappings."
+        )
+    )
+
+    parser.add_argument(
+        "--manifest",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--chunks",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--report",
+        default="/tmp/udcpr_postgres_repair.json",
+    )
+
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help=(
+            "Actually modify PostgreSQL. "
+            "Without this flag the script is dry-run."
+        ),
+    )
+
+    args = parser.parse_args()
+
+    print()
+    print("=" * 120)
+    print(
+        "UDCPR POSTGRESQL CANONICAL REPAIR"
+    )
+    print("=" * 120)
+
+    if args.apply:
+
+        print()
+        print(
+            "!!! APPLY MODE !!!"
+        )
+        print(
+            "PostgreSQL modifications WILL be made."
+        )
+
+    else:
+
+        print()
+        print(
+            "DRY-RUN MODE"
+        )
+        print(
+            "No PostgreSQL modifications will be made."
+        )
+
+    print()
+
+    manifest = load_manifest(
+        args.manifest
+    )
+
+    chunks = load_chunks(
+        args.chunks
+    )
+
+    db = SessionLocal()
+
+    try:
+
+        # ----------------------------------------------------
+        # Snapshot.
+        # ----------------------------------------------------
+
+        snapshot_path = (
+            create_backup_snapshot(
+                db,
+                args.report,
+            )
+        )
+
+        print(
+            "Before snapshot:",
+            snapshot_path,
+        )
+
+        # End SELECT transaction.
+        db.rollback()
+
+        # ----------------------------------------------------
+        # Execute repair inside current transaction.
+        #
+        # SQLAlchemy automatically opens the transaction when
+        # perform_repair starts querying.
+        #
+        # Therefore we intentionally DO NOT call db.begin().
+        # ----------------------------------------------------
+
+        report = perform_repair(
+            db=db,
+            manifest=manifest,
+            chunks=chunks,
+            report_path=args.report,
+            apply=args.apply,
+        )
+
+        # ----------------------------------------------------
+        # DRY RUN
+        # ----------------------------------------------------
+
+        if not args.apply:
+
+            db.rollback()
+
+            report[
+                "post_repair_verification"
+            ] = {
+                "mode":
+                    "dry-run",
+
+                "passed":
+                    None,
+            }
+
+            with open(
+                args.report,
+                "w",
+                encoding="utf-8",
+            ) as f:
+
+                json.dump(
+                    report,
+                    f,
+                    indent=2,
+                    ensure_ascii=False,
+                    default=str,
+                )
+
+            print()
+            print("=" * 120)
+            print(
+                "DRY-RUN COMPLETE"
+            )
+            print("=" * 120)
+            print(
+                "No PostgreSQL records were modified."
+            )
+            print(
+                "Report:",
+                args.report,
+            )
+
+            return
+
+        # ----------------------------------------------------
+        # APPLY MODE.
+        #
+        # Verify BEFORE COMMIT.
+        # ----------------------------------------------------
+
+        verification = (
+            verify_after_repair(
+                db,
+                manifest,
+                chunks,
+            )
+        )
+
+        report[
+            "post_repair_verification"
+        ] = verification
+
+        if not verification[
+            "passed"
+        ]:
+
+            raise RuntimeError(
+                "ABORTING: post-repair verification "
+                "failed. Transaction will be rolled back."
+            )
+
+        # ----------------------------------------------------
+        # Commit exactly once.
+        # ----------------------------------------------------
+
+        db.commit()
+
+        with open(
+            args.report,
+            "w",
+            encoding="utf-8",
+        ) as f:
+
+            json.dump(
+                report,
+                f,
+                indent=2,
+                ensure_ascii=False,
+                default=str,
+            )
+
+        print()
+        print("=" * 120)
+        print(
+            "REPAIR COMMITTED SUCCESSFULLY"
+        )
+        print("=" * 120)
+        print(
+            "Report:",
+            args.report,
+        )
+
+        print()
+        print(
+            "Canonical text failures:",
+            len(
+                verification[
+                    "canonical_text_failures"
+                ]
+            ),
+        )
+
+        print(
+            "Orphan tables:",
+            verification[
+                "orphan_tables"
+            ],
+        )
+
+        print(
+            "Canonical table failures:",
+            len(
+                verification[
+                    "canonical_table_failures"
+                ]
+            ),
+        )
+
+    except Exception as exc:
+
+        db.rollback()
+
+        print()
+        print("=" * 120)
+        print(
+            "REPAIR ABORTED"
+        )
+        print("=" * 120)
+        print(
+            type(exc).__name__,
+            ":",
+            str(exc),
+        )
+        print()
+        print(
+            "NO COMMITTED DATABASE CHANGES."
+        )
+
+        raise
+
+    finally:
+
+        db.close()
+
+
+if __name__ == "__main__":
+    main()

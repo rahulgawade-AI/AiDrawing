@@ -1,0 +1,36 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 470,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0470.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\nत्याचा विचार करता, सदरचा विनियम क्र.१०.४.३ हा नागपूर महानगर प्रदेश विकास प्राधिकरणाच्या मंजूर विकास योजनेतील कृषी / हरीत विभागातील संपूर्ण क्षेत्रासाठी सरसकटपणे लागू करता येणार नाही,\nआपका,\n(यु. म. शिंदे)\nकार्यासन अधिकारी, महाराष्ट्र शासन\nप्रत:-\n१. मा. संचालक नगर रचना, महाराष्ट्र राज्य, पुणे. \n २. मा. सह संचालक नगर रचना, नागपूर विभाग, नागपूर. \n ३. मा. सहायक संचालक नगर रचना, नागपूर शाखा, नागपूर. \n ४. मा. अवर सचिव (नवि-१३), नगर विकास विभाग, मंत्रालय, मुंबई. \n ५. निवड नस्ती (नवि-१३)\n454",
+  "translated_english_text": "UDCPR-2020\nConsidering this, Regulation No. 10.4.3 will not be applicable to the entire area of the Agriculture / Green Department in the approved development plan of the Nagpur Metropolitan Region Development Authority,\nY. M. Shinde\nChief Executive Officer, Maharashtra Government\nTo:-\n1. Director General, Urban Development, Maharashtra State, Pune.\n2. Director General (Additional), Urban Development, Nagpur Division, Nagpur.\n3. Deputy Director General, Urban Development, Nagpur Branch, Nagpur.\n4. Under Secretary (New-13), Urban Development Department, Ministry, Mumbai.\n5. Deputy Secretary (New-13)\n454 /think",
+  "validation": {
+    "original_regulation_numbers": [
+      "10.4.3"
+    ],
+    "translated_regulation_numbers": [
+      "10.4.3"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 498,
+    "translated_characters": 616,
+    "elapsed_seconds": 137.96
+  }
+}

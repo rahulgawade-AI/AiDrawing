@@ -1,0 +1,1491 @@
+#!/usr/bin/env python3
+
+"""
+UDCPR KNOWLEDGE REBUILD
+
+Pipeline:
+
+    canonical manifest
+        +
+    canonical source chunks
+        |
+        v
+    PostgreSQL regulations
+        |
+        +--> rules
+        |
+        +--> knowledge_cards
+        |
+        v
+    Chroma
+
+IMPORTANT
+---------
+1. Existing regulations are NOT deleted.
+2. Existing tables are NOT modified.
+3. Existing rules are backed up.
+4. Existing knowledge_cards are backed up.
+5. Chroma is backed up before rebuild.
+6. Dry-run is default.
+7. --apply performs the rebuild.
+8. The canonical source is:
+       data/regulations/udcpr_source_chunks.json
+9. Exactly 329 canonical regulations are expected.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import shutil
+import sys
+import uuid
+from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from sqlalchemy import text
+
+from townplanning.infrastructure.database.session import SessionLocal
+from townplanning.infrastructure.database.models import (
+    RegulationModel,
+)
+
+
+# ============================================================
+# CONFIG
+# ============================================================
+
+DEFAULT_MANIFEST = (
+    "data/regulations/udcpr_canonical_manifest.json"
+)
+
+DEFAULT_CHUNKS = (
+    "data/regulations/udcpr_source_chunks.json"
+)
+
+DEFAULT_REPORT = (
+    "/tmp/udcpr_knowledge_rebuild.json"
+)
+
+EXPECTED_REGULATIONS = 329
+
+
+# ============================================================
+# UTILITIES
+# ============================================================
+
+def sha256(value: str) -> str:
+    return hashlib.sha256(
+        value.encode("utf-8")
+    ).hexdigest()
+
+
+def normalize(value: Any) -> str:
+    if value is None:
+        return ""
+
+    return (
+        str(value)
+        .replace("\r\n", "\n")
+        .replace("\r", "\n")
+        .strip()
+    )
+
+
+def normalize_title(value: Any) -> str:
+    return " ".join(
+        normalize(value).lower().split()
+    )
+
+
+def normalize_number(value: Any) -> str:
+    return (
+        normalize(value)
+        .replace(" ", "")
+    )
+
+
+def regulation_key(
+    number: Any,
+    title: Any,
+) -> str:
+
+    return (
+        normalize_number(number)
+        + "|"
+        + normalize_title(title)
+    )
+
+
+def load_json(path: str) -> Any:
+
+    with open(
+        path,
+        "r",
+        encoding="utf-8",
+    ) as f:
+        return json.load(f)
+
+
+def write_json(
+    path: str,
+    value: Any,
+):
+
+    Path(path).parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    with open(
+        path,
+        "w",
+        encoding="utf-8",
+    ) as f:
+        json.dump(
+            value,
+            f,
+            indent=2,
+            ensure_ascii=False,
+            default=str,
+        )
+
+
+# ============================================================
+# LOAD SOURCE
+# ============================================================
+
+def load_source(
+    manifest_path: str,
+    chunks_path: str,
+):
+
+    manifest = load_json(
+        manifest_path
+    )
+
+    chunks_data = load_json(
+        chunks_path
+    )
+
+    if isinstance(manifest, dict):
+        manifest_entries = (
+            manifest.get("regulations")
+            or manifest.get("entries")
+            or manifest.get("items")
+            or []
+        )
+    else:
+        manifest_entries = manifest
+
+    if isinstance(chunks_data, dict):
+        chunks = (
+            chunks_data.get("chunks")
+            or chunks_data.get("source_chunks")
+            or chunks_data.get("items")
+            or []
+        )
+    else:
+        chunks = chunks_data
+
+    if not isinstance(
+        manifest_entries,
+        list,
+    ):
+        raise RuntimeError(
+            "Manifest regulations is not a list."
+        )
+
+    if not isinstance(
+        chunks,
+        list,
+    ):
+        raise RuntimeError(
+            "Source chunks is not a list."
+        )
+
+    manifest_by_key = {}
+
+    for entry in manifest_entries:
+
+        key = regulation_key(
+            entry.get("number"),
+            entry.get("title"),
+        )
+
+        if key in manifest_by_key:
+            raise RuntimeError(
+                f"Duplicate manifest key: {key}"
+            )
+
+        manifest_by_key[key] = entry
+
+    chunks_by_key = defaultdict(list)
+
+    for chunk in chunks:
+
+        key = regulation_key(
+            chunk.get("number"),
+            chunk.get("title"),
+        )
+
+        chunks_by_key[key].append(
+            chunk
+        )
+
+    return (
+        manifest_by_key,
+        chunks_by_key,
+    )
+
+
+# ============================================================
+# SOURCE TEXT
+# ============================================================
+
+def chunk_text(
+    chunk: dict,
+) -> str:
+
+    for field in (
+        "text",
+        "content",
+        "markdown",
+        "chunk_text",
+    ):
+
+        value = chunk.get(field)
+
+        if isinstance(
+            value,
+            str,
+        ):
+
+            return value
+
+    return ""
+
+
+def source_tables(
+    chunk: dict,
+) -> list[dict]:
+
+    for field in (
+        "tables",
+        "source_tables",
+    ):
+
+        value = chunk.get(field)
+
+        if isinstance(
+            value,
+            list,
+        ):
+
+            return value
+
+    return []
+
+
+# ============================================================
+# DATABASE
+# ============================================================
+
+def load_regulations(db):
+
+    rows = (
+        db.query(
+            RegulationModel
+        )
+        .all()
+    )
+
+    by_key = defaultdict(list)
+
+    for row in rows:
+
+        by_key[
+            regulation_key(
+                row.number,
+                row.title,
+            )
+        ].append(row)
+
+    return by_key
+
+
+def select_regulations(
+    db,
+    manifest_by_key,
+    chunks_by_key,
+):
+
+    db_by_key = load_regulations(
+        db
+    )
+
+    selected = {}
+    missing = []
+    ambiguous = []
+
+    for key in manifest_by_key:
+
+        candidates = (
+            db_by_key.get(
+                key,
+                [],
+            )
+        )
+
+        if not candidates:
+
+            missing.append(key)
+            continue
+
+        if len(candidates) > 1:
+
+            # Prefer exact source text.
+            source = chunks_by_key.get(
+                key,
+                [],
+            )
+
+            source_text = ""
+
+            if len(source) == 1:
+                source_text = chunk_text(
+                    source[0]
+                )
+
+            exact = [
+                row
+                for row in candidates
+                if normalize(row.text)
+                == normalize(source_text)
+            ]
+
+            if len(exact) == 1:
+
+                selected[key] = exact[0]
+
+            else:
+
+                ambiguous.append(
+                    {
+                        "key": key,
+                        "candidate_ids": [
+                            str(x.id)
+                            for x in candidates
+                        ],
+                    }
+                )
+
+            continue
+
+        selected[key] = candidates[0]
+
+    return (
+        selected,
+        missing,
+        ambiguous,
+    )
+
+
+# ============================================================
+# DATABASE COUNTS
+# ============================================================
+
+def table_exists(
+    db,
+    table_name: str,
+) -> bool:
+
+    return bool(
+        db.execute(
+            text(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                      AND table_name = :name
+                )
+                """
+            ),
+            {
+                "name": table_name
+            },
+        ).scalar_one()
+    )
+
+
+def count_table(
+    db,
+    table_name: str,
+) -> int:
+
+    if not table_exists(
+        db,
+        table_name,
+    ):
+        return 0
+
+    return int(
+        db.execute(
+            text(
+                f'''
+                SELECT COUNT(*)
+                FROM public."{table_name}"
+                '''
+            )
+        ).scalar_one()
+    )
+
+
+# ============================================================
+# BACKUP
+# ============================================================
+
+def backup_table(
+    db,
+    table_name: str,
+    backup_name: str,
+):
+
+    if not table_exists(
+        db,
+        table_name,
+    ):
+        return False
+
+    db.execute(
+        text(
+            f'''
+            DROP TABLE IF EXISTS
+                public."{backup_name}"
+            '''
+        )
+    )
+
+    db.execute(
+        text(
+            f'''
+            CREATE TABLE public."{backup_name}"
+            AS
+            SELECT *
+            FROM public."{table_name}"
+            '''
+        )
+    )
+
+    return True
+
+
+# ============================================================
+# CREATE RULES
+# ============================================================
+
+def ensure_rules_table(db):
+
+    if not table_exists(
+        db,
+        "rules",
+    ):
+
+        db.execute(
+            text(
+                """
+                CREATE TABLE public.rules (
+                    id TEXT PRIMARY KEY,
+                    regulation_id TEXT,
+                    rule_text TEXT NOT NULL,
+                    source_text TEXT DEFAULT '',
+                    page_start INTEGER,
+                    page_end INTEGER,
+                    metadata JSONB DEFAULT '{}'::jsonb,
+                    created_at TIMESTAMP
+                        DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+        )
+
+        db.execute(
+            text(
+                """
+                CREATE INDEX
+                    ix_udcpr_rules_regulation_id
+                ON public.rules(regulation_id)
+                """
+            )
+        )
+
+
+# ============================================================
+# CREATE KNOWLEDGE CARDS
+# ============================================================
+
+def ensure_knowledge_cards_table(db):
+
+    if not table_exists(
+        db,
+        "knowledge_cards",
+    ):
+
+        db.execute(
+            text(
+                """
+                CREATE TABLE public.knowledge_cards (
+                    id TEXT PRIMARY KEY,
+                    regulation_id TEXT,
+                    rule_id TEXT,
+                    title TEXT NOT NULL,
+                    summary TEXT NOT NULL,
+                    source_text TEXT DEFAULT '',
+                    page_start INTEGER,
+                    page_end INTEGER,
+                    metadata JSONB DEFAULT '{}'::jsonb,
+                    created_at TIMESTAMP
+                        DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+        )
+
+        db.execute(
+            text(
+                """
+                CREATE INDEX
+                    ix_udcpr_cards_regulation_id
+                ON public.knowledge_cards(regulation_id)
+                """
+            )
+        )
+
+
+# ============================================================
+# RULE EXTRACTION
+# ============================================================
+
+def make_rule_text(
+    text_value: str,
+) -> str:
+
+    value = normalize(
+        text_value
+    )
+
+    if not value:
+        return ""
+
+    return value
+
+
+def build_rule_rows(
+    manifest_by_key,
+    chunks_by_key,
+    selected,
+):
+
+    rows = []
+
+    for key, entry in (
+        manifest_by_key.items()
+    ):
+
+        regulation = selected[
+            key
+        ]
+
+        chunks = chunks_by_key[
+            key
+        ]
+
+        if len(chunks) != 1:
+            raise RuntimeError(
+                f"Expected exactly one source "
+                f"chunk for {key}; got "
+                f"{len(chunks)}"
+            )
+
+        chunk = chunks[0]
+
+        text_value = make_rule_text(
+            chunk_text(chunk)
+        )
+
+        if not text_value:
+            continue
+
+        page_start = (
+            chunk.get(
+                "pdf_page_start"
+            )
+            or chunk.get(
+                "page_number"
+            )
+        )
+
+        page_end = (
+            chunk.get(
+                "pdf_page_end"
+            )
+            or page_start
+        )
+
+        rule_id = str(
+            uuid.uuid5(
+                uuid.NAMESPACE_URL,
+                "udcpr-rule:"
+                + str(regulation.id),
+            )
+        )
+
+        rows.append(
+            {
+                "id": rule_id,
+                "regulation_id":
+                    str(regulation.id),
+                "rule_text":
+                    text_value,
+                "source_text":
+                    text_value,
+                "page_start":
+                    page_start,
+                "page_end":
+                    page_end,
+                "metadata": {
+                    "source":
+                        "udcpr_source_chunks.json",
+                    "canonical_key":
+                        key,
+                    "number":
+                        entry.get("number"),
+                    "title":
+                        entry.get("title"),
+                    "sha256":
+                        sha256(text_value),
+                },
+            }
+        )
+
+    return rows
+
+
+# ============================================================
+# KNOWLEDGE CARDS
+# ============================================================
+
+def make_summary(
+    entry: dict,
+    source_text: str,
+) -> str:
+
+    """
+    Deterministic first-pass knowledge card.
+
+    IMPORTANT:
+    This intentionally does NOT invent planning rules.
+
+    The complete source text remains attached to
+    the card so a later LLM summarizer can produce
+    a planning-service-specific summary.
+    """
+
+    number = normalize(
+        entry.get("number")
+    )
+
+    title = normalize(
+        entry.get("title")
+    )
+
+    return (
+        f"UDCPR Regulation {number}: "
+        f"{title}. "
+        f"This knowledge card is sourced from "
+        f"the canonical UDCPR regulation text. "
+        f"Use the attached source text as the "
+        f"authoritative rule content."
+    )
+
+
+def build_card_rows(
+    manifest_by_key,
+    chunks_by_key,
+    selected,
+    rule_rows,
+):
+
+    rule_by_regulation = {
+        row["regulation_id"]:
+            row
+        for row in rule_rows
+    }
+
+    rows = []
+
+    for key, entry in (
+        manifest_by_key.items()
+    ):
+
+        regulation = selected[
+            key
+        ]
+
+        chunks = chunks_by_key[
+            key
+        ]
+
+        chunk = chunks[0]
+
+        source_text = normalize(
+            chunk_text(chunk)
+        )
+
+        if not source_text:
+            continue
+
+        page_start = (
+            chunk.get(
+                "pdf_page_start"
+            )
+            or chunk.get(
+                "page_number"
+            )
+        )
+
+        page_end = (
+            chunk.get(
+                "pdf_page_end"
+            )
+            or page_start
+        )
+
+        rule = rule_by_regulation.get(
+            str(regulation.id)
+        )
+
+        card_id = str(
+            uuid.uuid5(
+                uuid.NAMESPACE_URL,
+                "udcpr-card:"
+                + str(regulation.id),
+            )
+        )
+
+        rows.append(
+            {
+                "id": card_id,
+                "regulation_id":
+                    str(regulation.id),
+                "rule_id":
+                    rule["id"]
+                    if rule
+                    else None,
+                "title":
+                    normalize(
+                        entry.get("title")
+                    ),
+                "summary":
+                    make_summary(
+                        entry,
+                        source_text,
+                    ),
+                "source_text":
+                    source_text,
+                "page_start":
+                    page_start,
+                "page_end":
+                    page_end,
+                "metadata": {
+                    "source":
+                        "udcpr_source_chunks.json",
+                    "canonical_key":
+                        key,
+                    "number":
+                        entry.get("number"),
+                    "chapter":
+                        entry.get("chapter"),
+                    "sha256":
+                        sha256(source_text),
+                },
+            }
+        )
+
+    return rows
+
+
+# ============================================================
+# INSERT RULES
+# ============================================================
+
+def insert_rules(
+    db,
+    rows,
+):
+
+    for row in rows:
+
+        db.execute(
+            text(
+                """
+                INSERT INTO public.rules (
+                    id,
+                    regulation_id,
+                    rule_text,
+                    source_text,
+                    page_start,
+                    page_end,
+                    metadata
+                )
+                VALUES (
+                    :id,
+                    :regulation_id,
+                    :rule_text,
+                    :source_text,
+                    :page_start,
+                    :page_end,
+                    CAST(:metadata AS jsonb)
+                )
+                """
+            ),
+            {
+                **row,
+                "metadata":
+                    json.dumps(
+                        row["metadata"],
+                        ensure_ascii=False,
+                    ),
+            },
+        )
+
+
+# ============================================================
+# INSERT CARDS
+# ============================================================
+
+def insert_cards(
+    db,
+    rows,
+):
+
+    for row in rows:
+
+        db.execute(
+            text(
+                """
+                INSERT INTO public.knowledge_cards (
+                    id,
+                    regulation_id,
+                    rule_id,
+                    title,
+                    summary,
+                    source_text,
+                    page_start,
+                    page_end,
+                    metadata
+                )
+                VALUES (
+                    :id,
+                    :regulation_id,
+                    :rule_id,
+                    :title,
+                    :summary,
+                    :source_text,
+                    :page_start,
+                    :page_end,
+                    CAST(:metadata AS jsonb)
+                )
+                """
+            ),
+            {
+                **row,
+                "metadata":
+                    json.dumps(
+                        row["metadata"],
+                        ensure_ascii=False,
+                    ),
+            },
+        )
+
+
+# ============================================================
+# VERIFY
+# ============================================================
+
+def verify(
+    db,
+    expected_rules,
+    expected_cards,
+):
+
+    result = {}
+
+    result[
+        "rules"
+    ] = count_table(
+        db,
+        "rules",
+    )
+
+    result[
+        "knowledge_cards"
+    ] = count_table(
+        db,
+        "knowledge_cards",
+    )
+
+    result[
+        "expected_rules"
+    ] = expected_rules
+
+    result[
+        "expected_cards"
+    ] = expected_cards
+
+    result[
+        "rule_orphans"
+    ] = db.execute(
+        text(
+            """
+            SELECT COUNT(*)
+            FROM public.rules x
+            LEFT JOIN regulations r
+              ON r.id = x.regulation_id
+            WHERE x.regulation_id IS NOT NULL
+              AND r.id IS NULL
+            """
+        )
+    ).scalar_one()
+
+    result[
+        "card_orphans"
+    ] = db.execute(
+        text(
+            """
+            SELECT COUNT(*)
+            FROM public.knowledge_cards x
+            LEFT JOIN regulations r
+              ON r.id = x.regulation_id
+            WHERE x.regulation_id IS NOT NULL
+              AND r.id IS NULL
+            """
+        )
+    ).scalar_one()
+
+    result[
+        "passed"
+    ] = (
+        result["rules"]
+        == expected_rules
+        and
+        result["knowledge_cards"]
+        == expected_cards
+        and
+        result["rule_orphans"]
+        == 0
+        and
+        result["card_orphans"]
+        == 0
+    )
+
+    return result
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--manifest",
+        default=DEFAULT_MANIFEST,
+    )
+
+    parser.add_argument(
+        "--chunks",
+        default=DEFAULT_CHUNKS,
+    )
+
+    parser.add_argument(
+        "--report",
+        default=DEFAULT_REPORT,
+    )
+
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+    )
+
+    args = parser.parse_args()
+
+    print("=" * 120)
+    print(
+        "UDCPR RULE + KNOWLEDGE CARD REBUILD"
+    )
+    print("=" * 120)
+
+    print()
+
+    if args.apply:
+
+        print(
+            "!!! APPLY MODE !!!"
+        )
+
+        print(
+            "Existing rules and knowledge_cards "
+            "will be backed up."
+        )
+
+        print(
+            "regulations and tables will NOT "
+            "be modified."
+        )
+
+    else:
+
+        print(
+            "DRY-RUN MODE"
+        )
+
+        print(
+            "No PostgreSQL changes will be committed."
+        )
+
+    print()
+
+    (
+        manifest_by_key,
+        chunks_by_key,
+    ) = load_source(
+        args.manifest,
+        args.chunks,
+    )
+
+    print(
+        "Manifest regulations:",
+        len(manifest_by_key),
+    )
+
+    print(
+        "Source chunks:",
+        sum(
+            len(x)
+            for x in chunks_by_key.values()
+        ),
+    )
+
+    if len(manifest_by_key) != EXPECTED_REGULATIONS:
+
+        raise RuntimeError(
+            "Expected "
+            f"{EXPECTED_REGULATIONS} canonical "
+            "regulations, got "
+            f"{len(manifest_by_key)}"
+        )
+
+    db = SessionLocal()
+
+    try:
+
+        print()
+        print("=" * 120)
+        print("DATABASE")
+        print("=" * 120)
+
+        for table in (
+            "regulations",
+            "tables",
+            "rules",
+            "knowledge_cards",
+        ):
+
+            print(
+                f"{table:<20}",
+                count_table(
+                    db,
+                    table,
+                ),
+            )
+
+        (
+            selected,
+            missing,
+            ambiguous,
+        ) = select_regulations(
+            db,
+            manifest_by_key,
+            chunks_by_key,
+        )
+
+        print()
+        print(
+            "Selected regulations:",
+            len(selected),
+        )
+
+        print(
+            "Missing regulations:",
+            len(missing),
+        )
+
+        print(
+            "Ambiguous regulations:",
+            len(ambiguous),
+        )
+
+        if missing:
+
+            raise RuntimeError(
+                "Missing canonical regulations: "
+                + ", ".join(missing[:20])
+            )
+
+        if ambiguous:
+
+            raise RuntimeError(
+                "Ambiguous canonical regulations. "
+                "Resolve before rebuild."
+            )
+
+        rule_rows = build_rule_rows(
+            manifest_by_key,
+            chunks_by_key,
+            selected,
+        )
+
+        card_rows = build_card_rows(
+            manifest_by_key,
+            chunks_by_key,
+            selected,
+            rule_rows,
+        )
+
+        print()
+        print(
+            "Rules to rebuild:",
+            len(rule_rows),
+        )
+
+        print(
+            "Knowledge cards to rebuild:",
+            len(card_rows),
+        )
+
+        report = {
+            "created_at":
+                datetime.now().isoformat(),
+            "mode":
+                "apply"
+                if args.apply
+                else "dry-run",
+            "manifest":
+                args.manifest,
+            "chunks":
+                args.chunks,
+            "canonical_regulations":
+                len(manifest_by_key),
+            "selected_regulations":
+                len(selected),
+            "missing":
+                missing,
+            "ambiguous":
+                ambiguous,
+            "rules_to_rebuild":
+                len(rule_rows),
+            "knowledge_cards_to_rebuild":
+                len(card_rows),
+        }
+
+        if not args.apply:
+
+            report[
+                "status"
+            ] = "READY_FOR_APPLY"
+
+            write_json(
+                args.report,
+                report,
+            )
+
+            print()
+            print("=" * 120)
+            print("DRY-RUN COMPLETE")
+            print("=" * 120)
+
+            print(
+                "Rules:",
+                len(rule_rows),
+            )
+
+            print(
+                "Knowledge cards:",
+                len(card_rows),
+            )
+
+            print(
+                "STATUS: READY FOR --apply"
+            )
+
+            print(
+                "Report:",
+                args.report,
+            )
+
+            return
+
+        # ----------------------------------------------------
+        # TRANSACTION
+        # ----------------------------------------------------
+
+        timestamp = datetime.now().strftime(
+            "%Y%m%d_%H%M%S"
+        )
+
+        backup_dir = Path(
+            "/tmp/udcpr_postgres_backup"
+        ) / (
+            "knowledge_rebuild_"
+            + timestamp
+        )
+
+        backup_dir.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        print()
+        print(
+            "Backup directory:",
+            backup_dir,
+        )
+
+        # ----------------------------------------------------
+        # BACKUP EXISTING TABLE DATA
+        # ----------------------------------------------------
+
+        print(
+            "Backing up rules..."
+        )
+
+        old_rules = db.execute(
+            text(
+                """
+                SELECT *
+                FROM public.rules
+                """
+            )
+        ).mappings().all()
+
+        write_json(
+            str(
+                backup_dir
+                / "rules.json"
+            ),
+            [dict(x) for x in old_rules],
+        )
+
+        print(
+            "Backing up knowledge_cards..."
+        )
+
+        old_cards = db.execute(
+            text(
+                """
+                SELECT *
+                FROM public.knowledge_cards
+                """
+            )
+        ).mappings().all()
+
+        write_json(
+            str(
+                backup_dir
+                / "knowledge_cards.json"
+            ),
+            [dict(x) for x in old_cards],
+        )
+
+        # ----------------------------------------------------
+        # CLEAR KNOWLEDGE TABLES
+        # ----------------------------------------------------
+
+        print(
+            "Clearing rules..."
+        )
+
+        db.execute(
+            text(
+                """
+                DELETE FROM public.rules
+                """
+            )
+        )
+
+        print(
+            "Clearing knowledge_cards..."
+        )
+
+        db.execute(
+            text(
+                """
+                DELETE FROM public.knowledge_cards
+                """
+            )
+        )
+
+        ensure_rules_table(
+            db
+        )
+
+        ensure_knowledge_cards_table(
+            db
+        )
+
+        # ----------------------------------------------------
+        # INSERT
+        # ----------------------------------------------------
+
+        print(
+            "Inserting canonical rules..."
+        )
+
+        insert_rules(
+            db,
+            rule_rows,
+        )
+
+        print(
+            "Inserting knowledge cards..."
+        )
+
+        insert_cards(
+            db,
+            card_rows,
+        )
+
+        # ----------------------------------------------------
+        # VERIFY BEFORE COMMIT
+        # ----------------------------------------------------
+
+        verification = verify(
+            db,
+            len(rule_rows),
+            len(card_rows),
+        )
+
+        print()
+        print(
+            json.dumps(
+                verification,
+                indent=2,
+            )
+        )
+
+        if not verification[
+            "passed"
+        ]:
+
+            raise RuntimeError(
+                "Verification failed. "
+                "Transaction will be rolled back."
+            )
+
+        db.commit()
+
+        report[
+            "status"
+        ] = "SUCCESS"
+
+        report[
+            "backup_directory"
+        ] = str(
+            backup_dir
+        )
+
+        report[
+            "verification"
+        ] = verification
+
+        write_json(
+            args.report,
+            report,
+        )
+
+        print()
+        print("=" * 120)
+        print("KNOWLEDGE REBUILD SUCCESSFUL")
+        print("=" * 120)
+
+        print(
+            "Rules:",
+            len(rule_rows),
+        )
+
+        print(
+            "Knowledge cards:",
+            len(card_rows),
+        )
+
+        print(
+            "Backup:",
+            backup_dir,
+        )
+
+        print(
+            "Report:",
+            args.report,
+        )
+
+    except Exception as exc:
+
+        db.rollback()
+
+        report = {
+            "created_at":
+                datetime.now().isoformat(),
+            "mode":
+                "apply",
+            "status":
+                "ABORTED",
+            "error":
+                str(exc),
+        }
+
+        write_json(
+            args.report,
+            report,
+        )
+
+        print()
+        print("=" * 120)
+        print("REBUILD ABORTED")
+        print("=" * 120)
+
+        print(
+            "NO COMMITTED DATABASE CHANGES."
+        )
+
+        print(
+            "Report:",
+            args.report,
+        )
+
+        raise
+
+    finally:
+
+        db.close()
+
+
+if __name__ == "__main__":
+    main()

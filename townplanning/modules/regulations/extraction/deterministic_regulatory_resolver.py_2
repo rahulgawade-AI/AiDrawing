@@ -1,0 +1,354 @@
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from typing import Any
+
+
+@dataclass(slots=True)
+class DeterministicResolution:
+    status: str
+    constraints: list[dict[str, Any]] = field(default_factory=list)
+    values: dict[str, Any] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
+    trace: list[dict[str, Any]] = field(default_factory=list)
+
+
+class DeterministicRegulatoryResolver:
+    """
+    Evaluate conditional regulatory tables against PlanningFacts.
+
+    PostgreSQL/source records contain the regulatory table and its
+    conditions.  This class does not contain regulatory numeric constants.
+    It parses the supplied source, determines the matching row/branch from
+    PlanningFacts, and returns only values supported by that source.
+    """
+
+    FIELD_ALIASES = {
+        "road_width": "road_width",
+        "roadwidth": "road_width",
+        "road_width_m": "road_width",
+        "road width": "road_width",
+        "building_use": "building_use",
+        "building use": "building_use",
+        "use_type": "building_use",
+        "authority": "authority",
+        "planning_authority": "authority",
+        "municipality": "authority",
+        "municipal_corporation": "authority",
+        "zone": "zone_type",
+        "zone_type": "zone_type",
+        "congested_area": "congested_area",
+        "area_type": "area_type",
+        "plot_area": "plot_area",
+        "plot size": "plot_area",
+    }
+
+    def resolve(
+        self,
+        facts: Any,
+        selected_regulations: list[Any] | None,
+        sources: list[Any],
+        requested_fields: list[str] | None = None,
+    ) -> DeterministicResolution:
+        fact_values = self._facts(facts)
+        selected = {self._reg_number(x) for x in (selected_regulations or [])}
+        selected.discard(None)
+        requested = {str(x).strip().lower() for x in (requested_fields or [])}
+
+        relevant = []
+        for source in sources or []:
+            number = self._reg_number(source)
+            if selected and number not in selected:
+                continue
+            text = self._text(source)
+            if text:
+                relevant.append((source, number, text))
+
+        if not relevant:
+            return DeterministicResolution(
+                status="INSUFFICIENT_RULE_DATA",
+                errors=["No authoritative PostgreSQL regulatory source was supplied for the selected regulations."],
+            )
+
+        constraints: list[dict[str, Any]] = []
+        trace: list[dict[str, Any]] = []
+        errors: list[str] = []
+
+        for source, number, text in relevant:
+            lower = text.lower()
+            if self._looks_like_fsi_table(lower):
+                item, reason = self._resolve_fsi_table(fact_values, source, number, text)
+                if item:
+                    constraints.extend(item)
+                    trace.append({
+                        "regulation_number": number,
+                        "source_id": self._source_id(source),
+                        "resolution": reason,
+                    })
+                elif reason:
+                    errors.append(reason)
+                    trace.append({
+                        "regulation_number": number,
+                        "source_id": self._source_id(source),
+                        "resolution": reason,
+                    })
+
+        # Generic scalar structured-source support.  This never converts
+        # explanatory prose into a regulatory value.
+        for source, number, text in relevant:
+            result = getattr(source, "result", None)
+            if isinstance(source, dict):
+                result = source.get("result")
+            if isinstance(result, dict):
+                constraints.extend(
+                    self._structured_result_constraints(result, source, number)
+                )
+
+        # De-duplicate same field/source while preserving provenance.
+        dedup: dict[tuple[str, str], dict[str, Any]] = {}
+        for item in constraints:
+            key = (str(item.get("field")), str(item.get("source_id")))
+            dedup[key] = item
+        constraints = list(dedup.values())
+        values = {str(x["field"]): x["value"] for x in constraints if x.get("field") and x.get("value") is not None}
+
+        if requested:
+            requested_aliases = set(requested)
+            requested_aliases.update({"fsi", "maximum_fsi"} if "fsi" in requested else set())
+            relevant_values = [x for x in constraints if str(x.get("field", "")).lower() in requested_aliases]
+            if relevant_values:
+                constraints = relevant_values
+                values = {str(x["field"]): x["value"] for x in constraints}
+
+        if constraints:
+            return DeterministicResolution(
+                status="RESOLVED",
+                constraints=constraints,
+                values=values,
+                errors=errors,
+                trace=trace,
+            )
+
+        return DeterministicResolution(
+            status="INSUFFICIENT_RULE_DATA",
+            errors=errors or ["The authoritative source was found, but no deterministic table row matched the supplied PlanningFacts."],
+            trace=trace,
+        )
+
+    @staticmethod
+    def _facts(facts: Any) -> dict[str, Any]:
+        if facts is None:
+            return {}
+        if hasattr(facts, "to_dict"):
+            raw = facts.to_dict()
+        elif isinstance(facts, dict):
+            raw = dict(facts)
+        else:
+            raw = dict(vars(facts))
+        out = dict(raw)
+        out.setdefault("authority", out.get("planning_authority") or out.get("municipality") or out.get("municipal_corporation"))
+        out.setdefault("road_width", out.get("road_width_m") or out.get("road_width_meters"))
+        return out
+
+    @staticmethod
+    def _reg_number(value: Any) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, dict):
+            value = value.get("regulation_number") or value.get("number") or value.get("regulation")
+        else:
+            value = getattr(value, "regulation_number", None) or getattr(value, "number", None) or getattr(value, "regulation", None) or value
+        text = str(value).strip()
+        if not text:
+            return None
+        if text.upper().startswith("UDCPR:"):
+            text = text.split(":", 1)[1].strip()
+        return text.split("|", 1)[0].strip() or None
+
+    @staticmethod
+    def _text(source: Any) -> str:
+        if isinstance(source, dict):
+            return str(source.get("text") or source.get("source_text") or "")
+        return str(getattr(source, "text", None) or getattr(source, "source_text", None) or "")
+
+    @staticmethod
+    def _source_id(source: Any) -> str | None:
+        if isinstance(source, dict):
+            return str(source.get("source_id")) if source.get("source_id") else None
+        value = getattr(source, "source_id", None)
+        return str(value) if value else None
+
+    @staticmethod
+    def _looks_like_fsi_table(lower: str) -> bool:
+        return (
+            "permissible fsi" in lower
+            and "road width" in lower
+            and "maximum building" in lower
+        )
+
+    def _resolve_fsi_table(
+        self,
+        facts: dict[str, Any],
+        source: Any,
+        number: str | None,
+        text: str,
+    ) -> tuple[list[dict[str, Any]], str | None]:
+        road = self._number(facts.get("road_width"))
+        if road is None:
+            return [], "Missing PlanningFacts.road_width required to select the FSI table row."
+
+        rows = self._extract_road_rows(text)
+        if not rows:
+            return [], "FSI source contains a road-width table, but no deterministic road-width rows could be parsed."
+
+        matches = [row for row in rows if self._road_matches(road, row["min"], row["max"], row["max_inclusive"])]
+        if not matches:
+            return [], f"No FSI table row matches road_width={road}."
+        if len(matches) > 1:
+            # Prefer the narrowest matching interval.  This is a property of
+            # interval selection, not a regulatory numeric assumption.
+            matches.sort(key=lambda r: float("inf") if r["max"] is None else r["max"] - r["min"])
+        row = matches[0]
+
+        numbers = row["numbers"]
+        if len(numbers) < 4:
+            return [], "Matched FSI row does not contain enough numeric result columns."
+
+        authority = str(facts.get("authority") or facts.get("planning_authority") or "").lower()
+        municipal = any(token in authority for token in ("municipal corporation", "corporation", "cidco"))
+
+        # The source table itself defines the column groups.  For the common
+        # two-branch FSI layout, the first four numeric cells are the branch
+        # headed by Municipal Corporations/CIDCO and the final three are the
+        # remaining-authority branch.  We select the branch from PlanningFacts;
+        # no numeric regulatory value is hardcoded here.
+        if len(numbers) >= 7 and not municipal:
+            branch = numbers[4:7]
+            fields = ("premium_fsi", "tdr_fsi", "maximum_fsi")
+        else:
+            branch = numbers[:4]
+            fields = ("basic_fsi", "premium_fsi", "tdr_fsi", "maximum_fsi")
+
+        result: list[dict[str, Any]] = []
+        for field, value in zip(fields, branch):
+            if value is None:
+                continue
+            result.append({
+                "field": field,
+                "value": value,
+                "unit": None,
+                "source_id": self._source_id(source),
+                "regulation_number": number,
+                "condition": {
+                    "road_width": {
+                        "min": row["min"],
+                        "max": row["max"],
+                        "max_inclusive": row["max_inclusive"],
+                    },
+                    "authority_branch": "municipal_corporation_or_cidco" if municipal else "remaining_authorities",
+                },
+                "confidence": "authoritative_deterministic",
+            })
+
+        return result, f"Matched road-width row [{row['raw_range']}] and authority branch."
+
+    @staticmethod
+    def _number(value: Any) -> float | None:
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return float(value)
+        if value is None:
+            return None
+        match = re.search(r"-?\d+(?:\.\d+)?", str(value))
+        return float(match.group(0)) if match else None
+
+    def _extract_road_rows(self, text: str) -> list[dict[str, Any]]:
+        lines = [re.sub(r"\s+", " ", line).strip() for line in text.replace("\r", "").split("\n")]
+        rows: list[dict[str, Any]] = []
+        for i, line in enumerate(lines):
+            if not re.search(r"\d+(?:\.\d+)?\s*m\.?", line, re.I):
+                continue
+            if not any(token in line.lower() for token in ("below", "above", "and above", "upto", "up to")):
+                continue
+            if not re.search(r"\d+(?:\.\d+)?\s*m\.?", line, re.I):
+                continue
+            min_v, max_v, max_inc = self._parse_range(line)
+            if min_v is None:
+                continue
+            nums: list[float] = []
+            # Values for the row follow the range in the canonical extracted
+            # source. Stop at the next row marker or a long explanatory block.
+            for nxt in lines[i + 1:i + 18]:
+                if re.match(r"^\d+\s*$", nxt) and nums:
+                    break
+                if re.search(r"m\.?\s*(?:and above|and above but below|below)", nxt, re.I):
+                    break
+                for token in re.findall(r"(?<![A-Za-z])(?:\d+\.\d+|\d+)(?![A-Za-z])", nxt):
+                    try:
+                        nums.append(float(token))
+                    except ValueError:
+                        pass
+                if len(nums) >= 7:
+                    break
+            # Remove serial-number artefacts when the first value is clearly
+            # the row number and seven regulatory values follow it.
+            if len(nums) >= 8 and abs(nums[0] - round(nums[0])) < 1e-9:
+                nums = nums[1:]
+            nums = nums[:7]
+            if len(nums) >= 4:
+                rows.append({"raw_range": line, "min": min_v, "max": max_v, "max_inclusive": max_inc, "numbers": nums})
+        return rows
+
+    @staticmethod
+    def _parse_range(text: str) -> tuple[float | None, float | None, bool]:
+        nums = [float(x) for x in re.findall(r"\d+(?:\.\d+)?", text)]
+        lower = text.lower()
+        if "below" in lower and "above" not in lower:
+            return None if not nums else 0.0, nums[0], False
+        if "and above" in lower and "but below" not in lower:
+            return (nums[0] if nums else None), None, True
+        if len(nums) >= 2:
+            return nums[0], nums[1], False
+        return None, None, False
+
+    @staticmethod
+    def _road_matches(value: float, minimum: float, maximum: float | None, max_inclusive: bool) -> bool:
+        if value < minimum:
+            return False
+        if maximum is None:
+            return True
+        return value <= maximum if max_inclusive else value < maximum
+
+    def _structured_result_constraints(self, result: dict[str, Any], source: Any, number: str | None) -> list[dict[str, Any]]:
+        aliases = {
+            "basic_fsi": "basic_fsi",
+            "basic_permissible_fsi": "basic_fsi",
+            "premium_fsi": "premium_fsi",
+            "tdr_fsi": "tdr_fsi",
+            "maximum_fsi": "maximum_fsi",
+            "maximum_building_potential": "maximum_fsi",
+            "maximumBuildingPotential": "maximum_fsi",
+            "maximum_permissible_fsi": "maximum_fsi",
+        }
+        out = []
+        for raw_key, raw_value in result.items():
+            field = aliases.get(raw_key)
+            if not field:
+                continue
+            value = raw_value
+            unit = None
+            if isinstance(raw_value, dict):
+                value = raw_value.get("value", raw_value.get("amount"))
+                unit = raw_value.get("unit")
+            if not isinstance(value, (int, float)) or isinstance(value, bool):
+                continue
+            out.append({
+                "field": field,
+                "value": value,
+                "unit": unit,
+                "source_id": self._source_id(source),
+                "regulation_number": number,
+                "condition": {},
+                "confidence": "authoritative_structured_result",
+            })
+        return out

@@ -1,0 +1,563 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+from collections import Counter
+from pathlib import Path
+
+import fitz
+
+
+INDEX_PDF_START = 5
+INDEX_PDF_END = 14
+
+APPENDIX_INDEX_START = 15
+
+
+def clean(s: str) -> str:
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def chapter_from_text(text: str) -> str | None:
+    m = re.search(
+        r"CHAPTER\s*[-–—]\s*(\d+)",
+        text,
+        re.IGNORECASE,
+    )
+    return m.group(1) if m else None
+
+
+def parse_index_line(
+    text: str,
+    chapter: str,
+    pdf_page: int,
+):
+    """
+    Parse actual UDCPR index block.
+
+    Examples:
+
+        1.0 Short Title, Extent and Commencement 1
+
+        2.2.5 (a) Sub-division Layout Plan 25
+
+        2.2.5 (b) Amalgamation Plan 25
+    """
+
+    text = clean(text)
+
+    m = re.match(
+        r"^"
+        r"(?P<number>\d+(?:\.\d+)*)"
+        r"\s*"
+        r"(?P<variant>\([a-z]\))?"
+        r"\s+"
+        r"(?P<title>.+?)"
+        r"\s+"
+        r"(?P<page>\d+)"
+        r"$",
+        text,
+        re.IGNORECASE,
+    )
+
+    if not m:
+        return None
+
+    number = m.group("number")
+
+    variant = m.group("variant")
+
+    if variant:
+        number += variant.lower()
+
+    title = m.group("title")
+
+    # Remove UDCPR index annotation marks.
+    title = re.sub(
+        r"^(?:\*+|#+|\*+\s*#+)\s*",
+        "",
+        title,
+    )
+
+    title = clean(title)
+
+    return {
+        "number": number,
+        "chapter": chapter,
+        "title": title,
+        "printed_page_start": int(
+            m.group("page")
+        ),
+        "index_pdf_page": pdf_page,
+    }
+
+
+def read_index(doc: fitz.Document):
+    entries = []
+
+    chapter = ""
+
+    for pdf_page in range(
+        INDEX_PDF_START,
+        INDEX_PDF_END + 1,
+    ):
+
+        page = doc[pdf_page - 1]
+
+        blocks = page.get_text(
+            "blocks",
+            sort=True,
+        )
+
+        for block in blocks:
+
+            text = clean(block[4])
+
+            if not text:
+                continue
+
+            detected = chapter_from_text(
+                text
+            )
+
+            if detected:
+                chapter = detected
+                continue
+
+            if text.upper() in {
+                "INDEX",
+                "REGULATION",
+                "NO.",
+                "PARTICULARS PAGE NO.",
+                "PAGE NO.",
+            }:
+                continue
+
+            entry = parse_index_line(
+                text,
+                chapter,
+                pdf_page,
+            )
+
+            if entry:
+                entries.append(entry)
+
+    # Assign occurrence for duplicate regulation numbers.
+    counts = Counter()
+
+    for i, entry in enumerate(entries, 1):
+
+        counts[entry["number"]] += 1
+
+        entry["sequence"] = i
+
+        entry["occurrence"] = counts[
+            entry["number"]
+        ]
+
+        entry["key"] = (
+            f'{entry["number"]}'
+            f'@{entry["printed_page_start"]}'
+            f'#{entry["occurrence"]}'
+        )
+
+    return entries
+
+
+def printed_page_number(
+    page: fitz.Page,
+):
+    """
+    UDCPR footer format.
+
+    The printed page number is located in the bottom-right
+    corner of the PDF page.
+
+    Example:
+
+        PDF page 17 -> printed page 1
+        PDF page 18 -> printed page 2
+        PDF page 40 -> printed page 24
+
+    Do NOT search the entire bottom area because footnotes,
+    dates and regulation text may also contain numbers.
+    """
+
+    width = page.rect.width
+    height = page.rect.height
+
+    # Footer is consistently in the bottom-right.
+    x_min = width * 0.82
+    y_min = height * 0.93
+
+    blocks = page.get_text(
+        "blocks",
+        sort=True,
+    )
+
+    candidates = []
+
+    for block in blocks:
+
+        x0, y0, x1, y1, text = block[:5]
+
+        if x0 < x_min:
+            continue
+
+        if y0 < y_min:
+            continue
+
+        text = clean(text)
+
+        if not text:
+            continue
+
+        # Footer should contain ONLY the page number.
+        if not re.fullmatch(
+            r"\d{1,3}",
+            text,
+        ):
+            continue
+
+        value = int(text)
+
+        if 1 <= value <= 999:
+
+            candidates.append(
+                (
+                    y0,
+                    x0,
+                    value,
+                )
+            )
+
+    if not candidates:
+        return None
+
+    # Lowest/right-most matching footer.
+    candidates.sort(
+        key=lambda x: (x[0], x[1]),
+        reverse=True,
+    )
+
+    return candidates[0][2]
+
+
+def build_page_map(
+    doc: fitz.Document,
+):
+    result = {}
+
+    for pdf_page_no in range(
+        1,
+        len(doc) + 1,
+    ):
+
+        printed = printed_page_number(
+            doc[pdf_page_no - 1]
+        )
+
+        if printed is None:
+            continue
+
+        result.setdefault(
+            printed,
+            [],
+        ).append(
+            pdf_page_no
+        )
+
+    return result
+
+
+def calculate_ranges(
+    entries,
+    page_map,
+):
+    """
+    Initial physical page range.
+
+    Exact regulation boundaries on shared pages are resolved
+    later using regulation headings.
+    """
+
+    for i, entry in enumerate(entries):
+
+        start = entry[
+            "printed_page_start"
+        ]
+
+        next_start = None
+
+        for nxt in entries[i + 1:]:
+
+            if nxt[
+                "printed_page_start"
+            ] > start:
+
+                next_start = nxt[
+                    "printed_page_start"
+                ]
+
+                break
+
+        if next_start is not None:
+
+            entry[
+                "printed_page_end"
+            ] = next_start - 1
+
+        else:
+
+            entry[
+                "printed_page_end"
+            ] = None
+
+        start_pdf = page_map.get(
+            start,
+            [],
+        )
+
+        entry[
+            "pdf_page_start"
+        ] = (
+            min(start_pdf)
+            if start_pdf
+            else None
+        )
+
+        if (
+            entry["printed_page_end"]
+            is not None
+        ):
+
+            pages = []
+
+            for printed in range(
+                start,
+                entry[
+                    "printed_page_end"
+                ] + 1,
+            ):
+
+                pages.extend(
+                    page_map.get(
+                        printed,
+                        [],
+                    )
+                )
+
+            entry[
+                "pdf_page_end"
+            ] = (
+                max(pages)
+                if pages
+                else None
+            )
+
+        else:
+
+            entry[
+                "pdf_page_end"
+            ] = None
+
+
+def main():
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--pdf",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--output",
+        default=(
+            "data/regulations/"
+            "udcpr_canonical_manifest.json"
+        ),
+    )
+
+    args = parser.parse_args()
+
+    pdf = Path(args.pdf)
+
+    if not pdf.exists():
+        raise FileNotFoundError(pdf)
+
+    doc = fitz.open(str(pdf))
+
+    try:
+
+        print("=" * 100)
+        print("BUILDING UDCPR CANONICAL MANIFEST")
+        print("=" * 100)
+
+        print(
+            "PDF pages:",
+            len(doc),
+        )
+
+        print(
+            "Reading index pages:",
+            f"{INDEX_PDF_START}-{INDEX_PDF_END}",
+        )
+
+        entries = read_index(doc)
+
+        print(
+            "Index entries:",
+            len(entries),
+        )
+
+        page_map = build_page_map(
+            doc
+        )
+
+        print(
+            "Printed pages detected:",
+            len(page_map),
+        )
+
+        calculate_ranges(
+            entries,
+            page_map,
+        )
+
+        missing = [
+            x for x in entries
+            if x["pdf_page_start"] is None
+        ]
+
+        print(
+            "Entries without PDF page:",
+            len(missing),
+        )
+
+        print()
+        print("FIRST 40")
+        print("-" * 100)
+
+        for entry in entries[:40]:
+
+            print(
+                f'{entry["number"]:18} '
+                f'chapter={entry["chapter"]:3} '
+                f'printed='
+                f'{entry["printed_page_start"]}-'
+                f'{entry["printed_page_end"]} '
+                f'pdf='
+                f'{entry["pdf_page_start"]}-'
+                f'{entry["pdf_page_end"]} '
+                f'{entry["title"]}'
+            )
+
+        print()
+        print("DUPLICATES")
+        print("-" * 100)
+
+        counts = Counter(
+            x["number"]
+            for x in entries
+        )
+
+        for number, count in counts.items():
+
+            if count > 1:
+
+                print(
+                    f"{number}: {count}"
+                )
+
+                for x in entries:
+
+                    if x["number"] == number:
+
+                        print(
+                            "   ",
+                            x["key"],
+                            x["printed_page_start"],
+                            x["title"],
+                        )
+
+        manifest = {
+            "source_document": {
+                "path": str(pdf),
+                "filename": pdf.name,
+                "version": "UDCPR-2020",
+            },
+
+            "index": {
+                "pdf_start":
+                    INDEX_PDF_START,
+                "pdf_end":
+                    INDEX_PDF_END,
+            },
+
+            "statistics": {
+                "regulation_count":
+                    len(entries),
+
+                "printed_pages":
+                    len(page_map),
+
+                "missing_pdf_pages":
+                    len(missing),
+            },
+
+            "regulations": entries,
+
+            "printed_page_map": {
+                str(k): v
+                for k, v in page_map.items()
+            },
+        }
+
+        output = Path(
+            args.output
+        )
+
+        output.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        output.write_text(
+            json.dumps(
+                manifest,
+                indent=2,
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+
+        print()
+        print("=" * 100)
+        print(
+            "MANIFEST CREATED:"
+        )
+        print(output)
+
+        print(
+            "REGULATIONS:",
+            len(entries),
+        )
+
+        print(
+            "MISSING PDF PAGES:",
+            len(missing),
+        )
+
+        print("=" * 100)
+
+    finally:
+
+        doc.close()
+
+
+if __name__ == "__main__":
+    main()

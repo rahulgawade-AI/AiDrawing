@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+
+  postgres:
+
+    image: postgres:16
+
+    container_name: townplanning-postgres
+
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: townplanning
+      POSTGRES_USER: udcpr_user
+      POSTGRES_PASSWORD: Gdg43_SdwrT2026
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U udcpr_user -d townplanning"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

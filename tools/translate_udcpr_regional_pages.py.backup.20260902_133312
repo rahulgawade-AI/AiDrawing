@@ -1,0 +1,1155 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+import requests
+
+
+# ============================================================
+# CONFIG
+# ============================================================
+
+DEFAULT_MODEL = "llama3.1:8b"
+DEFAULT_OLLAMA_HOST = "http://localhost:11434"
+DEFAULT_TIMEOUT = 600
+
+
+# ============================================================
+# TEXT HELPERS
+# ============================================================
+
+DEVANAGARI_RE = re.compile(
+    r"[\u0900-\u097F]"
+)
+
+LATIN_RE = re.compile(
+    r"[A-Za-z]"
+)
+
+
+def classify_text(text: str) -> str:
+
+    if not text:
+        return "unknown"
+
+    devanagari_count = len(
+        DEVANAGARI_RE.findall(text)
+    )
+
+    latin_count = len(
+        LATIN_RE.findall(text)
+    )
+
+    if (
+        devanagari_count > 0
+        and latin_count > 0
+    ):
+        return "mixed"
+
+    if devanagari_count > 0:
+        return "regional"
+
+    if latin_count > 0:
+        return "english"
+
+    return "unknown"
+
+
+def clean_text(text: Any) -> str:
+
+    if text is None:
+        return ""
+
+    return str(text).strip()
+
+
+# ============================================================
+# OLLAMA
+# ============================================================
+
+def check_ollama(
+    host: str,
+    timeout: int,
+):
+
+    url = (
+        host.rstrip("/")
+        + "/api/tags"
+    )
+
+    try:
+
+        response = requests.get(
+            url,
+            timeout=min(
+                timeout,
+                30,
+            ),
+        )
+
+        response.raise_for_status()
+
+        return response.json()
+
+    except Exception as exc:
+
+        raise RuntimeError(
+            "Cannot connect to Ollama at "
+            f"{host}: {exc}"
+        )
+
+
+def translate_with_ollama(
+    text: str,
+    model: str,
+    host: str,
+    timeout: int,
+) -> str:
+
+    text = clean_text(text)
+
+    if not text:
+        return ""
+
+    prompt = f"""
+You are translating an official Maharashtra Government
+town-planning document from Marathi into English.
+
+TASK:
+Translate the Marathi text below into accurate formal English.
+
+IMPORTANT RULES:
+
+1. TRANSLATE ONLY.
+2. DO NOT summarize.
+3. DO NOT explain.
+4. DO NOT add information.
+5. DO NOT remove information.
+6. Preserve the original meaning and legal intent.
+7. Preserve paragraph structure as much as practical.
+8. Preserve numbered lists.
+9. Preserve dates exactly.
+10. Preserve government notification numbers exactly.
+11. Preserve regulation numbers exactly.
+12. Preserve section/sub-section numbers exactly.
+13. Preserve abbreviations such as UDCPR and TOD.
+14. Preserve English terminology that already appears in the source.
+15. Do not translate names of people.
+16. Do not translate names of government departments or authorities
+   when they are already written in English.
+17. Do not invent a regulation number.
+18. Do not convert a reference into a different reference.
+19. Keep legal wording precise.
+20. Return ONLY the English translation.
+
+SOURCE TEXT:
+
+{text}
+"""
+
+    url = (
+        host.rstrip("/")
+        + "/api/generate"
+    )
+
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "temperature": 0.0,
+        },
+    }
+
+    response = requests.post(
+        url,
+        json=payload,
+        timeout=timeout,
+    )
+
+    response.raise_for_status()
+
+    data = response.json()
+
+    translated = data.get(
+        "response"
+    )
+
+    if translated is None:
+
+        raise RuntimeError(
+            "Ollama response did not contain "
+            "'response'."
+        )
+
+    translated = str(
+        translated
+    ).strip()
+
+    if not translated:
+
+        raise RuntimeError(
+            "Ollama returned empty translation."
+        )
+
+    return translated
+
+
+# ============================================================
+# PAGE TRANSLATION
+# ============================================================
+
+def translate_page(
+    source_path: Path,
+    output_dir: Path,
+    model: str,
+    ollama_host: str,
+    timeout: int,
+):
+
+    with source_path.open(
+        "r",
+        encoding="utf-8",
+    ) as f:
+
+        source = json.load(f)
+
+    page_number = source.get(
+        "pdf_page"
+    )
+
+    if page_number is None:
+
+        raise RuntimeError(
+            f"Missing pdf_page in {source_path}"
+        )
+
+    original_text = clean_text(
+        source.get("text")
+    )
+
+    source_lines = source.get(
+        "lines",
+        [],
+    )
+
+    if not isinstance(
+        source_lines,
+        list,
+    ):
+
+        source_lines = []
+
+    translated_lines = []
+
+    regional_count = 0
+    mixed_count = 0
+    english_count = 0
+    unknown_count = 0
+
+    for index, line in enumerate(
+        source_lines
+    ):
+
+        if not isinstance(
+            line,
+            dict,
+        ):
+            continue
+
+        text = clean_text(
+            line.get("text")
+        )
+
+        if not text:
+            continue
+
+        classification = (
+            line.get("classification")
+            or classify_text(text)
+        )
+
+        print(
+            f"  Line {index + 1}: "
+            f"{classification}"
+        )
+
+        # ----------------------------------------------------
+        # ENGLISH
+        # ----------------------------------------------------
+
+        if classification == "english":
+
+            translated = text
+
+            english_count += 1
+
+            translation_method = (
+                "preserved"
+            )
+
+        # ----------------------------------------------------
+        # REGIONAL
+        # ----------------------------------------------------
+
+        elif classification == "regional":
+
+            print(
+                "    Translating Marathi..."
+            )
+
+            translated = translate_with_ollama(
+                text,
+                model,
+                ollama_host,
+                timeout,
+            )
+
+            regional_count += 1
+
+            translation_method = (
+                "ollama_translation"
+            )
+
+        # ----------------------------------------------------
+        # MIXED
+        # ----------------------------------------------------
+
+        elif classification == "mixed":
+
+            print(
+                "    Translating mixed text..."
+            )
+
+            translated = translate_with_ollama(
+                text,
+                model,
+                ollama_host,
+                timeout,
+            )
+
+            mixed_count += 1
+
+            translation_method = (
+                "ollama_translation"
+            )
+
+        # ----------------------------------------------------
+        # UNKNOWN
+        # ----------------------------------------------------
+
+        else:
+
+            translated = text
+
+            unknown_count += 1
+
+            translation_method = (
+                "preserved_unknown"
+            )
+
+        translated_lines.append(
+            {
+                "line_index":
+                    index,
+
+                "classification":
+                    classification,
+
+                "original_text":
+                    text,
+
+                "translated_text":
+                    translated,
+
+                "translation_method":
+                    translation_method,
+
+                "confidence":
+                    line.get(
+                        "confidence"
+                    ),
+
+                "polygon":
+                    line.get(
+                        "polygon"
+                    ),
+
+                "label":
+                    line.get(
+                        "label"
+                    ),
+            }
+        )
+
+    # --------------------------------------------------------
+    # Reconstruct complete English document.
+    # --------------------------------------------------------
+
+    english_text = "\n".join(
+        x["translated_text"]
+        for x in translated_lines
+        if x["translated_text"]
+    ).strip()
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    output_json = (
+        output_dir
+        / f"page_{int(page_number):04d}.json"
+    )
+
+    output_txt = (
+        output_dir
+        / f"page_{int(page_number):04d}.txt"
+    )
+
+    result = {
+
+        "schema":
+            "udcpr.regional.translation.v1",
+
+        "created_at":
+            datetime.now().isoformat(),
+
+        "source":
+            {
+                "ocr_json":
+                    str(source_path),
+
+                "pdf_page":
+                    page_number,
+
+                "ocr_engine":
+                    source.get(
+                        "ocr_engine"
+                    ),
+
+                "ocr_mode":
+                    source.get(
+                        "ocr_mode"
+                    ),
+            },
+
+        "translation":
+            {
+                "provider":
+                    "ollama",
+
+                "model":
+                    model,
+
+                "host":
+                    ollama_host,
+
+                "temperature":
+                    0.0,
+
+                "mode":
+                    "translation_only",
+            },
+
+        # ----------------------------------------------------
+        # ORIGINAL SOURCE IS RETAINED.
+        # ----------------------------------------------------
+
+        "original_ocr_text":
+            original_text,
+
+        "translated_english_text":
+            english_text,
+
+        "lines":
+            translated_lines,
+
+        "statistics":
+            {
+                "line_count":
+                    len(translated_lines),
+
+                "regional_lines":
+                    regional_count,
+
+                "mixed_lines":
+                    mixed_count,
+
+                "english_lines":
+                    english_count,
+
+                "unknown_lines":
+                    unknown_count,
+
+                "translated_lines":
+                    (
+                        regional_count
+                        + mixed_count
+                    ),
+            },
+    }
+
+    output_json.write_text(
+        json.dumps(
+            result,
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    output_txt.write_text(
+        english_text
+        + "\n",
+        encoding="utf-8",
+    )
+
+    return result
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Translate UDCPR regional-language "
+            "Surya OCR output into English."
+        )
+    )
+
+    parser.add_argument(
+        "--input",
+        required=True,
+        help=(
+            "Directory containing page_XXXX.json "
+            "from Surya OCR."
+        ),
+    )
+
+    parser.add_argument(
+        "--output",
+        required=True,
+        help=(
+            "Directory for translated JSON/TXT."
+        ),
+    )
+
+    parser.add_argument(
+        "--start-page",
+        type=int,
+        default=None,
+    )
+
+    parser.add_argument(
+        "--end-page",
+        type=int,
+        default=None,
+    )
+
+    parser.add_argument(
+        "--model",
+        default=DEFAULT_MODEL,
+    )
+
+    parser.add_argument(
+        "--ollama-host",
+        default=DEFAULT_OLLAMA_HOST,
+    )
+
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=DEFAULT_TIMEOUT,
+    )
+
+    parser.add_argument(
+        "--report",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=0.0,
+        help=(
+            "Optional delay between pages."
+        ),
+    )
+
+    args = parser.parse_args()
+
+    input_dir = Path(
+        args.input
+    )
+
+    output_dir = Path(
+        args.output
+    )
+
+    report_path = Path(
+        args.report
+    )
+
+    if not input_dir.exists():
+
+        raise SystemExit(
+            f"ERROR: input directory not found: "
+            f"{input_dir}"
+        )
+
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    report_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    print("=" * 110)
+    print(
+        "UDCPR REGIONAL OCR -> ENGLISH TRANSLATION"
+    )
+    print("=" * 110)
+
+    print()
+    print(
+        "IMPORTANT:"
+    )
+
+    print(
+        "Original OCR is preserved."
+    )
+
+    print(
+        "English text already present is preserved."
+    )
+
+    print(
+        "Marathi/regional text is translated."
+    )
+
+    print(
+        "Translation only."
+    )
+
+    print(
+        "No summarization."
+    )
+
+    print(
+        "No PostgreSQL changes."
+    )
+
+    print(
+        "No ChromaDB changes."
+    )
+
+    print()
+    print(
+        f"Input       : {input_dir}"
+    )
+
+    print(
+        f"Output      : {output_dir}"
+    )
+
+    print(
+        f"Ollama      : {args.ollama_host}"
+    )
+
+    print(
+        f"Model       : {args.model}"
+    )
+
+    print(
+        f"Report      : {report_path}"
+    )
+
+    # --------------------------------------------------------
+    # Ollama check
+    # --------------------------------------------------------
+
+    print()
+    print("=" * 110)
+    print("OLLAMA CHECK")
+    print("=" * 110)
+
+    tags = check_ollama(
+        args.ollama_host,
+        args.timeout,
+    )
+
+    models = []
+
+    for item in (
+        tags.get("models") or []
+    ):
+
+        if isinstance(
+            item,
+            dict,
+        ):
+
+            name = item.get(
+                "name"
+            )
+
+            if name:
+                models.append(
+                    name
+                )
+
+    print(
+        "Available models:"
+    )
+
+    for name in models:
+        print(
+            "  "
+            + str(name)
+        )
+
+    model_available = any(
+        name == args.model
+        or name.startswith(
+            args.model + ":"
+        )
+        for name in models
+    )
+
+    if not model_available:
+
+        print()
+        print(
+            "WARNING:"
+        )
+
+        print(
+            f"Model '{args.model}' was not "
+            "found exactly in /api/tags."
+        )
+
+        print(
+            "Ollama will still be called."
+        )
+
+    # --------------------------------------------------------
+    # Input pages
+    # --------------------------------------------------------
+
+    files = sorted(
+        input_dir.glob(
+            "page_*.json"
+        )
+    )
+
+    selected_files = []
+
+    for path in files:
+
+        match = re.search(
+            r"page_(\d+)\.json$",
+            path.name,
+        )
+
+        if not match:
+            continue
+
+        page = int(
+            match.group(1)
+        )
+
+        if (
+            args.start_page is not None
+            and page < args.start_page
+        ):
+            continue
+
+        if (
+            args.end_page is not None
+            and page > args.end_page
+        ):
+            continue
+
+        selected_files.append(
+            path
+        )
+
+    if not selected_files:
+
+        raise SystemExit(
+            "ERROR: No matching OCR JSON files found."
+        )
+
+    print()
+    print("=" * 110)
+    print("SOURCE")
+    print("=" * 110)
+
+    print(
+        "OCR pages found     : "
+        + str(len(files))
+    )
+
+    print(
+        "Pages selected      : "
+        + str(len(selected_files))
+    )
+
+    # --------------------------------------------------------
+    # Translate
+    # --------------------------------------------------------
+
+    processed = []
+    failures = []
+
+    total_regional = 0
+    total_mixed = 0
+    total_english = 0
+    total_translated = 0
+
+    for index, source_path in enumerate(
+        selected_files,
+        start=1,
+    ):
+
+        print()
+        print("-" * 110)
+        print(
+            f"PROCESSING "
+            f"{index} / {len(selected_files)}"
+        )
+        print(
+            f"Source: {source_path}"
+        )
+        print("-" * 110)
+
+        try:
+
+            result = translate_page(
+                source_path,
+                output_dir,
+                args.model,
+                args.ollama_host,
+                args.timeout,
+            )
+
+            processed.append(
+                result
+            )
+
+            stats = result[
+                "statistics"
+            ]
+
+            total_regional += (
+                stats[
+                    "regional_lines"
+                ]
+            )
+
+            total_mixed += (
+                stats[
+                    "mixed_lines"
+                ]
+            )
+
+            total_english += (
+                stats[
+                    "english_lines"
+                ]
+            )
+
+            total_translated += (
+                stats[
+                    "translated_lines"
+                ]
+            )
+
+            print()
+            print(
+                "Page completed:"
+            )
+
+            print(
+                "  PDF page       : "
+                + str(
+                    result[
+                        "source"
+                    ][
+                        "pdf_page"
+                    ]
+                )
+            )
+
+            print(
+                "  Regional lines : "
+                + str(
+                    stats[
+                        "regional_lines"
+                    ]
+                )
+            )
+
+            print(
+                "  Mixed lines    : "
+                + str(
+                    stats[
+                        "mixed_lines"
+                    ]
+                )
+            )
+
+            print(
+                "  English lines  : "
+                + str(
+                    stats[
+                        "english_lines"
+                    ]
+                )
+            )
+
+            print(
+                "  Translated     : "
+                + str(
+                    stats[
+                        "translated_lines"
+                    ]
+                )
+            )
+
+        except Exception as exc:
+
+            print()
+            print(
+                "ERROR:"
+            )
+
+            print(
+                f"  {exc}"
+            )
+
+            failures.append(
+                {
+                    "source":
+                        str(source_path),
+
+                    "error":
+                        repr(exc),
+                }
+            )
+
+        if (
+            args.delay > 0
+            and index < len(
+                selected_files
+            )
+        ):
+
+            time.sleep(
+                args.delay
+            )
+
+    # --------------------------------------------------------
+    # Report
+    # --------------------------------------------------------
+
+    report = {
+
+        "schema":
+            "udcpr.regional.translation.report.v1",
+
+        "created_at":
+            datetime.now().isoformat(),
+
+        "source":
+            {
+                "input_directory":
+                    str(input_dir),
+
+                "selected_pages":
+                    len(selected_files),
+            },
+
+        "translation":
+            {
+                "provider":
+                    "ollama",
+
+                "model":
+                    args.model,
+
+                "host":
+                    args.ollama_host,
+
+                "temperature":
+                    0.0,
+
+                "translation_only":
+                    True,
+            },
+
+        "summary":
+            {
+                "requested_pages":
+                    len(selected_files),
+
+                "processed_pages":
+                    len(processed),
+
+                "failed_pages":
+                    len(failures),
+
+                "regional_lines":
+                    total_regional,
+
+                "mixed_lines":
+                    total_mixed,
+
+                "english_lines":
+                    total_english,
+
+                "translated_lines":
+                    total_translated,
+            },
+
+        "pages":
+            [
+                {
+                    "pdf_page":
+                        x[
+                            "source"
+                        ][
+                            "pdf_page"
+                        ],
+
+                    "statistics":
+                        x[
+                            "statistics"
+                        ],
+                }
+                for x in processed
+            ],
+
+        "failures":
+            failures,
+    }
+
+    report_path.write_text(
+        json.dumps(
+            report,
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    # --------------------------------------------------------
+    # Final output
+    # --------------------------------------------------------
+
+    print()
+    print("=" * 110)
+    print(
+        "TRANSLATION SUMMARY"
+    )
+    print("=" * 110)
+
+    print(
+        "Pages selected      : "
+        + str(
+            len(selected_files)
+        )
+    )
+
+    print(
+        "Pages processed     : "
+        + str(
+            len(processed)
+        )
+    )
+
+    print(
+        "Pages failed        : "
+        + str(
+            len(failures)
+        )
+    )
+
+    print(
+        "Regional lines      : "
+        + str(
+            total_regional
+        )
+    )
+
+    print(
+        "Mixed lines         : "
+        + str(
+            total_mixed
+        )
+    )
+
+    print(
+        "English lines       : "
+        + str(
+            total_english
+        )
+    )
+
+    print(
+        "Translated lines    : "
+        + str(
+            total_translated
+        )
+    )
+
+    print()
+    print(
+        "Report:"
+    )
+
+    print(
+        report_path
+    )
+
+    if failures:
+
+        print()
+        print(
+            "WARNING: Some pages failed."
+        )
+
+        sys.exit(1)
+
+    print()
+    print(
+        "PASS: Translation completed."
+    )
+
+    print()
+    print(
+        "No PostgreSQL changes were made."
+    )
+
+    print(
+        "No ChromaDB changes were made."
+    )
+
+
+if __name__ == "__main__":
+    main()

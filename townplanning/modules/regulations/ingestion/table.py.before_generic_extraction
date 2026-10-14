@@ -1,0 +1,28 @@
+"""
+Structured table extracted from a PDF page.
+"""
+
+from dataclasses import dataclass, field
+from uuid import uuid4
+
+
+@dataclass(slots=True)
+class ExtractedTable:
+
+    id: str = field(
+        default_factory=lambda: str(uuid4())
+    )
+
+    page: int = 0
+
+    index: int = 0
+
+    title: str = ""
+
+    headers: list[str] = field(default_factory=list)
+
+    rows: list[list[str]] = field(default_factory=list)
+
+    markdown: str = ""
+
+    metadata: dict = field(default_factory=dict)

@@ -1,0 +1,52 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 489,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0489.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\nअंमलात आले आहेत. त्यामुळे दि.११.०१.१९६७ नंतर परंतु दि.०२.१२.२०२० पर्यंत, एखाद्या जमिनीचे, सक्षम प्राधिकरणाची परवानगी न घेता, अनधिकृत तुकडे पडले असतील आणि अशा तुकड्याचे क्षेत्र ०.४० हे. पेक्षा कमी असेल तर त्याकरिता विनियम ३.४.१(i) मधील तीन पर्याय उपलब्ध राहतील. मात्र दि.०३.१२.२०२० नंतर जर असे सक्षम प्राधिकरणाची परवानगी न घेता, अनधिकृत तुकडे पडले असतील आणि त्यांचे क्षेत्र जरी ०.४० हे. पेक्षा कमी असेल तरी अशा प्रस्तावांमध्ये विनियम ३.४.१(i) मधील केवळ पर्याय (a) नुसार अशा तुकड्याच्या एकूण क्षेत्राच्या १०% अथवा किमान २०० चौ. मी. क्षेत्र खुली जागा म्हणून सोडण्याचाच पर्याय उपलब्ध राहील. अन्य दोन (b) व (c) हे पर्याय उपलब्ध राहणार नाहीत.\nप्रत —\n१) मा. मुख्यमंत्री महोदयांचे अपर मुख्य सचिव, मंत्रालय, मुंबई-४०० ०३२. \n २) मा. उपमुख्यमंत्री महोदयांचे प्रधान सचिव, मंत्रालय, मुंबई-४०० ०३२. \n ३) मा. सभापती, महाराष्ट्र विधानपरिषद, महाराष्ट्र विधानमंडळ सचिवालय, मुंबई-४०० ०३२. \n ४) मा. अध्यक्ष, महाराष्ट्र विधानसभा, महाराष्ट्र विधानमंडळ सचिवालय, मुंबई-४०० ०३२. \n ५) मा.विरोधी पक्ष नेता, विधानपरिषद/ विधानसभा, महाराष्ट्र विधानमंडळ सचिवालय, मुंबई-४०० ०३२. \n ६) मा. उपसभापती, महाराष्ट्र विधानपरिषद, महाराष्ट्र विधानमंडळ सचिवालय, मुंबई-४०० ०३२. \n ७) मा. उपाध्यक्ष, महाराष्ट्र विधानसभा, महाराष्ट्र विधानमंडळ सचिवालय, मुंबई-४०० ०३२. \n ८) अपर मुख्य सचिव (नवि-१), नगर विकास विभाग, मंत्रालय, मुंबई-४०० ०३२. \n ९) संचालक (नगर रचना) तथा सह सचिव, नगर विकास विभाग, मंत्रालय, मुंबई-४०० ०३२. \n १०) सहसंचालक (नगर रचना) तथा सह सचिव, नगर विकास विभाग, मंत्रालय, मुंबई-४०० ०३२.\nप्रति,\n१) संचालक, नगर रचना, महाराष्ट्र राज्य, पुणे.\n473",
+  "translated_english_text": "UDCPR-2020\nare in force. Therefore, from 11.01.1967 onwards but until 02.12.2020, if unauthorized plots have been formed without obtaining permission from the competent authority, and if the area of such a plot is less than 0.40 hectares, then the three options under regulation 3.4.1(i) will remain available. However, from 03.12.2020 onwards, if unauthorized plots have been formed without obtaining permission from the competent authority, and even if their area is less than 0.40 hectares, then in such proposals, only option (a) under regulation 3.4.1(i) will remain available, i.e., the total area of such a plot will be released as open space at 10% or a minimum of 200 square meters. The other two options (b) and (c) will no longer be available.\nTo —\n1) The Deputy Chief Minister's Principal Secretary, Ministry, Mumbai-400 032.\n2) The Deputy Chief Minister's Chief Secretary, Ministry, Mumbai-400 032.\n3) The Speaker, Maharashtra Legislative Council, Maharashtra Legislative Assembly Secretariat, Mumbai-400 032.\n4) The Chairman, Maharashtra Legislative Assembly, Maharashtra Legislative Assembly Secretariat, Mumbai-400 032.\n5) The Leader of Opposition, Legislative Council / Legislative Assembly, Maharashtra Legislative Assembly Secretariat, Mumbai-400 032.\n6) The Deputy Speaker, Maharashtra Legislative Council, Maharashtra Legislative Assembly Secretariat, Mumbai-400 032.\n7) The Deputy Chairman, Maharashtra Legislative Assembly, Maharashtra Legislative Assembly Secretariat, Mumbai-400 032.\n8) Deputy Chief Secretary (New-1), Department of Municipal Development, Ministry, Mumbai-400 032.\n9) Director (Municipal Planning) and Additional Secretary, Department of Municipal Development, Ministry, Mumbai-400 032.\n10) Additional Director (Municipal Planning) and Additional Secretary, Department of Municipal Development, Ministry, Mumbai-400 032.\nTo,\n1) Director, Municipal Planning, Maharashtra State, Pune.\n473",
+  "validation": {
+    "original_regulation_numbers": [
+      "11.01.1967",
+      "02.12.2020",
+      "0.40",
+      "3.4.1(i)",
+      "03.12.2020"
+    ],
+    "translated_regulation_numbers": [
+      "11.01.1967",
+      "02.12.2020",
+      "0.40",
+      "3.4.1(i)",
+      "03.12.2020"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [
+      "11.01.1967",
+      "02.12.2020",
+      "03.12.2020"
+    ],
+    "translated_dates": [
+      "11.01.1967",
+      "02.12.2020",
+      "03.12.2020"
+    ],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 1516,
+    "translated_characters": 1928,
+    "elapsed_seconds": 84.23
+  }
+}

@@ -1,0 +1,771 @@
+
+======================================================================
+Starting PDF Ingestion
+======================================================================
+Pages : 45 -> 511
+
+
+================================================================================
+START PAGE 45
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 3
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,702
+Words      : 229
+================================================================================
+✓ Page 45 completed
+Time : 221.5 sec
+Regulation : 2.2.12
+Rules : 6
+✓ Success
+✓ Regulation: 2.2.12 - Building / Layout Permission Scrutiny Fee
+✓ Knowledge Card: Building / Layout Permission Scrutiny Fee
+✓ Rules Extracted: 6
+
+================================================================================
+START PAGE 46
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 5
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,942
+Words      : 256
+================================================================================
+✓ Page 46 completed
+Time : 253.2 sec
+Regulation : 2.2.12
+Rules : 7
+✓ Success
+✓ Regulation: 2.2.12 - Building / Layout Permission Scrutiny Fee
+✓ Knowledge Card: Building / Layout Permission Scrutiny Fee
+✓ Rules Extracted: 7
+
+================================================================================
+START PAGE 47
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 7
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,729
+Words      : 224
+================================================================================
+✓ Page 47 completed
+Time : 211.5 sec
+Regulation : 2.2.12
+Rules : 4
+✓ Success
+✓ Regulation: 2.2.12 - Development Charges - General Provisions
+✓ Knowledge Card: Development Charges - General Provisions
+✓ Rules Extracted: 4
+
+================================================================================
+START PAGE 48
+================================================================================
+⚠ Page 48 skipped
+Reason : Table of Contents
+
+================================================================================
+START PAGE 49
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 6
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,540
+Words      : 195
+================================================================================
+✓ Page 49 completed
+Time : 233.2 sec
+Regulation : 2.2.19
+Rules : 2
+✓ Success
+✓ Regulation: 2.2.19 - Qualification and Competence of the Architect / Licensed Engineer / Structural Engineer / Town Planner / Supervisor
+✓ Knowledge Card: Qualification and Competence of the Architect / Licensed Engineer / Structural Engineer / Town Planner / Supervisor
+✓ Rules Extracted: 2
+
+================================================================================
+START PAGE 50
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 11
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,202
+Words      : 149
+================================================================================
+✓ Page 50 completed
+Time : 231.1 sec
+Regulation : 2.2.19
+Rules : 1
+✓ Success
+✓ Regulation: 2.2.19 - Qualification and Competence of the Architect / Licensed Engineer / Structural Engineer / Town Planner / Supervisor
+✓ Knowledge Card: Qualification and Competence of the Architect / Licensed Engineer / Structural Engineer / Town Planner / Supervisor
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 51
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 9
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,784
+Words      : 221
+================================================================================
+✓ Page 51 completed
+Time : 295.7 sec
+Regulation : 2.6.1
+Rules : 6
+✓ Success
+✓ Regulation: 2.6.1 - General
+✓ Knowledge Card: 2.6.1 General - Development Permission Process
+✓ Rules Extracted: 6
+
+================================================================================
+START PAGE 52
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 11
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,170
+Words      : 149
+================================================================================
+✓ Page 52 completed
+Time : 222.1 sec
+Regulation : 2.6.3
+Rules : 1
+✓ Success
+✓ Regulation: 2.6.3 - Approval of Building Permission on Risk Based Classification
+✓ Knowledge Card: Approval of Building Permission on Risk Based Classification
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 53
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 12
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 2,223
+Words      : 285
+================================================================================
+✓ Page 53 completed
+Time : 286.1 sec
+Regulation : 2.7.2
+Rules : 5
+✓ Success
+✓ Regulation: 2.7.2 - Development of Land Sub-division / Group Housing Schemes
+✓ Knowledge Card: Development of Land Sub-division / Group Housing Schemes
+✓ Rules Extracted: 5
+
+================================================================================
+START PAGE 54
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 9
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,173
+Words      : 146
+================================================================================
+✓ Page 54 completed
+Time : 229.3 sec
+Regulation : 2.8.4
+Rules : 4
+✓ Success
+✓ Regulation: 2.8.4 - Plinth Checking
+✓ Knowledge Card: Plinth Checking
+✓ Rules Extracted: 4
+
+================================================================================
+START PAGE 55
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 5
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,181
+Words      : 163
+================================================================================
+✓ Page 55 completed
+Time : 154.8 sec
+Regulation : 2.11
+Rules : 1
+✓ Success
+✓ Regulation: 2.11 - PART OCCUPANCY CERTIFICATE
+✓ Knowledge Card: Part Occupancy Certificate
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 56
+================================================================================
+⚠ Page 56 skipped
+Reason : Too little text
+
+================================================================================
+START PAGE 57
+================================================================================
+Page Type : regulation
+Chapter   : 3
+Headings  : 19
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,289
+Words      : 167
+================================================================================
+✓ Page 57 completed
+Time : 245.7 sec
+Regulation : 3.1.1 (i)
+Rules : 1
+✓ Success
+✓ Regulation: 3.1.1 (i) - Site not Eligible for Construction of Building - Insanitary/Dangerous Site
+✓ Knowledge Card: Site Not Eligible for Construction: Insanitary/Dangerous Sites
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 58
+================================================================================
+Page Type : regulation
+Chapter   : 3
+Headings  : 14
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,695
+Words      : 231
+================================================================================
+✓ Page 58 completed
+Time : 281.1 sec
+Regulation : 3.1.2
+Rules : 1
+✓ Success
+✓ Regulation: 3.1.2 - Distance of Site from Electric Lines
+✓ Knowledge Card: Distance of Site from Electric Lines (3.1.2)
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 59
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 11
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,729
+Words      : 233
+================================================================================
+✓ Page 59 completed
+Time : 278.1 sec
+Regulation : 3.1.2
+Rules : 1
+✓ Success
+✓ Regulation: 3.1.2 - Distance of Site from Electric Lines
+✓ Knowledge Card: 3.1.2 Distance of Site from Electric Lines
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 60
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 22
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,339
+Words      : 172
+================================================================================
+✓ Page 60 completed
+Time : 275.0 sec
+Regulation : 3.1.3(i)(a,b,c,d)
+Rules : 1
+✓ Success
+✓ Regulation: 3.1.3(i)(a,b,c,d) - Applicability of Regulations for Tentative Blue Lines
+✓ Knowledge Card: Applicability of Regulations for Tentative Blue Lines
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 61
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 9
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,507
+Words      : 182
+================================================================================
+✓ Page 61 completed
+Time : 246.3 sec
+Regulation : 3.1.10
+Rules : 1
+✓ Success
+✓ Regulation: 3.1.10 - Restrictions in the Vicinity of Ancient Monuments
+✓ Knowledge Card: Restrictions in the Vicinity of Ancient Monuments
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 62
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 12
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,448
+Words      : 185
+================================================================================
+✓ Page 62 completed
+Time : 255.4 sec
+Regulation : 3.1.13
+Rules : 1
+✓ Success
+✓ Regulation: 3.1.13 - Authorities to Supply Complete Information about Restrictions to the Authority
+✓ Knowledge Card: Authorities to Supply Complete Information about Restrictions to the Authority
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 63
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 9
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,706
+Words      : 246
+================================================================================
+✓ Page 63 completed
+Time : 308.0 sec
+Regulation : 3.3.2A
+Rules : 3
+✓ Success
+✓ Regulation: 3.3.2A - Roads / streets in Land Sub-division or Layout - For Residential Development
+✓ Knowledge Card: Roads / streets in Land Sub-division or Layout - For Residential Development
+✓ Rules Extracted: 3
+
+================================================================================
+START PAGE 64
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 12
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,410
+Words      : 192
+================================================================================
+✓ Page 64 completed
+Time : 318.2 sec
+Regulation : 3.3.2
+Rules : 9
+✓ Success
+✓ Regulation: 3.3.2 - Length of Internal Roads, How to be Measured
+✓ Knowledge Card: Length of Internal Roads, How to be Measured
+✓ Rules Extracted: 9
+
+================================================================================
+START PAGE 65
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 6
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,104
+Words      : 151
+================================================================================
+✓ Page 65 completed
+Time : 196.0 sec
+Regulation : 3.3.11
+Rules : 1
+✓ Success
+✓ Regulation: 3.3.11 - Handing Over of Layouts
+✓ Knowledge Card: Handing Over of Layouts
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 66
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 7
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,010
+Words      : 131
+================================================================================
+✓ Page 66 completed
+Time : 199.1 sec
+Regulation : 3.3.11
+Rules : 1
+✓ Success
+✓ Regulation: 3.3.11 - Handing Over of Layouts
+✓ Knowledge Card: Handing Over of Layouts
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 67
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 8
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,034
+Words      : 141
+================================================================================
+✓ Page 67 completed
+Time : 227.2 sec
+Regulation : 3.3.15
+Rules : 1
+✓ Success
+✓ Regulation: 3.3.15 - Approach by underpass or Over Bridge for adjoining properties.
+✓ Knowledge Card: Approach by Underpass or Over Bridge for Adjoining Properties
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 68
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 26
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,611
+Words      : 221
+================================================================================
+✓ Page 68 completed
+Time : 323.9 sec
+Regulation : 3.4.1 (iv)
+Rules : 1
+✓ Success
+✓ Regulation: 3.4.1 (iv) - Recreational Open Space - Lands declared surplus
+✓ Knowledge Card: Recreational Open Space - Lands declared surplus
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 69
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 12
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 2,130
+Words      : 301
+================================================================================
+✓ Page 69 completed
+Time : 364.4 sec
+Regulation : 3.4.1
+Rules : 9
+✓ Success
+✓ Regulation: 3.4.1 - Certificate for Group Housing Scheme and Plotted Layout
+✓ Knowledge Card: Certificate for Group Housing Scheme and Plotted Layout
+✓ Rules Extracted: 9
+
+================================================================================
+START PAGE 70
+================================================================================
+⚠ Page 70 skipped
+Reason : Table of Contents
+
+================================================================================
+START PAGE 71
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 6
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 2,136
+Words      : 296
+================================================================================
+✓ Page 71 completed
+Time : 345.4 sec
+Regulation : 3.5.1
+Rules : 6
+✓ Success
+✓ Regulation: 3.5.1 - Development of Amenity Spaces in Earlier Sanctioned Layout
+✓ Knowledge Card: Development of Amenity Spaces in Earlier Sanctioned Layout
+✓ Rules Extracted: 6
+
+================================================================================
+START PAGE 72
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 2
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,109
+Words      : 143
+================================================================================
+✓ Page 72 completed
+Time : 221.8 sec
+Regulation : 3.8.1
+Rules : 1
+✓ Success
+✓ Regulation: 3.8.1 - Applicability of Regulation
+✓ Knowledge Card: Applicability of Regulation (3.8.1)
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 73
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 13
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,194
+Words      : 161
+================================================================================
+✓ Page 73 completed
+Time : 275.6 sec
+Regulation : 3.8.1
+Rules : 1
+✓ Success
+✓ Regulation: 3.8.1 - Applicability of Regulation
+✓ Knowledge Card: Applicability of Regulation (3.8.1)
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 74
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 10
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,852
+Words      : 250
+================================================================================
+✓ Page 74 completed
+Time : 346.7 sec
+Regulation : 3.8.1
+Rules : 7
+✓ Success
+✓ Regulation: 3.8.1 - Affordable Housing Tenements - Construction and Conditions
+✓ Knowledge Card: Affordable Housing Tenements - Construction and Conditions
+✓ Rules Extracted: 7
+
+================================================================================
+START PAGE 75
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 19
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,154
+Words      : 165
+================================================================================
+✓ Page 75 completed
+Time : 277.5 sec
+Regulation : 3.9.i
+Rules : 1
+✓ Success
+✓ Regulation: 3.9.i - Net Plot Area - Plotted Layout/Sub-division/Group Housing Scheme
+✓ Knowledge Card: Net Plot Area - Plotted Layout/Sub-division/Group Housing Scheme
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 76
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 23
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,177
+Words      : 167
+================================================================================
+✓ Page 76 completed
+Time : 286.1 sec
+Regulation : 3.9(i)
+Rules : 1
+✓ Success
+✓ Regulation: 3.9(i) - Net Plot Area - Plotted Layout/Sub-division/Group Housing Scheme
+✓ Knowledge Card: Net Plot Area - Plotted Layout/Sub-division/Group Housing Scheme
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 77
+================================================================================
+Page Type : regulation
+Chapter   : 4
+Headings  : 6
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,240
+Words      : 159
+================================================================================
+✓ Page 77 completed
+Time : 200.4 sec
+Regulation : 4.1(i)
+Rules : 1
+✓ Success
+✓ Regulation: 4.1(i) - Conformity to Land Use Designation
+✓ Knowledge Card: Conformity to Land Use Designation
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 78
+================================================================================
+Page Type : regulation
+Chapter   : 4
+Headings  : 20
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,166
+Words      : 151
+================================================================================
+✓ Page 78 completed
+Time : 243.8 sec
+Regulation : 4.1 i)
+Rules : 1
+✓ Success
+✓ Regulation: 4.1 i) - Conformity to Development Plan/Regional Plan/Planning Proposal
+✓ Knowledge Card: Conformity to Development Plan/Regional Plan/Planning Proposal
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 79
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 40
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,168
+Words      : 163
+================================================================================
+✓ Page 79 completed
+Time : 300.8 sec
+Regulation : IX
+Rules : 1
+✓ Success
+✓ Regulation: IX - Green Belt / Green Belt Zone. (Other than Reservation of Green Belt.) / River Protection Belt.  (other than reservation)
+✓ Knowledge Card: Green Belt / Green Belt Zone (Other Than Reservation)
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 80
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 25
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,838
+Words      : 241
+================================================================================
+✓ Page 80 completed
+Time : 343.8 sec
+Regulation : 4.3(i)
+Rules : 1
+✓ Success
+✓ Regulation: 4.3(i) - Any residences, Slum Improvement / Rehabilitation.
+✓ Knowledge Card: 4.3(i) - Any Residences, Slum Improvement / Rehabilitation
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 81
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 3
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 2,126
+Words      : 293
+================================================================================
+✓ Page 81 completed
+Time : 273.6 sec
+Regulation : 4.4
+Rules : 4
+✓ Success
+✓ Regulation: 4.4 - RESIDENTIAL ZONE R-2
+✓ Knowledge Card: RESIDENTIAL ZONE R-2
+✓ Rules Extracted: 4
+
+================================================================================
+START PAGE 82
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 24
+================================================================================
+RULE PROMPT
+================================================================================
+Characters : 1,054
+Words      : 154
+================================================================================
+✓ Page 82 completed
+Time : 303.6 sec
+Regulation : 4.4.1(i)
+Rules : 1
+✓ Success
+✓ Regulation: 4.4.1(i) - All uses permissible in R-1 shall be permitted in R-2 zone, without any restriction of area
+✓ Knowledge Card: All Uses Permissible in R-1 Zone are Allowed in R-2 Zone Without Area Restriction
+✓ Rules Extracted: 1
+
+================================================================================
+START PAGE 83
+================================================================================
+Page Type : regulation
+Chapter   : 
+Headings  : 1
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! KeyboardInterrupt !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+/usr/lib/python3.12/socket.py:707: KeyboardInterrupt
+(to show a full traceback on KeyboardInterrupt use --full-trace)
+no tests ran in 9438.30s (2:37:18)

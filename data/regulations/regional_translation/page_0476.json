@@ -1,0 +1,36 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 476,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0476.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\n“ एकत्रिकृत विकास नियंत्रण व प्रोत्साहन नियमावलीमधील विनियम क्र.२.३ (vi) च्या नुषंगाने शासनाने संदर्भाधिन क्र. २ अन्वये स्पष्टीकरण निर्गमित केले असून, सदर विनियमांतर्गत धिमुल्य आकारणीबाबत देखील संदर्भ क्र. ३ अन्वयेचे निदेश शासनाने पारीत केले असून, सदर रुग्णी त्यानुसार आपले स्तरावर पुढील प्रमाणे कार्यवाही करणेत यावी.”\nआपला,\n(पु.म.शिंदे)\nकार्यासन अधिकारी\n[ :-\n१) संचालक, नगर रचना, महाराष्ट्र राज्य, पुणे. \n २) सहसंचालक, नगर रचना, कोकण विभाग, कोकण भवन, नवी मुंबई. \n ३) सहाय्यक संचालक नगर रचना, पालघर शाखा, जि.पालघर.\n460",
+  "translated_english_text": "UDCPR-2020\n\"Regulation No. 2.3 (vi) of the Unified Development Control and Promotion Regulations has been cited by the Government, and Explanation No. 2 issued under Reference No. 2 is available, and also Notification No. 3 issued under the said Regulations regarding the collection of fees is available, and the said authority shall take the following actions at their level accordingly.\"\nFrom,\n(P. M. Shinde)\nDesignated Officer\n[ :-\n1) Director, Urban Planning, Maharashtra State, Pune.\n2) Additional Director, Urban Planning, Konkan Division, Konkan Building, New Mumbai.\n3) Deputy Director, Urban Planning, Palghar Branch, District Palghar.\n460 /think",
+  "validation": {
+    "original_regulation_numbers": [
+      "2.3"
+    ],
+    "translated_regulation_numbers": [
+      "2.3"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 529,
+    "translated_characters": 655,
+    "elapsed_seconds": 87.22
+  }
+}

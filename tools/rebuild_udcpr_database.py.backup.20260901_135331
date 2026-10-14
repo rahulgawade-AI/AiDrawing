@@ -1,0 +1,2249 @@
+#!/usr/bin/env python3
+
+"""
+UDCPR CLEAN POSTGRESQL REBUILD
+
+Purpose
+-------
+Rebuild the UDCPR PostgreSQL tables from the canonical source chunks.
+
+IMPORTANT
+---------
+This script intentionally DOES NOT attempt to repair/match the existing
+PostgreSQL "tables" records.
+
+Source of truth:
+
+    data/regulations/udcpr_canonical_manifest.json
+    data/regulations/udcpr_source_chunks.json
+
+The existing PostgreSQL tables table is preserved by renaming it to:
+
+    tables_backup_YYYYMMDD_HHMMSS
+
+Then a completely new public.tables table is created.
+
+The existing regulations table is NOT modified.
+
+The new tables are created directly from the canonical source chunks.
+
+Expected source:
+
+    329 canonical regulations
+    329 source chunks
+    1087 source tables
+
+Dry-run:
+    No PostgreSQL changes.
+
+Apply:
+    One PostgreSQL transaction.
+
+Example
+-------
+python tools/rebuild_udcpr_database.py \
+    --manifest data/regulations/udcpr_canonical_manifest.json \
+    --chunks data/regulations/udcpr_source_chunks.json \
+    --report /tmp/udcpr_full_rebuild.json
+
+Actual:
+    add --apply
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+import sys
+from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from sqlalchemy import text
+
+from townplanning.infrastructure.database.session import SessionLocal
+from townplanning.infrastructure.database.models import RegulationModel
+
+
+# ============================================================
+# CONSTANTS
+# ============================================================
+
+EXPECTED_REGULATIONS = 329
+EXPECTED_CHUNKS = 329
+EXPECTED_TABLES = 1087
+
+
+# ============================================================
+# GENERAL HELPERS
+# ============================================================
+
+def normalize_space(value: Any) -> str:
+    if value is None:
+        return ""
+
+    return re.sub(
+        r"\s+",
+        " ",
+        str(value),
+    ).strip()
+
+
+def normalize_number(value: Any) -> str:
+    value = normalize_space(value)
+
+    if not value:
+        return ""
+
+    value = value.replace(" ", "")
+
+    value = re.sub(
+        r"\s*\(\s*([a-z])\s*\)",
+        r"(\1)",
+        value,
+        flags=re.IGNORECASE,
+    )
+
+    return value
+
+
+def normalize_title(value: Any) -> str:
+    return normalize_space(value).lower()
+
+
+def regulation_key(
+    number: Any,
+    title: Any,
+) -> str:
+
+    return (
+        normalize_number(number)
+        + "|"
+        + normalize_title(title)
+    )
+
+
+def sha256_text(value: Any) -> str:
+    if value is None:
+        value = ""
+
+    value = str(value)
+
+    value = value.replace(
+        "\r\n",
+        "\n",
+    ).replace(
+        "\r",
+        "\n",
+    )
+
+    return hashlib.sha256(
+        value.encode("utf-8")
+    ).hexdigest()
+
+
+def safe_json(value: Any) -> Any:
+    """
+    Convert values into JSON-safe values.
+    """
+
+    if value is None:
+        return None
+
+    if isinstance(
+        value,
+        (
+            str,
+            int,
+            float,
+            bool,
+        ),
+    ):
+        return value
+
+    if isinstance(value, dict):
+        return {
+            str(k): safe_json(v)
+            for k, v in value.items()
+        }
+
+    if isinstance(value, (list, tuple)):
+        return [
+            safe_json(v)
+            for v in value
+        ]
+
+    return str(value)
+
+
+# ============================================================
+# JSON LOADING
+# ============================================================
+
+def load_json(path: str) -> Any:
+
+    with open(
+        path,
+        "r",
+        encoding="utf-8",
+    ) as f:
+        return json.load(f)
+
+
+def extract_manifest_entries(
+    data: Any,
+) -> list[dict]:
+
+    if isinstance(data, list):
+        return data
+
+    if not isinstance(data, dict):
+        raise RuntimeError(
+            "Manifest must be a JSON object or list."
+        )
+
+    for key in (
+        "regulations",
+        "entries",
+        "items",
+    ):
+
+        value = data.get(key)
+
+        if isinstance(value, list):
+            return value
+
+    raise RuntimeError(
+        "Could not find regulations/entries/items "
+        "in canonical manifest."
+    )
+
+
+def extract_chunks(
+    data: Any,
+) -> list[dict]:
+
+    if isinstance(data, list):
+        return data
+
+    if not isinstance(data, dict):
+        raise RuntimeError(
+            "Chunks must be a JSON object or list."
+        )
+
+    for key in (
+        "chunks",
+        "source_chunks",
+        "items",
+    ):
+
+        value = data.get(key)
+
+        if isinstance(value, list):
+            return value
+
+    raise RuntimeError(
+        "Could not find chunks/source_chunks/items "
+        "in source chunks JSON."
+    )
+
+
+# ============================================================
+# CHUNK HELPERS
+# ============================================================
+
+def chunk_number(
+    chunk: dict,
+) -> str:
+
+    for key in (
+        "number",
+        "regulation_number",
+        "rule_number",
+    ):
+
+        value = chunk.get(key)
+
+        if value is not None:
+            return str(value)
+
+    return ""
+
+
+def chunk_title(
+    chunk: dict,
+) -> str:
+
+    for key in (
+        "title",
+        "regulation_title",
+        "rule_title",
+    ):
+
+        value = chunk.get(key)
+
+        if value is not None:
+            return str(value)
+
+    return ""
+
+
+def chunk_text(
+    chunk: dict,
+) -> str:
+
+    for key in (
+        "regulation_text",
+        "text",
+        "source_text",
+        "content",
+        "markdown",
+    ):
+
+        value = chunk.get(key)
+
+        if isinstance(
+            value,
+            str,
+        ):
+            return value
+
+    return ""
+
+
+def chunk_tables(
+    chunk: dict,
+) -> list[dict]:
+
+    for key in (
+        "tables",
+        "source_tables",
+    ):
+
+        value = chunk.get(key)
+
+        if isinstance(
+            value,
+            list,
+        ):
+            return value
+
+    return []
+
+
+# ============================================================
+# SOURCE TABLE HELPERS
+# ============================================================
+
+def source_table_page(
+    table: dict,
+) -> int:
+
+    for key in (
+        "pdf_page",
+        "page_number",
+        "page",
+    ):
+
+        value = table.get(key)
+
+        if value is None:
+            continue
+
+        try:
+            return int(value)
+        except (
+            TypeError,
+            ValueError,
+        ):
+            pass
+
+    raise RuntimeError(
+        "Source table has no valid PDF page."
+    )
+
+
+def source_table_index(
+    table: dict,
+) -> int:
+
+    for key in (
+        "table_index",
+        "index",
+    ):
+
+        value = table.get(key)
+
+        if value is None:
+            continue
+
+        try:
+            return int(value)
+        except (
+            TypeError,
+            ValueError,
+        ):
+            pass
+
+    raise RuntimeError(
+        "Source table has no valid table index."
+    )
+
+
+def source_table_title(
+    table: dict,
+) -> str:
+
+    value = table.get(
+        "title",
+        "",
+    )
+
+    if value is None:
+        return ""
+
+    return str(value)
+
+
+def source_table_markdown(
+    table: dict,
+) -> str:
+
+    for key in (
+        "markdown",
+        "table_markdown",
+    ):
+
+        value = table.get(key)
+
+        if isinstance(
+            value,
+            str,
+        ):
+            return value
+
+    return ""
+
+
+def source_table_headers(
+    table: dict,
+) -> Any:
+
+    for key in (
+        "headers",
+        "columns",
+    ):
+
+        if key in table:
+            value = table.get(key)
+
+            if value is None:
+                return []
+
+            return value
+
+    return []
+
+
+def source_table_rows(
+    table: dict,
+) -> Any:
+
+    for key in (
+        "rows",
+        "data",
+    ):
+
+        if key in table:
+            value = table.get(key)
+
+            if value is None:
+                return []
+
+            return value
+
+    return []
+
+
+def source_table_metadata(
+    table: dict,
+) -> dict:
+
+    value = table.get(
+        "metadata",
+        {},
+    )
+
+    if isinstance(
+        value,
+        dict,
+    ):
+        return value
+
+    return {}
+
+
+# ============================================================
+# CANONICAL INDEX
+# ============================================================
+
+def build_canonical_index(
+    manifest_entries: list[dict],
+    chunks: list[dict],
+):
+
+    manifest_by_key = {}
+
+    for entry in manifest_entries:
+
+        number = entry.get(
+            "number"
+        )
+
+        title = entry.get(
+            "title"
+        )
+
+        key = regulation_key(
+            number,
+            title,
+        )
+
+        if not key.strip("|"):
+
+            raise RuntimeError(
+                "Manifest entry has no number/title."
+            )
+
+        if key in manifest_by_key:
+
+            raise RuntimeError(
+                "Duplicate canonical manifest key: "
+                + key
+            )
+
+        manifest_by_key[
+            key
+        ] = entry
+
+    chunks_by_key = defaultdict(
+        list
+    )
+
+    for chunk in chunks:
+
+        number = chunk_number(
+            chunk
+        )
+
+        title = chunk_title(
+            chunk
+        )
+
+        key = regulation_key(
+            number,
+            title,
+        )
+
+        chunks_by_key[
+            key
+        ].append(
+            chunk
+        )
+
+    problems = []
+
+    for key in manifest_by_key:
+
+        count = len(
+            chunks_by_key.get(
+                key,
+                [],
+            )
+        )
+
+        if count != 1:
+
+            problems.append(
+                {
+                    "key": key,
+                    "chunk_count": count,
+                }
+            )
+
+    if problems:
+
+        raise RuntimeError(
+            "Canonical manifest/chunk mapping is not "
+            "one-to-one. Problems: "
+            + json.dumps(
+                problems[:20],
+                indent=2,
+            )
+        )
+
+    return (
+        manifest_by_key,
+        {
+            key: values[0]
+            for key, values
+            in chunks_by_key.items()
+        },
+    )
+
+
+# ============================================================
+# DATABASE INSPECTION
+# ============================================================
+
+def table_exists(
+    db,
+    table_name: str,
+) -> bool:
+
+    return bool(
+        db.execute(
+            text(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM information_schema.tables
+                    WHERE table_schema = 'public'
+                      AND table_name = :table_name
+                )
+                """
+            ),
+            {
+                "table_name":
+                    table_name,
+            },
+        ).scalar_one()
+    )
+
+
+def count_table(
+    db,
+    table_name: str,
+) -> int:
+
+    return int(
+        db.execute(
+            text(
+                f'SELECT COUNT(*) FROM "{table_name}"'
+            )
+        ).scalar_one()
+    )
+
+
+def get_existing_tables_info(
+    db,
+) -> dict:
+
+    result = {}
+
+    for name in (
+        "regulations",
+        "tables",
+        "rules",
+        "knowledge_cards",
+    ):
+
+        exists = table_exists(
+            db,
+            name,
+        )
+
+        result[name] = {
+            "exists": exists,
+            "count":
+                count_table(
+                    db,
+                    name,
+                )
+                if exists
+                else None,
+        }
+
+    return result
+
+
+# ============================================================
+# BACKUP REGULATION / RULE DATA
+# ============================================================
+
+def write_json_backup(
+    db,
+    table_name: str,
+    output_path: Path,
+):
+
+    if not table_exists(
+        db,
+        table_name,
+    ):
+        return False
+
+    rows = db.execute(
+        text(
+            f'SELECT * FROM "{table_name}"'
+        )
+    ).mappings().all()
+
+    payload = {
+        "created_at":
+            datetime.now().isoformat(),
+
+        "table":
+            table_name,
+
+        "row_count":
+            len(rows),
+
+        "rows":
+            [
+                {
+                    key:
+                        safe_json(value)
+                    for key, value
+                    in row.items()
+                }
+                for row in rows
+            ],
+    }
+
+    output_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    with open(
+        output_path,
+        "w",
+        encoding="utf-8",
+    ) as f:
+
+        json.dump(
+            payload,
+            f,
+            indent=2,
+            ensure_ascii=False,
+        )
+
+    return True
+
+
+# ============================================================
+# CREATE TABLE
+# ============================================================
+
+def create_tables_table(
+    db,
+):
+
+    db.execute(
+        text(
+            """
+            CREATE TABLE public."tables" (
+
+                id TEXT PRIMARY KEY,
+
+                regulation_id TEXT NOT NULL,
+
+                page_number INTEGER NOT NULL,
+
+                table_index INTEGER NOT NULL,
+
+                title TEXT DEFAULT '',
+
+                headers JSONB DEFAULT '[]'::jsonb,
+
+                rows JSONB DEFAULT '[]'::jsonb,
+
+                markdown TEXT DEFAULT '',
+
+                metadata JSONB DEFAULT '{}'::jsonb,
+
+                created_at TIMESTAMP
+                    DEFAULT CURRENT_TIMESTAMP,
+
+                CONSTRAINT
+                    tables_regulation_id_fkey
+
+                    FOREIGN KEY (
+                        regulation_id
+                    )
+
+                    REFERENCES
+                        public.regulations(id)
+
+                    ON DELETE CASCADE
+            )
+            """
+        )
+    )
+
+    db.execute(
+        text(
+            """
+            CREATE INDEX
+                ix_tables_regulation_id
+
+            ON public."tables" (
+                regulation_id
+            )
+            """
+        )
+    )
+
+    db.execute(
+        text(
+            """
+            CREATE INDEX
+                ix_tables_page_number
+
+            ON public."tables" (
+                page_number
+            )
+            """
+        )
+    )
+
+
+# ============================================================
+# INSERT SOURCE TABLES
+# ============================================================
+
+def insert_source_tables(
+    db,
+    manifest_by_key,
+    chunks_by_key,
+    selected_regulations,
+):
+
+    inserted = 0
+
+    problems = []
+
+    generated_ids = set()
+
+    for key, entry in manifest_by_key.items():
+
+        regulation = selected_regulations.get(
+            key
+        )
+
+        if regulation is None:
+
+            problems.append(
+                {
+                    "key": key,
+                    "reason":
+                        "Canonical regulation does not "
+                        "exist in PostgreSQL.",
+                }
+            )
+
+            continue
+
+        chunk = chunks_by_key[
+            key
+        ]
+
+        source_tables = chunk_tables(
+            chunk
+        )
+
+        for table_position, source_table in enumerate(
+            source_tables,
+            start=1,
+        ):
+
+            try:
+
+                page_number = source_table_page(
+                    source_table
+                )
+
+                table_index = source_table_index(
+                    source_table
+                )
+
+            except RuntimeError as exc:
+
+                problems.append(
+                    {
+                        "key": key,
+                        "table_position":
+                            table_position,
+                        "reason":
+                            str(exc),
+                    }
+                )
+
+                continue
+
+            markdown = source_table_markdown(
+                source_table
+            )
+
+            headers = source_table_headers(
+                source_table
+            )
+
+            rows = source_table_rows(
+                source_table
+            )
+
+            title = source_table_title(
+                source_table
+            )
+
+            metadata = source_table_metadata(
+                source_table
+            )
+
+            # ------------------------------------------------
+            # Stable deterministic ID.
+            #
+            # This means rebuilding from the same source
+            # produces the same table IDs.
+            # ------------------------------------------------
+
+            identity = (
+                str(regulation.id)
+                + "|"
+                + str(page_number)
+                + "|"
+                + str(table_index)
+                + "|"
+                + str(table_position)
+                + "|"
+                + sha256_text(markdown)
+            )
+
+            table_id = hashlib.sha256(
+                identity.encode(
+                    "utf-8"
+                )
+            ).hexdigest()
+
+            if table_id in generated_ids:
+
+                problems.append(
+                    {
+                        "key": key,
+                        "page":
+                            page_number,
+                        "table_index":
+                            table_index,
+                        "reason":
+                            "Generated duplicate table ID.",
+                    }
+                )
+
+                continue
+
+            generated_ids.add(
+                table_id
+            )
+
+            # ------------------------------------------------
+            # Add source information to metadata.
+            # ------------------------------------------------
+
+            final_metadata = dict(
+                metadata
+            )
+
+            final_metadata[
+                "source"
+            ] = "udcpr_source_chunks"
+
+            final_metadata[
+                "canonical_regulation_number"
+            ] = entry.get(
+                "number"
+            )
+
+            final_metadata[
+                "canonical_regulation_title"
+            ] = entry.get(
+                "title"
+            )
+
+            final_metadata[
+                "source_table_position"
+            ] = table_position
+
+            final_metadata[
+                "source_markdown_sha256"
+            ] = sha256_text(
+                markdown
+            )
+
+            final_metadata[
+                "source_chunk_key"
+            ] = key
+
+            db.execute(
+                text(
+                    """
+                    INSERT INTO public."tables" (
+                        id,
+                        regulation_id,
+                        page_number,
+                        table_index,
+                        title,
+                        headers,
+                        rows,
+                        markdown,
+                        metadata
+                    )
+                    VALUES (
+                        :id,
+                        :regulation_id,
+                        :page_number,
+                        :table_index,
+                        :title,
+                        CAST(
+                            :headers AS JSONB
+                        ),
+                        CAST(
+                            :rows AS JSONB
+                        ),
+                        :markdown,
+                        CAST(
+                            :metadata AS JSONB
+                        )
+                    )
+                    """
+                ),
+                {
+                    "id":
+                        table_id,
+
+                    "regulation_id":
+                        str(
+                            regulation.id
+                        ),
+
+                    "page_number":
+                        page_number,
+
+                    "table_index":
+                        table_index,
+
+                    "title":
+                        title,
+
+                    "headers":
+                        json.dumps(
+                            safe_json(
+                                headers
+                            ),
+                            ensure_ascii=False,
+                        ),
+
+                    "rows":
+                        json.dumps(
+                            safe_json(
+                                rows
+                            ),
+                            ensure_ascii=False,
+                        ),
+
+                    "markdown":
+                        markdown,
+
+                    "metadata":
+                        json.dumps(
+                            safe_json(
+                                final_metadata
+                            ),
+                            ensure_ascii=False,
+                        ),
+                },
+            )
+
+            inserted += 1
+
+    return (
+        inserted,
+        problems,
+    )
+
+
+# ============================================================
+# VERIFY REBUILT TABLE
+# ============================================================
+
+def verify_rebuilt_tables(
+    db,
+    expected_source_table_count: int,
+):
+
+    database_table_count = int(
+        db.execute(
+            text(
+                'SELECT COUNT(*) FROM public."tables"'
+            )
+        ).scalar_one()
+    )
+
+    orphan_count = int(
+        db.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM public."tables" t
+                LEFT JOIN public.regulations r
+                  ON r.id = t.regulation_id
+                WHERE r.id IS NULL
+                """
+            )
+        ).scalar_one()
+    )
+
+    invalid_page_or_index_count = int(
+        db.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM public."tables"
+                WHERE page_number <= 0
+                   OR table_index <= 0
+                """
+            )
+        ).scalar_one()
+    )
+
+    duplicate_identity_count = int(
+        db.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM (
+                    SELECT
+                        regulation_id,
+                        page_number,
+                        table_index,
+                        COUNT(*) AS c
+                    FROM public."tables"
+                    GROUP BY
+                        regulation_id,
+                        page_number,
+                        table_index
+                    HAVING COUNT(*) > 1
+                ) x
+                """
+            )
+        ).scalar_one()
+    )
+
+    failures = []
+
+    if (
+        database_table_count
+        != expected_source_table_count
+    ):
+
+        failures.append(
+            (
+                "Table count mismatch: "
+                f"expected {expected_source_table_count}, "
+                f"got {database_table_count}"
+            )
+        )
+
+    if orphan_count != 0:
+
+        failures.append(
+            f"Orphan tables: {orphan_count}"
+        )
+
+    if invalid_page_or_index_count != 0:
+
+        failures.append(
+            "Invalid page/index rows: "
+            f"{invalid_page_or_index_count}"
+        )
+
+    verification = {
+        "source_table_count":
+            expected_source_table_count,
+
+        "database_table_count":
+            database_table_count,
+
+        "orphan_count":
+            orphan_count,
+
+        "invalid_page_or_index_count":
+            invalid_page_or_index_count,
+
+        "duplicate_regulation_page_index_groups":
+            duplicate_identity_count,
+
+        "failures":
+            failures,
+
+        "passed":
+            len(failures) == 0,
+    }
+
+    return verification
+
+
+# ============================================================
+# SELECT CANONICAL REGULATIONS
+# ============================================================
+
+def select_regulations(
+    db,
+    manifest_by_key,
+):
+
+    rows = (
+        db.query(
+            RegulationModel
+        )
+        .all()
+    )
+
+    by_key = defaultdict(
+        list
+    )
+
+    for row in rows:
+
+        key = regulation_key(
+            row.number,
+            row.title,
+        )
+
+        by_key[
+            key
+        ].append(
+            row
+        )
+
+    selected = {}
+
+    missing = []
+
+    ambiguous = []
+
+    for key, entry in manifest_by_key.items():
+
+        candidates = by_key.get(
+            key,
+            []
+        )
+
+        if len(candidates) == 0:
+
+            missing.append(
+                {
+                    "key": key,
+                    "number":
+                        entry.get("number"),
+                    "title":
+                        entry.get("title"),
+                }
+            )
+
+            continue
+
+        # ----------------------------------------------------
+        # IMPORTANT
+        #
+        # We no longer require exactly one old DB row.
+        #
+        # Existing DB may contain historical duplicates.
+        #
+        # We choose the candidate based on the canonical
+        # manifest's printed/PDF page information.
+        # ----------------------------------------------------
+
+        expected_pdf_page = (
+            entry.get(
+                "pdf_page_start"
+            )
+        )
+
+        expected_printed_page = (
+            entry.get(
+                "printed_page_start"
+            )
+        )
+
+        scored = []
+
+        for row in candidates:
+
+            score = 0
+
+            row_page_start = getattr(
+                row,
+                "page_start",
+                None,
+            )
+
+            row_page_end = getattr(
+                row,
+                "page_end",
+                None,
+            )
+
+            if (
+                expected_printed_page is not None
+                and row_page_start
+                == expected_printed_page
+            ):
+                score += 100
+
+            if (
+                expected_pdf_page is not None
+                and (
+                    row_page_start
+                    == expected_pdf_page
+                    or
+                    row_page_end
+                    == expected_pdf_page
+                )
+            ):
+                score += 50
+
+            # Prefer the row with the earliest page when
+            # no explicit page match is possible.
+            try:
+                page_value = int(
+                    row_page_start
+                    or 999999
+                )
+            except (
+                TypeError,
+                ValueError,
+            ):
+                page_value = 999999
+
+            scored.append(
+                (
+                    score,
+                    -page_value,
+                    str(row.id),
+                    row,
+                )
+            )
+
+        scored.sort(
+            reverse=True
+        )
+
+        best = scored[0]
+
+        # ----------------------------------------------------
+        # If multiple rows tie at the top, report ambiguous.
+        # ----------------------------------------------------
+
+        if (
+            len(scored) > 1
+            and scored[0][0]
+            == scored[1][0]
+            and scored[0][1]
+            == scored[1][1]
+        ):
+
+            ambiguous.append(
+                {
+                    "key": key,
+                    "number":
+                        entry.get("number"),
+                    "title":
+                        entry.get("title"),
+                    "candidate_ids":
+                        [
+                            str(x[2])
+                            for x in scored
+                        ],
+                }
+            )
+
+            continue
+
+        selected[
+            key
+        ] = best[3]
+
+    return (
+        selected,
+        missing,
+        ambiguous,
+    )
+
+
+# ============================================================
+# BACKUP OLD TABLE
+# ============================================================
+
+def rename_existing_tables(
+    db,
+    backup_name: str,
+):
+
+    if not table_exists(
+        db,
+        "tables",
+    ):
+        return False
+
+    db.execute(
+        text(
+            f'''
+            ALTER TABLE public."tables"
+            RENAME TO "{backup_name}"
+            '''
+        )
+    )
+
+    return True
+
+
+# ============================================================
+# REPORT
+# ============================================================
+
+def write_report(
+    report_path: str,
+    payload: dict,
+):
+
+    path = Path(
+        report_path
+    )
+
+    path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    with open(
+        path,
+        "w",
+        encoding="utf-8",
+    ) as f:
+
+        json.dump(
+            safe_json(payload),
+            f,
+            indent=2,
+            ensure_ascii=False,
+        )
+
+
+# ============================================================
+# MAIN REBUILD
+# ============================================================
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Clean rebuild of UDCPR PostgreSQL tables "
+            "from canonical source chunks."
+        )
+    )
+
+    parser.add_argument(
+        "--manifest",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--chunks",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--report",
+        default=(
+            "/tmp/"
+            "udcpr_postgres_full_rebuild.json"
+        ),
+    )
+
+    parser.add_argument(
+        "--backup-dir",
+        default=(
+            "/tmp/"
+            "udcpr_postgres_backup"
+        ),
+    )
+
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help=(
+            "Actually modify PostgreSQL."
+        ),
+    )
+
+    args = parser.parse_args()
+
+    print()
+    print("=" * 120)
+    print(
+        "UDCPR POSTGRESQL CLEAN DATABASE REBUILD"
+    )
+    print("=" * 120)
+
+    print()
+
+    if args.apply:
+
+        print(
+            "!!! APPLY MODE !!!"
+        )
+
+        print(
+            "Existing tables will be renamed "
+            "to a timestamped backup."
+        )
+
+        print(
+            "A new tables table will be created."
+        )
+
+        print(
+            "regulations will NOT be modified."
+        )
+
+    else:
+
+        print(
+            "DRY-RUN MODE"
+        )
+
+        print(
+            "No PostgreSQL changes will be committed."
+        )
+
+    print()
+
+    print(
+        "Manifest:",
+        args.manifest,
+    )
+
+    print(
+        "Chunks:",
+        args.chunks,
+    )
+
+    print(
+        "Report:",
+        args.report,
+    )
+
+    print()
+
+    # --------------------------------------------------------
+    # Load source
+    # --------------------------------------------------------
+
+    manifest_data = load_json(
+        args.manifest
+    )
+
+    chunk_data = load_json(
+        args.chunks
+    )
+
+    manifest_entries = extract_manifest_entries(
+        manifest_data
+    )
+
+    chunks = extract_chunks(
+        chunk_data
+    )
+
+    print(
+        "Manifest regulations:",
+        len(manifest_entries),
+    )
+
+    print(
+        "Source chunks:",
+        len(chunks),
+    )
+
+    source_table_count = sum(
+        len(
+            chunk_tables(chunk)
+        )
+        for chunk in chunks
+    )
+
+    print(
+        "Source tables:",
+        source_table_count,
+    )
+
+    print()
+
+    if (
+        len(manifest_entries)
+        != EXPECTED_REGULATIONS
+    ):
+
+        raise RuntimeError(
+            "Unexpected canonical regulation count: "
+            f"{len(manifest_entries)} "
+            f"(expected {EXPECTED_REGULATIONS})"
+        )
+
+    if (
+        len(chunks)
+        != EXPECTED_CHUNKS
+    ):
+
+        raise RuntimeError(
+            "Unexpected source chunk count: "
+            f"{len(chunks)} "
+            f"(expected {EXPECTED_CHUNKS})"
+        )
+
+    if (
+        source_table_count
+        != EXPECTED_TABLES
+    ):
+
+        raise RuntimeError(
+            "Unexpected source table count: "
+            f"{source_table_count} "
+            f"(expected {EXPECTED_TABLES})"
+        )
+
+    (
+        manifest_by_key,
+        chunks_by_key,
+    ) = build_canonical_index(
+        manifest_entries,
+        chunks,
+    )
+
+    db = SessionLocal()
+
+    timestamp = datetime.now().strftime(
+        "%Y%m%d_%H%M%S"
+    )
+
+    backup_dir = (
+        Path(args.backup_dir)
+        / (
+            "udcpr_"
+            + timestamp
+        )
+    )
+
+    backup_table_name = (
+        "tables_backup_"
+        + timestamp
+    )
+
+    try:
+
+        # ----------------------------------------------------
+        # Inspect DB
+        # ----------------------------------------------------
+
+        existing = get_existing_tables_info(
+            db
+        )
+
+        print(
+            "=" * 120
+        )
+
+        print(
+            "EXISTING DATABASE"
+        )
+
+        print(
+            "=" * 120
+        )
+
+        for name, info in existing.items():
+
+            print(
+                f"{name:20} "
+                f"exists={info['exists']} "
+                f"count={info['count']}"
+            )
+
+        print()
+
+        # ----------------------------------------------------
+        # Select canonical regulations.
+        #
+        # Existing duplicate rows are allowed.
+        # We do NOT modify regulations.
+        # ----------------------------------------------------
+
+        (
+            selected,
+            missing,
+            ambiguous,
+        ) = select_regulations(
+            db,
+            manifest_by_key,
+        )
+
+        print(
+            "Selected regulations:",
+            len(selected),
+        )
+
+        print(
+            "Missing regulations:",
+            len(missing),
+        )
+
+        print(
+            "Ambiguous regulations:",
+            len(ambiguous),
+        )
+
+        if missing:
+
+            print()
+
+            print(
+                "MISSING REGULATIONS:"
+            )
+
+            for item in missing[:50]:
+
+                print(
+                    " ",
+                    item,
+                )
+
+        if ambiguous:
+
+            print()
+
+            print(
+                "AMBIGUOUS REGULATIONS:"
+            )
+
+            for item in ambiguous[:50]:
+
+                print(
+                    " ",
+                    item,
+                )
+
+        # ----------------------------------------------------
+        # Stop before database modifications.
+        # ----------------------------------------------------
+
+        if missing or ambiguous:
+
+            raise RuntimeError(
+                "Canonical regulation selection failed."
+            )
+
+        if len(selected) != len(
+            manifest_by_key
+        ):
+
+            raise RuntimeError(
+                "Not all canonical regulations "
+                "could be selected."
+            )
+
+        # ----------------------------------------------------
+        # DRY RUN
+        # ----------------------------------------------------
+
+        if not args.apply:
+
+            report = {
+                "mode":
+                    "dry-run",
+
+                "created_at":
+                    datetime.now().isoformat(),
+
+                "manifest":
+                    args.manifest,
+
+                "chunks":
+                    args.chunks,
+
+                "canonical_regulations":
+                    len(manifest_entries),
+
+                "source_chunks":
+                    len(chunks),
+
+                "source_tables":
+                    source_table_count,
+
+                "selected_regulations":
+                    len(selected),
+
+                "missing_regulations":
+                    len(missing),
+
+                "ambiguous_regulations":
+                    len(ambiguous),
+
+                "would_backup_existing_tables":
+                    existing[
+                        "tables"
+                    ][
+                        "exists"
+                    ],
+
+                "would_create_tables":
+                    True,
+
+                "would_insert_tables":
+                    source_table_count,
+
+                "database_changes":
+                    False,
+            }
+
+            write_report(
+                args.report,
+                report,
+            )
+
+            print()
+
+            print(
+                "=" * 120
+            )
+
+            print(
+                "DRY-RUN COMPLETE"
+            )
+
+            print(
+                "=" * 120
+            )
+
+            print(
+                "Canonical regulations:",
+                len(manifest_entries),
+            )
+
+            print(
+                "Source chunks:",
+                len(chunks),
+            )
+
+            print(
+                "Source tables:",
+                source_table_count,
+            )
+
+            print(
+                "Selected regulations:",
+                len(selected),
+            )
+
+            print(
+                "Missing regulations:",
+                len(missing),
+            )
+
+            print(
+                "Ambiguous regulations:",
+                len(ambiguous),
+            )
+
+            print()
+
+            print(
+                "STATUS: READY FOR --apply"
+            )
+
+            print()
+
+            print(
+                "Report:",
+                args.report,
+            )
+
+            return
+
+        # ====================================================
+        # APPLY MODE
+        # ====================================================
+
+        print()
+
+        print(
+            "=" * 120
+        )
+
+        print(
+            "STARTING TRANSACTIONAL REBUILD"
+        )
+
+        print(
+            "=" * 120
+        )
+
+        # ----------------------------------------------------
+        # Backup directory
+        # ----------------------------------------------------
+
+        backup_dir.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        print()
+
+        print(
+            "Backup directory:",
+            backup_dir,
+        )
+
+        # ----------------------------------------------------
+        # Backup regulations
+        # ----------------------------------------------------
+
+        print(
+            "Backing up regulations..."
+        )
+
+        regulations_backup = (
+            backup_dir
+            / "regulations.json"
+        )
+
+        write_json_backup(
+            db,
+            "regulations",
+            regulations_backup,
+        )
+
+        # ----------------------------------------------------
+        # Backup rules if present
+        # ----------------------------------------------------
+
+        rules_backup = (
+            backup_dir
+            / "rules.json"
+        )
+
+        if table_exists(
+            db,
+            "rules",
+        ):
+
+            print(
+                "Backing up rules..."
+            )
+
+            write_json_backup(
+                db,
+                "rules",
+                rules_backup,
+            )
+
+        # ----------------------------------------------------
+        # Backup knowledge cards if present
+        # ----------------------------------------------------
+
+        cards_backup = (
+            backup_dir
+            / "knowledge_cards.json"
+        )
+
+        if table_exists(
+            db,
+            "knowledge_cards",
+        ):
+
+            print(
+                "Backing up knowledge_cards..."
+            )
+
+            write_json_backup(
+                db,
+                "knowledge_cards",
+                cards_backup,
+            )
+
+        # ----------------------------------------------------
+        # Backup existing tables by rename.
+        #
+        # This is inside the same PostgreSQL transaction.
+        # If anything fails, rollback restores the original
+        # table name/state.
+        # ----------------------------------------------------
+
+        if table_exists(
+            db,
+            "tables",
+        ):
+
+            print()
+
+            print(
+                "Renaming existing tables ->",
+                backup_table_name,
+            )
+
+            rename_existing_tables(
+                db,
+                backup_table_name,
+            )
+
+        else:
+
+            print(
+                "Existing tables table does not exist."
+            )
+
+        # ----------------------------------------------------
+        # Create clean tables.
+        # ----------------------------------------------------
+
+        print(
+            "Creating new public.tables..."
+        )
+
+        create_tables_table(
+            db
+        )
+
+        # ----------------------------------------------------
+        # Insert canonical source tables.
+        # ----------------------------------------------------
+
+        print(
+            "Inserting source tables..."
+        )
+
+        (
+            inserted,
+            problems,
+        ) = insert_source_tables(
+            db=db,
+            manifest_by_key=manifest_by_key,
+            chunks_by_key=chunks_by_key,
+            selected_regulations=selected,
+        )
+
+        if problems:
+
+            raise RuntimeError(
+                "Source table insertion encountered "
+                f"{len(problems)} problems."
+            )
+
+        print(
+            "Inserted:",
+            inserted,
+        )
+
+        if inserted != source_table_count:
+
+            raise RuntimeError(
+                "Inserted table count mismatch: "
+                f"expected {source_table_count}, "
+                f"got {inserted}"
+            )
+
+        # ----------------------------------------------------
+        # Verify BEFORE COMMIT.
+        # ----------------------------------------------------
+
+        print()
+
+        print(
+            "Running verification..."
+        )
+
+        verification = verify_rebuilt_tables(
+            db,
+            source_table_count,
+        )
+
+        print(
+            json.dumps(
+                verification,
+                indent=2,
+            )
+        )
+
+        if not verification[
+            "passed"
+        ]:
+
+            raise RuntimeError(
+                "Verification failed. "
+                "Transaction will be rolled back."
+            )
+
+        # ----------------------------------------------------
+        # Everything is correct.
+        # Commit.
+        # ----------------------------------------------------
+
+        db.commit()
+
+        report = {
+            "mode":
+                "apply",
+
+            "created_at":
+                datetime.now().isoformat(),
+
+            "manifest":
+                args.manifest,
+
+            "chunks":
+                args.chunks,
+
+            "backup_directory":
+                str(backup_dir),
+
+            "backup_table":
+                backup_table_name,
+
+            "canonical_regulations":
+                len(manifest_entries),
+
+            "source_chunks":
+                len(chunks),
+
+            "source_tables":
+                source_table_count,
+
+            "selected_regulations":
+                len(selected),
+
+            "inserted_tables":
+                inserted,
+
+            "verification":
+                verification,
+
+            "committed":
+                True,
+        }
+
+        write_report(
+            args.report,
+            report,
+        )
+
+        print()
+
+        print(
+            "=" * 120
+        )
+
+        print(
+            "REBUILD SUCCESSFUL"
+        )
+
+        print(
+            "=" * 120
+        )
+
+        print(
+            "Backup table:",
+            backup_table_name,
+        )
+
+        print(
+            "Backup directory:",
+            backup_dir,
+        )
+
+        print(
+            "Inserted tables:",
+            inserted,
+        )
+
+        print(
+            "Verification:",
+            verification,
+        )
+
+        print()
+
+        print(
+            "PostgreSQL transaction COMMITTED."
+        )
+
+        print(
+            "The old tables data remains in:",
+            backup_table_name,
+        )
+
+        print()
+
+        print(
+            "Report:",
+            args.report,
+        )
+
+    except Exception as exc:
+
+        db.rollback()
+
+        print()
+
+        print(
+            "=" * 120
+        )
+
+        print(
+            "REBUILD ABORTED"
+        )
+
+        print(
+            "=" * 120
+        )
+
+        print(
+            "NO COMMITTED DATABASE CHANGES."
+        )
+
+        print(
+            "Report:",
+            args.report,
+        )
+
+        print(
+            "ERROR:",
+            str(exc),
+        )
+
+        raise
+
+    finally:
+
+        db.close()
+
+
+# ============================================================
+# ENTRY POINT
+# ============================================================
+
+if __name__ == "__main__":
+    main()

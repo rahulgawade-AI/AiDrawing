@@ -1,0 +1,1148 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from datetime import datetime
+from pathlib import Path
+
+import fitz
+
+
+# ============================================================
+# DEFAULT CONFIG
+# ============================================================
+
+DEFAULT_PDF = Path(
+    "data/regulations/UDCPR.pdf"
+)
+
+DEFAULT_OUTPUT = Path(
+    "data/regulations/regional_ocr"
+)
+
+DEFAULT_REPORT = Path(
+    "/tmp/udcpr_regional_ocr_report.json"
+)
+
+DEFAULT_START_PAGE = 441
+DEFAULT_END_PAGE = 511
+DEFAULT_DPI = 200
+
+
+# ============================================================
+# TEXT HELPERS
+# ============================================================
+
+def classify_text(value: str) -> str:
+
+    if not value:
+        return "unknown"
+
+    devanagari = len(
+        re.findall(
+            r"[\u0900-\u097F]",
+            value,
+        )
+    )
+
+    latin = len(
+        re.findall(
+            r"[A-Za-z]",
+            value,
+        )
+    )
+
+    if devanagari > 0 and latin > 0:
+        return "mixed"
+
+    if devanagari > 0:
+        return "regional"
+
+    if latin > 0:
+        return "english"
+
+    return "other"
+
+
+def normalize_space(value: str) -> str:
+
+    return re.sub(
+        r"[ \t]+",
+        " ",
+        value or "",
+    ).strip()
+
+
+# ============================================================
+# SURYA INITIALIZATION
+# ============================================================
+
+def create_surya():
+
+    print()
+    print("=" * 110)
+    print("INITIALIZING SURYA OCR")
+    print("=" * 110)
+
+    try:
+
+        from surya.detection import (
+            DetectionPredictor,
+        )
+
+        from surya.recognition import (
+            RecognitionPredictor,
+        )
+
+    except Exception as exc:
+
+        raise RuntimeError(
+            "Unable to import Surya OCR: "
+            + str(exc)
+        )
+
+    print(
+        "OCR engine      : Surya"
+    )
+
+    print(
+        "Detection       : Surya DetectionPredictor"
+    )
+
+    print(
+        "Recognition      : Surya RecognitionPredictor"
+    )
+
+    print(
+        "Languages        : automatic multilingual recognition"
+    )
+
+    detection_predictor = (
+        DetectionPredictor()
+    )
+
+    recognition_predictor = (
+        RecognitionPredictor()
+    )
+
+    return (
+        detection_predictor,
+        recognition_predictor,
+    )
+
+
+# ============================================================
+# RENDER PDF PAGE
+# ============================================================
+
+def render_page(
+    document,
+    physical_page: int,
+    dpi: int,
+    output_path: Path,
+):
+
+    page_index = physical_page - 1
+
+    if (
+        page_index < 0
+        or page_index >= len(document)
+    ):
+
+        raise RuntimeError(
+            f"Invalid PDF page: "
+            f"{physical_page}"
+        )
+
+    page = document.load_page(
+        page_index
+    )
+
+    scale = dpi / 72.0
+
+    matrix = fitz.Matrix(
+        scale,
+        scale,
+    )
+
+    pixmap = page.get_pixmap(
+        matrix=matrix,
+        alpha=False,
+    )
+
+    pixmap.save(
+        str(output_path)
+    )
+
+
+# ============================================================
+# SURYA OCR
+# ============================================================
+
+def run_surya_ocr(
+    image_path: Path,
+    detection_predictor,
+    recognition_predictor,
+):
+
+    from PIL import Image
+
+    image = Image.open(
+        image_path
+    )
+
+    # --------------------------------------------------------
+    # Detection
+    # --------------------------------------------------------
+
+    detection_results = (
+        detection_predictor(
+            [image]
+        )
+    )
+
+    if not detection_results:
+
+        return []
+
+    detection = (
+        detection_results[0]
+    )
+
+    # --------------------------------------------------------
+    # Recognition
+    #
+    # Surya RecognitionPredictor accepts
+    # the detection result.
+    # --------------------------------------------------------
+
+    recognition_results = (
+        recognition_predictor(
+            [image],
+            [detection],
+        )
+    )
+
+    if not recognition_results:
+
+        return []
+
+    result = (
+        recognition_results[0]
+    )
+
+    # --------------------------------------------------------
+    # Extract text lines.
+    # --------------------------------------------------------
+
+    text_lines = getattr(
+        result,
+        "text_lines",
+        None,
+    )
+
+    if text_lines is None:
+
+        return []
+
+    lines = []
+
+    for line in text_lines:
+
+        text = getattr(
+            line,
+            "text",
+            "",
+        )
+
+        text = str(
+            text or ""
+        ).strip()
+
+        if not text:
+            continue
+
+        confidence = getattr(
+            line,
+            "confidence",
+            None,
+        )
+
+        bbox = getattr(
+            line,
+            "bbox",
+            None,
+        )
+
+        if bbox is not None:
+
+            try:
+                bbox = list(
+                    bbox
+                )
+            except Exception:
+                bbox = None
+
+        try:
+
+            if confidence is not None:
+                confidence = float(
+                    confidence
+                )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            confidence = None
+
+        lines.append(
+            {
+                "text": text,
+                "confidence":
+                    confidence,
+                "bbox": bbox,
+                "language":
+                    classify_text(
+                        text
+                    ),
+            }
+        )
+
+    return lines
+
+
+# ============================================================
+# SORT OCR LINES
+# ============================================================
+
+def sort_lines(
+    lines: list[dict],
+):
+
+    def key(item):
+
+        bbox = item.get(
+            "bbox"
+        )
+
+        if not bbox:
+            return (
+                999999,
+                999999,
+            )
+
+        try:
+
+            x1 = float(
+                bbox[0]
+            )
+
+            y1 = float(
+                bbox[1]
+            )
+
+            return (
+                round(y1),
+                round(x1),
+            )
+
+        except Exception:
+
+            return (
+                999999,
+                999999,
+            )
+
+    return sorted(
+        lines,
+        key=key,
+    )
+
+
+# ============================================================
+# BUILD TEXT
+# ============================================================
+
+def build_text(
+    lines: list[dict],
+):
+
+    return "\n".join(
+        line["text"]
+        for line in lines
+        if line.get("text")
+    )
+
+
+# ============================================================
+# STATISTICS
+# ============================================================
+
+def calculate_statistics(
+    lines: list[dict],
+):
+
+    regional = 0
+    english = 0
+    mixed = 0
+    other = 0
+
+    confidences = []
+
+    for line in lines:
+
+        language = line.get(
+            "language"
+        )
+
+        if language == "regional":
+            regional += 1
+
+        elif language == "english":
+            english += 1
+
+        elif language == "mixed":
+            mixed += 1
+
+        else:
+            other += 1
+
+        confidence = line.get(
+            "confidence"
+        )
+
+        if confidence is not None:
+
+            try:
+                confidences.append(
+                    float(
+                        confidence
+                    )
+                )
+
+            except (
+                TypeError,
+                ValueError,
+            ):
+                pass
+
+    average_confidence = None
+
+    if confidences:
+
+        average_confidence = (
+            sum(confidences)
+            / len(confidences)
+        )
+
+    return {
+        "line_count":
+            len(lines),
+
+        "regional_lines":
+            regional,
+
+        "english_lines":
+            english,
+
+        "mixed_lines":
+            mixed,
+
+        "other_lines":
+            other,
+
+        "average_confidence":
+            average_confidence,
+    }
+
+
+# ============================================================
+# PROCESS PAGE
+# ============================================================
+
+def process_page(
+    document,
+    physical_page: int,
+    dpi: int,
+    output_dir: Path,
+    detection_predictor,
+    recognition_predictor,
+):
+
+    basename = (
+        f"page_{physical_page:04d}"
+    )
+
+    image_path = (
+        output_dir
+        / f"{basename}.png"
+    )
+
+    json_path = (
+        output_dir
+        / f"{basename}.json"
+    )
+
+    text_path = (
+        output_dir
+        / f"{basename}.txt"
+    )
+
+    print()
+    print("-" * 110)
+    print(
+        f"PROCESSING PDF PAGE "
+        f"{physical_page}"
+    )
+
+    # --------------------------------------------------------
+    # Render
+    # --------------------------------------------------------
+
+    render_page(
+        document,
+        physical_page,
+        dpi,
+        image_path,
+    )
+
+    print(
+        f"Image          : "
+        f"{image_path}"
+    )
+
+    # --------------------------------------------------------
+    # OCR
+    # --------------------------------------------------------
+
+    lines = run_surya_ocr(
+        image_path,
+        detection_predictor,
+        recognition_predictor,
+    )
+
+    lines = sort_lines(
+        lines
+    )
+
+    text = build_text(
+        lines
+    )
+
+    statistics = (
+        calculate_statistics(
+            lines
+        )
+    )
+
+    # --------------------------------------------------------
+    # Save raw OCR.
+    #
+    # IMPORTANT:
+    # This is NOT translated.
+    # This is NOT summarized.
+    # --------------------------------------------------------
+
+    record = {
+
+        "schema":
+            "udcpr-surya-ocr-v1",
+
+        "created_at":
+            datetime.now().isoformat(),
+
+        "source": {
+
+            "pdf":
+                "UDCPR.pdf",
+
+            "physical_pdf_page":
+                physical_page,
+        },
+
+        "ocr": {
+
+            "engine":
+                "Surya",
+
+            "dpi":
+                dpi,
+
+            "translation":
+                False,
+
+            "summarization":
+                False,
+        },
+
+        "statistics":
+            statistics,
+
+        "text":
+            text,
+
+        "lines":
+            lines,
+    }
+
+    with json_path.open(
+        "w",
+        encoding="utf-8",
+    ) as f:
+
+        json.dump(
+            record,
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    with text_path.open(
+        "w",
+        encoding="utf-8",
+    ) as f:
+
+        f.write(
+            text
+        )
+
+    print(
+        "OCR lines      : "
+        + str(
+            statistics[
+                "line_count"
+            ]
+        )
+    )
+
+    print(
+        "Regional lines : "
+        + str(
+            statistics[
+                "regional_lines"
+            ]
+        )
+    )
+
+    print(
+        "English lines  : "
+        + str(
+            statistics[
+                "english_lines"
+            ]
+        )
+    )
+
+    print(
+        "Mixed lines    : "
+        + str(
+            statistics[
+                "mixed_lines"
+            ]
+        )
+    )
+
+    if statistics[
+        "average_confidence"
+    ] is not None:
+
+        print(
+            "Avg confidence : "
+            f"{statistics['average_confidence']:.4f}"
+        )
+
+    print(
+        "Text           : "
+        + str(
+            text_path
+        )
+    )
+
+    print(
+        "JSON           : "
+        + str(
+            json_path
+        )
+    )
+
+    return {
+        "page":
+            physical_page,
+
+        "image":
+            str(
+                image_path
+            ),
+
+        "text":
+            str(
+                text_path
+            ),
+
+        "json":
+            str(
+                json_path
+            ),
+
+        "statistics":
+            statistics,
+    }
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--pdf",
+        default=str(
+            DEFAULT_PDF
+        ),
+    )
+
+    parser.add_argument(
+        "--start-page",
+        type=int,
+        default=DEFAULT_START_PAGE,
+    )
+
+    parser.add_argument(
+        "--end-page",
+        type=int,
+        default=DEFAULT_END_PAGE,
+    )
+
+    parser.add_argument(
+        "--output",
+        default=str(
+            DEFAULT_OUTPUT
+        ),
+    )
+
+    parser.add_argument(
+        "--report",
+        default=str(
+            DEFAULT_REPORT
+        ),
+    )
+
+    parser.add_argument(
+        "--dpi",
+        type=int,
+        default=DEFAULT_DPI,
+    )
+
+    args = parser.parse_args()
+
+    pdf_path = Path(
+        args.pdf
+    )
+
+    output_dir = Path(
+        args.output
+    )
+
+    report_path = Path(
+        args.report
+    )
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    if not pdf_path.exists():
+
+        raise RuntimeError(
+            f"PDF not found: "
+            f"{pdf_path}"
+        )
+
+    if (
+        args.start_page < 1
+        or args.end_page < args.start_page
+    ):
+
+        raise RuntimeError(
+            "Invalid page range."
+        )
+
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    # --------------------------------------------------------
+    # Header
+    # --------------------------------------------------------
+
+    print("=" * 110)
+    print(
+        "UDCPR REGIONAL PAGES - SURYA OCR"
+    )
+    print("=" * 110)
+
+    print()
+    print(
+        "IMPORTANT:"
+    )
+
+    print(
+        "Raw OCR only."
+    )
+
+    print(
+        "No PostgreSQL changes."
+    )
+
+    print(
+        "No ChromaDB changes."
+    )
+
+    print(
+        "No translation."
+    )
+
+    print(
+        "No summarization."
+    )
+
+    print(
+        "English text is preserved."
+    )
+
+    print(
+        "Regional-language text is preserved."
+    )
+
+    print()
+    print(
+        f"PDF       : {pdf_path}"
+    )
+
+    print(
+        f"Pages     : "
+        f"{args.start_page} -> "
+        f"{args.end_page}"
+    )
+
+    print(
+        f"DPI       : {args.dpi}"
+    )
+
+    print(
+        f"Output    : {output_dir}"
+    )
+
+    # --------------------------------------------------------
+    # PDF
+    # --------------------------------------------------------
+
+    document = fitz.open(
+        str(pdf_path)
+    )
+
+    page_count = len(
+        document
+    )
+
+    print()
+    print("=" * 110)
+    print("PDF")
+    print("=" * 110)
+
+    print(
+        f"PDF pages : "
+        f"{page_count}"
+    )
+
+    if args.end_page > page_count:
+
+        document.close()
+
+        raise RuntimeError(
+            f"End page {args.end_page} "
+            f"exceeds PDF page count "
+            f"{page_count}."
+        )
+
+    # --------------------------------------------------------
+    # Surya
+    # --------------------------------------------------------
+
+    (
+        detection_predictor,
+        recognition_predictor,
+    ) = create_surya()
+
+    # --------------------------------------------------------
+    # Process
+    # --------------------------------------------------------
+
+    results = []
+    failures = []
+
+    print()
+    print("=" * 110)
+    print(
+        "PROCESSING"
+    )
+    print("=" * 110)
+
+    for page_number in range(
+        args.start_page,
+        args.end_page + 1,
+    ):
+
+        try:
+
+            result = process_page(
+                document,
+                page_number,
+                args.dpi,
+                output_dir,
+                detection_predictor,
+                recognition_predictor,
+            )
+
+            results.append(
+                result
+            )
+
+        except Exception as exc:
+
+            print()
+            print(
+                f"ERROR PAGE "
+                f"{page_number}: "
+                f"{exc}"
+            )
+
+            failures.append(
+                {
+                    "page":
+                        page_number,
+
+                    "error":
+                        str(exc),
+                }
+            )
+
+    document.close()
+
+    # --------------------------------------------------------
+    # Summary
+    # --------------------------------------------------------
+
+    regional_pages = 0
+    english_pages = 0
+    empty_pages = 0
+    total_lines = 0
+
+    for result in results:
+
+        stats = result[
+            "statistics"
+        ]
+
+        total_lines += (
+            stats["line_count"]
+        )
+
+        if stats[
+            "regional_lines"
+        ]:
+
+            regional_pages += 1
+
+        if stats[
+            "english_lines"
+        ]:
+
+            english_pages += 1
+
+        if (
+            stats["line_count"]
+            == 0
+        ):
+
+            empty_pages += 1
+
+    requested_pages = (
+        args.end_page
+        - args.start_page
+        + 1
+    )
+
+    report = {
+
+        "schema":
+            "udcpr-surya-ocr-report-v1",
+
+        "created_at":
+            datetime.now().isoformat(),
+
+        "source": {
+
+            "pdf":
+                str(pdf_path),
+
+            "pdf_pages":
+                page_count,
+
+            "start_page":
+                args.start_page,
+
+            "end_page":
+                args.end_page,
+        },
+
+        "ocr": {
+
+            "engine":
+                "Surya",
+
+            "dpi":
+                args.dpi,
+        },
+
+        "summary": {
+
+            "requested_pages":
+                requested_pages,
+
+            "processed_pages":
+                len(results),
+
+            "failed_pages":
+                len(failures),
+
+            "pages_with_regional_text":
+                regional_pages,
+
+            "pages_with_english_text":
+                english_pages,
+
+            "empty_pages":
+                empty_pages,
+
+            "total_ocr_lines":
+                total_lines,
+        },
+
+        "pages":
+            results,
+
+        "failures":
+            failures,
+
+        "database_changes":
+            False,
+
+        "chroma_changes":
+            False,
+
+        "translation":
+            False,
+
+        "summarization":
+            False,
+    }
+
+    with report_path.open(
+        "w",
+        encoding="utf-8",
+    ) as f:
+
+        json.dump(
+            report,
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    # --------------------------------------------------------
+    # Final
+    # --------------------------------------------------------
+
+    print()
+    print("=" * 110)
+    print(
+        "SURYA OCR SUMMARY"
+    )
+    print("=" * 110)
+
+    print(
+        f"Requested pages          : "
+        f"{requested_pages}"
+    )
+
+    print(
+        f"Processed pages          : "
+        f"{len(results)}"
+    )
+
+    print(
+        f"Failed pages             : "
+        f"{len(failures)}"
+    )
+
+    print(
+        f"Pages with regional text : "
+        f"{regional_pages}"
+    )
+
+    print(
+        f"Pages with English text  : "
+        f"{english_pages}"
+    )
+
+    print(
+        f"Empty pages              : "
+        f"{empty_pages}"
+    )
+
+    print(
+        f"Total OCR lines          : "
+        f"{total_lines}"
+    )
+
+    print()
+    print(
+        f"Report: {report_path}"
+    )
+
+    if failures:
+
+        print()
+        print(
+            "WARNING: Some pages failed."
+        )
+
+        sys.exit(2)
+
+    print()
+    print(
+        "PASS: Surya OCR completed."
+    )
+
+    print(
+        "NO PostgreSQL changes."
+    )
+
+    print(
+        "NO ChromaDB changes."
+    )
+
+
+if __name__ == "__main__":
+    main()

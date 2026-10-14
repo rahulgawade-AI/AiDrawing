@@ -1,0 +1,40 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 446,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0446.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\n2) UDCPR विनियम २.७.१ मध्ये Commencement ची व्याख्या दिली आहे. इमारतीच्या बांधकामाची सुरुवात (Commencement) त्यानुसार upto Plinth Level अशी आहे. UDCPR मध्ये Plinth Certificate देण्याबाबतची तरतूद नसली तरी विकासकाने मनपास Plinth Completion ची सूचना दिल्याचा दिनांक हा संदर्भ म्हणून गृहीत धरता येईल. विनियम २.७.१ व ११.२.५ यांचा एकत्रितरित्या विचार करता खालील बाबी स्पष्ट होतात.:-\ni) Construction TDR साठी बांधकाम Commencement झाल्याच्या तारखेला असणारी प्रचलित नियमावलीतील तरतूद लागू होते, म्हणजेच UDCPR लागू झाल्यानंतरच्या संदर्भाकित दिनांकास Plinth पूर्ण होवून पुढील काम चालू असल्यास, त्यास UDCPR मधील तरतूदी लागू पडतील. \n ii) अशा प्रकरणी Plinth पुढील सर्व कामांकरिता प्रचलित नियमावलीतील तरतूदीनुसार २ च्या गुणाकाराने TDR अनुज्ञेय राहील. मात्र Plinth च्या पूर्वी झालेल्या कामांकरिता तत्कालीन नियमानुसार जुना गुणक देय राहील. \n iii) UDCPR - table ११-A मधील ix ही तरतूद यापूर्वी Accommodation Reservation (A.R.) करिता देण्यात आलेल्या परवानग्या या सदर मंजूरीप्रमाणेच पुढेही चालू राहतील, याची शाश्वती / बंधन देण्यासाठी आहे. परंतु Construction TDR कसा व किती द्यावा, याकरिता विनियम ११.२.५ च लागू राहील. म्हणजेच, विनियम ११.१ हा आरक्षित भूखंड कसे विकसित करावे (A.R.) याच्या तपशीलाबाबत आहे, तर त्याचा TDR मोबदला देण्यासाठी ११.२.५ विनियम विचारात घेणे आवश्यक आहे.\n3) UDCPR मधील टेबल ११-अ खाली नमूद अट ix - अशी आहे - In cases, where permission for development under accommodation reservation principle is already granted as per earlier regulations, the same shall continue to be valid till completion of construction.\nज्यावेळेस समावेशक आरक्षणाची योजना मंजूर झाली त्यावेळेस, अस्तित्वात असणाऱ्या नियमावलीनुसारच पुढे चालू राहील. सदर तरतूद ही, आरक्षण हे समायोजित आरक्षणाच्या माध्यमातून करताना भूखंडाचे प्रमाण (टक्केवारी) व त्यावर बांधून हस्तांतरीत करावयाचे बांधीव क्षेत्र ठरविण्यासाठी देखील अंमलात राहील, म्हणजेच नवीन UDCPR प्रमाणे ५०% ऐवजी ४० % भूखंडच देण्याची मागणी मान्य करता येणार नाही.\nआपका\n(नु.म.शिंदे)\nकार्यासन अधिकारी\nप्रत माहितीसाठी :\n१) संचालक, नगर रचना, महाराष्ट्र राज्य, पुणे.\n430",
+  "translated_english_text": "UDCPR-2020\n2) Regulation 2.7.1 of UDCPR defines \"Commencement\". The commencement of construction of a building is defined as up to Plinth Level. Even though there is no provision regarding the issuance of Plinth Certificate in UDCPR, the date on which the developer informs the Municipal Corporation about Plinth Completion shall be considered as reference. Considering Regulation 2.7.1 and 11.2.5 together, the following points become clear:-\ni) The provisions of the existing regulation applicable on the date of commencement of construction for the purpose of Construction TDR shall apply, that is, if the construction is commenced after the commencement of UDCPR and the Plinth is completed and further construction is carried out, then the provisions of UDCPR shall apply.\nii) In such cases, the TDR shall be allowed at twice the rate for all works subsequent to the Plinth. However, for works carried out prior to the Plinth, the old rate shall apply.\niii) The provision in UDCPR - Table 11-A, ix, that the permissions granted earlier for development under the Accommodation Reservation (A.R.) principle shall continue to be valid in the same manner as per the present approval, is for the purpose of making it perpetual / binding. However, Regulation 11.2.5 shall continue to apply for the determination of how much and how Construction TDR shall be granted. That is, Regulation 11.1 relates to the details of how to develop the reserved land (A.R.), whereas Regulation 11.2.5 shall be considered for the purpose of granting TDR in lieu thereof.\n3) The provision in Table 11-A of UDCPR, ix, is as follows - In cases where permission for development under the accommodation reservation principle has already been granted as per earlier regulations, the same shall continue to be valid till completion of construction.\nWhereas the scheme of accommodation reservation was approved at that time, it shall continue to be valid in accordance with the existing regulations. This provision shall also apply for determining the extent of land (percentage) and the area to be transferred by way of development on such land, that is, the request for granting 40% land instead of 50% as per new UDCPR shall not be accepted.\nआपका\n(N.M.Shinde)\nCFO\nFor Information:\n1) Controller, City Planning, Maharashtra State, Pune.\n430 /think",
+  "validation": {
+    "original_regulation_numbers": [
+      "2.7.1",
+      "11.2.5",
+      "11.1"
+    ],
+    "translated_regulation_numbers": [
+      "2.7.1",
+      "11.2.5",
+      "11.1"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 1985,
+    "translated_characters": 2323,
+    "elapsed_seconds": 123.39
+  }
+}

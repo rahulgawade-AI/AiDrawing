@@ -1,0 +1,780 @@
+from __future__ import annotations
+
+import json
+import sys
+from datetime import datetime
+from pathlib import Path
+
+import chromadb
+from sqlalchemy import text
+
+from townplanning.core.settings import get_settings
+from townplanning.infrastructure.database.session import SessionLocal
+from townplanning.modules.chunking.domain.chunk import Chunk
+from townplanning.modules.embeddings.services.embedding_service import (
+    EmbeddingService,
+)
+
+
+# ============================================================
+# CONFIG
+# ============================================================
+
+MANIFEST_PATH = Path(
+    "data/regulations/udcpr_canonical_manifest.json"
+)
+
+CHUNKS_PATH = Path(
+    "data/regulations/udcpr_source_chunks.json"
+)
+
+BACKUP_CHROMA = Path(
+    "/tmp/udcpr_postgres_backup/"
+    "chroma_rebuild_20260901_144152/chroma"
+)
+
+
+# ============================================================
+# HELPERS
+# ============================================================
+
+def load_json(path: Path):
+    with path.open(
+        "r",
+        encoding="utf-8",
+    ) as f:
+        return json.load(f)
+
+
+def load_chunks():
+    data = load_json(CHUNKS_PATH)
+
+    if not isinstance(data, dict):
+        raise RuntimeError(
+            "Unexpected source JSON structure."
+        )
+
+    chunks = data.get("chunks")
+
+    if not isinstance(chunks, list):
+        raise RuntimeError(
+            "Source JSON does not contain a chunks list."
+        )
+
+    if len(chunks) != 329:
+        raise RuntimeError(
+            f"Expected 329 canonical chunks, "
+            f"found {len(chunks)}."
+        )
+
+    return chunks
+
+
+def canonical_key(number, title):
+    return (
+        str(number or "")
+        .strip()
+        .lower()
+        + "|"
+        + str(title or "")
+        .strip()
+        .lower()
+    )
+
+
+def make_chunk(source):
+    """
+    Convert one canonical source chunk into the application's
+    Chunk domain object.
+
+    We deliberately use regulation_text as the document text.
+    """
+
+    if not isinstance(source, dict):
+        raise RuntimeError(
+            "Invalid source chunk."
+        )
+
+    regulation_text = str(
+        source.get("regulation_text") or ""
+    ).strip()
+
+    if not regulation_text:
+        raise RuntimeError(
+            "Empty regulation_text for "
+            + canonical_key(
+                source.get("number"),
+                source.get("title"),
+            )
+        )
+
+    number = str(
+        source.get("number") or ""
+    ).strip()
+
+    title = str(
+        source.get("title") or ""
+    ).strip()
+
+    source_pages = source.get(
+        "source_pages"
+    ) or []
+
+    page_number = None
+
+    if source_pages:
+        page_number = source_pages[0]
+
+    chunk_id = (
+        "UDCPR:"
+        + canonical_key(
+            number,
+            title,
+        )
+    )
+
+    metadata = {
+        "source": "UDCPR.pdf",
+        "source_file": "udcpr_source_chunks.json",
+        "canonical_key": canonical_key(
+            number,
+            title,
+        ),
+        "regulation_number": number,
+        "regulation_title": title,
+        "chapter": str(
+            source.get("chapter") or ""
+        ),
+        "printed_page_start": source.get(
+            "printed_page_start"
+        ),
+        "printed_page_end": source.get(
+            "printed_page_end"
+        ),
+        "pdf_page_start": source.get(
+            "pdf_page_start"
+        ),
+        "pdf_page_end": source.get(
+            "pdf_page_end"
+        ),
+        "source_pages": source_pages,
+        "text_sha256": source.get(
+            "text_sha256"
+        ),
+        "chunk_type": "canonical_regulation",
+    }
+
+    return Chunk(
+        id=chunk_id,
+        source_type="REGULATION",
+        source_id=chunk_id,
+        chunk_index=0,
+        title=f"{number} {title}".strip(),
+        text=regulation_text,
+        page_number=page_number,
+        metadata=metadata,
+    )
+
+
+def get_embedding_service():
+    """
+    Construct the application's configured EmbeddingService.
+
+    IMPORTANT:
+    OllamaEmbeddingProvider reads its configuration directly
+    from Settings:
+
+        OLLAMA_HOST
+        EMBEDDING_MODEL
+        EMBEDDING_BATCH_SIZE
+        OLLAMA_TIMEOUT
+
+    Do not pass OLLAMA_BASE_URL or constructor arguments.
+    """
+
+    from townplanning.modules.embeddings.providers.provider_factory import (
+        ProviderFactory,
+    )
+
+    provider = ProviderFactory.create()
+
+    return EmbeddingService(provider)
+
+
+def verify_database():
+    db = SessionLocal()
+
+    try:
+        rules = db.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM public.rules
+                """
+            )
+        ).scalar_one()
+
+        cards = db.execute(
+            text(
+                """
+                SELECT COUNT(*)
+                FROM public.knowledge_cards
+                """
+            )
+        ).scalar_one()
+
+        return {
+            "rules": rules,
+            "knowledge_cards": cards,
+        }
+
+    finally:
+        db.close()
+
+
+def verify_chroma(collection):
+    count = collection.count()
+
+    data = collection.get(
+        limit=min(count, 5),
+        include=[
+            "documents",
+            "metadatas",
+            "embeddings",
+        ],
+    )
+
+    dimension = None
+
+    embeddings = data.get(
+        "embeddings"
+    )
+
+    if embeddings is not None and len(embeddings) > 0:
+        dimension = len(
+            embeddings[0]
+        )
+
+    return {
+        "count": count,
+        "embedding_dimension": dimension,
+        "sample_ids": data.get(
+            "ids",
+            [],
+        ),
+    }
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+    settings = get_settings()
+
+    print("=" * 110)
+    print(
+        "UDCPR CLEAN CHROMA REBUILD"
+    )
+    print("=" * 110)
+
+    print()
+    print(
+        "IMPORTANT: Existing Chroma collection will be deleted."
+    )
+    print(
+        "Backup:"
+    )
+    print(
+        str(BACKUP_CHROMA)
+    )
+
+    if not BACKUP_CHROMA.exists():
+        raise RuntimeError(
+            "Chroma backup does not exist. "
+            "ABORTING."
+        )
+
+    print()
+    print("=" * 110)
+    print("DATABASE CHECK")
+    print("=" * 110)
+
+    db_status = verify_database()
+
+    print(
+        f"rules              : "
+        f"{db_status['rules']}"
+    )
+
+    print(
+        f"knowledge_cards     : "
+        f"{db_status['knowledge_cards']}"
+    )
+
+    if db_status["rules"] != 329:
+        raise RuntimeError(
+            "Expected exactly 329 rules."
+        )
+
+    if db_status["knowledge_cards"] != 329:
+        raise RuntimeError(
+            "Expected exactly 329 knowledge cards."
+        )
+
+    sources = load_chunks()
+
+    print()
+    print("=" * 110)
+    print("SOURCE CHECK")
+    print("=" * 110)
+
+    print(
+        f"Canonical chunks    : {len(sources)}"
+    )
+
+    print()
+    print("=" * 110)
+    print("CHROMA BEFORE")
+    print("=" * 110)
+
+    print(
+        "Path                : "
+        + settings.CHROMA_PATH
+    )
+
+    print(
+        "Collection           : "
+        + settings.CHROMA_COLLECTION
+    )
+
+    client = chromadb.PersistentClient(
+        path=settings.CHROMA_PATH
+    )
+
+    try:
+        old_collection = client.get_collection(
+            name=settings.CHROMA_COLLECTION
+        )
+
+        print(
+            "Records              : "
+            + str(
+                old_collection.count()
+            )
+        )
+
+    except Exception:
+        old_collection = None
+
+        print(
+            "Collection            : NOT FOUND"
+        )
+
+    print()
+    print("=" * 110)
+    print("EMBEDDING CONFIG")
+    print("=" * 110)
+
+    print(
+        "Provider             : "
+        + str(settings.EMBEDDING_PROVIDER)
+    )
+
+    print(
+        "Model                : "
+        + str(settings.EMBEDDING_MODEL)
+    )
+
+    print(
+        "Batch size           : "
+        + str(settings.EMBEDDING_BATCH_SIZE)
+    )
+
+    # --------------------------------------------------------
+    # Build application chunks.
+    # --------------------------------------------------------
+
+    chunks = [
+        make_chunk(source)
+        for source in sources
+    ]
+
+    ids = [
+        chunk.id
+        for chunk in chunks
+    ]
+
+    if len(ids) != len(set(ids)):
+        raise RuntimeError(
+            "Duplicate canonical Chroma IDs."
+        )
+
+    # --------------------------------------------------------
+    # Embed BEFORE destroying old collection.
+    #
+    # This is intentional. If Ollama/model is broken,
+    # the old Chroma remains untouched.
+    # --------------------------------------------------------
+
+    print()
+    print("=" * 110)
+    print(
+        "GENERATING CANONICAL EMBEDDINGS"
+    )
+    print("=" * 110)
+
+    embedding_service = (
+        get_embedding_service()
+    )
+
+    records = (
+        embedding_service.embed_chunks(
+            chunks
+        )
+    )
+
+    print(
+        f"Embeddings generated  : "
+        f"{len(records)}"
+    )
+
+    if len(records) != 329:
+        raise RuntimeError(
+            "Expected 329 embedding records."
+        )
+
+    dimensions = {
+        len(record.embedding)
+        for record in records
+    }
+
+    print(
+        f"Embedding dimensions  : "
+        f"{sorted(dimensions)}"
+    )
+
+    if dimensions != {768}:
+        raise RuntimeError(
+            "Expected 768-dimensional embeddings."
+        )
+
+    # --------------------------------------------------------
+    # Delete old collection.
+    # --------------------------------------------------------
+
+    print()
+    print("=" * 110)
+    print(
+        "REBUILDING CHROMA COLLECTION"
+    )
+    print("=" * 110)
+
+    if old_collection is not None:
+        client.delete_collection(
+            settings.CHROMA_COLLECTION
+        )
+
+        print(
+            "Old collection deleted."
+        )
+
+    collection = client.create_collection(
+        name=settings.CHROMA_COLLECTION
+    )
+
+    print(
+        "New collection created."
+    )
+
+    # --------------------------------------------------------
+    # Insert in batches.
+    # --------------------------------------------------------
+
+    batch_size = int(
+        settings.EMBEDDING_BATCH_SIZE
+    )
+
+    for start in range(
+        0,
+        len(records),
+        batch_size,
+    ):
+        batch = records[
+            start:start + batch_size
+        ]
+
+        collection.add(
+            ids=[
+                r.id
+                for r in batch
+            ],
+            documents=[
+                r.text
+                for r in batch
+            ],
+            embeddings=[
+                r.embedding
+                for r in batch
+            ],
+            metadatas=[
+                {
+                    str(k): (
+                        json.dumps(
+                            v,
+                            ensure_ascii=False,
+                        )
+                        if isinstance(
+                            v,
+                            (dict, list),
+                        )
+                        else (
+                            str(v)
+                            if v is not None
+                            else ""
+                        )
+                    )
+                    for k, v in r.metadata.items()
+                }
+                for r in batch
+            ],
+        )
+
+        print(
+            f"Inserted "
+            f"{start + len(batch)} / "
+            f"{len(records)}"
+        )
+
+    # --------------------------------------------------------
+    # Final verification.
+    # --------------------------------------------------------
+
+    print()
+    print("=" * 110)
+    print("FINAL CHROMA VERIFICATION")
+    print("=" * 110)
+
+    # IMPORTANT:
+    # `collection` refers to the collection object that existed
+    # before the rebuild. That collection was deleted.
+    #
+    # Retrieve the newly created collection before verification.
+    new_collection = client.get_collection(
+        name=settings.CHROMA_COLLECTION
+    )
+
+    verification = verify_chroma(
+        new_collection
+    )
+
+    print(
+        "Records              : "
+        + str(
+            verification["count"]
+        )
+    )
+
+    print(
+        "Embedding dimension  : "
+        + str(
+            verification[
+                "embedding_dimension"
+            ]
+        )
+    )
+
+    print(
+        "Sample IDs           : "
+        + str(
+            verification["sample_ids"]
+        )
+    )
+
+    failures = []
+
+    if verification["count"] != 329:
+        failures.append(
+            "Chroma count != 329"
+        )
+
+    if verification[
+        "embedding_dimension"
+    ] != 768:
+        failures.append(
+            "Embedding dimension != 768"
+        )
+
+    # --------------------------------------------------------
+    # Verify every canonical ID exists.
+    # --------------------------------------------------------
+
+    result = new_collection.get(
+        ids=ids,
+        include=[
+            "documents",
+            "metadatas",
+        ],
+    )
+
+    actual_ids = set(
+        result["ids"]
+    )
+
+    missing_ids = [
+        x
+        for x in ids
+        if x not in actual_ids
+    ]
+
+    if missing_ids:
+        failures.append(
+            f"Missing Chroma IDs: "
+            f"{len(missing_ids)}"
+        )
+
+    print()
+    print(
+        "Canonical IDs        : "
+        + str(len(ids))
+    )
+
+    print(
+        "IDs present          : "
+        + str(len(actual_ids))
+    )
+
+    print(
+        "IDs missing          : "
+        + str(len(missing_ids))
+    )
+
+    if failures:
+        print()
+        print("=" * 110)
+        print("REBUILD FAILED")
+        print("=" * 110)
+
+        for failure in failures:
+            print(
+                "FAIL:",
+                failure,
+            )
+
+        raise RuntimeError(
+            "Chroma verification failed."
+        )
+
+    report = {
+        "created_at":
+            datetime.now().isoformat(),
+
+        "chroma_path":
+            settings.CHROMA_PATH,
+
+        "collection":
+            settings.CHROMA_COLLECTION,
+
+        "embedding_provider":
+            settings.EMBEDDING_PROVIDER,
+
+        "embedding_model":
+            settings.EMBEDDING_MODEL,
+
+        "source_chunks":
+            len(sources),
+
+        "rules":
+            db_status["rules"],
+
+        "knowledge_cards":
+            db_status[
+                "knowledge_cards"
+            ],
+
+        "old_chroma_count":
+            old_collection.count()
+            if old_collection is not None
+            else 0,
+
+        "new_chroma_count":
+            verification["count"],
+
+        "embedding_dimension":
+            verification[
+                "embedding_dimension"
+            ],
+
+        "missing_ids":
+            len(missing_ids),
+
+        "passed":
+            True,
+    }
+
+    report_path = Path(
+        "/tmp/udcpr_chroma_rebuild.json"
+    )
+
+    report_path.write_text(
+        json.dumps(
+            report,
+            indent=2,
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    print()
+    print("=" * 110)
+    print("CHROMA REBUILD SUCCESSFUL")
+    print("=" * 110)
+
+    print(
+        "Old records          : "
+        + str(
+            report["old_chroma_count"]
+        )
+    )
+
+    print(
+        "New records          : "
+        + str(
+            report["new_chroma_count"]
+        )
+    )
+
+    print(
+        "Embedding dimension  : "
+        + str(
+            report["embedding_dimension"]
+        )
+    )
+
+    print(
+        "Missing canonical IDs: "
+        + str(
+            report["missing_ids"]
+        )
+    )
+
+    print()
+    print(
+        "Report:",
+        report_path,
+    )
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as exc:
+        print()
+        print("=" * 110)
+        print("CHROMA REBUILD ABORTED")
+        print("=" * 110)
+        print(
+            "ERROR:",
+            exc,
+        )
+        sys.exit(1)

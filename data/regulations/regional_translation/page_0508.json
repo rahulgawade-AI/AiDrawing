@@ -1,0 +1,76 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 508,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0508.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "महाराष्ट्र शासन\nनगर विकास विभाग\nमादाम कामा मार्ग, हुतात्मा राजगुरु चौक, मंत्रालय, मुंबई - ४०० ०३२.\nEmail ID : soudd12-mh@mah.gov.in\nआदेश क्र.१३\nक्रमांक-:टिपीएस-१२२१/२१७४/प्र.क्र.५८/२२/नवि-१२\nदिनांक :- ४ सप्टेंबर, २०२३.\nविषय :- एकत्रिकृत विकास नियंत्रण व प्रोत्साहन नियमावली (UDCPR) मंजूर\nनियमावलीमधील विनियम क्र.१.१(v) अन्वये स्पष्टीकरण देणेबाबत.\nसंदर्भ :-१) शासनाचे आदेश क्र.टिपीएस-१८१८/प्र.क्र.२३६/१८(भाग-२)/नवि-१३,\nदि.१४/१/२०२१. (स्पष्टीकरण आदेश क्र.१)\n२) शासनाचे आदेश क्र.टिपीएस-१८२१/३४०/प्र.क्र.६८/२०२१/नवि-१३,\nदि.१०/५/२०२१. (स्पष्टीकरण आदेश क्र.२)\n३) शासनाचे आदेश क्र.टिपीएस-१२२१/९९०/प्र.क्र.४४/२१/नवि-१२,\nदि.१०/६/२०२१. (स्पष्टीकरण आदेश क्र.३)\n४) शासनाचे आदेश क्र.टिपीएस-१२२१/१०३९/प्र.क्र.४२/२१/नवि-१२,\nदि.१४/६/२०२१. (स्पष्टीकरण आदेश क्र.४)\n५) शासनाचे आदेश क्र.टिपीएस-१८१८/प्र.क्र.२३६/१८(भाग-२)/नवि-१३,\nदि.१७/९/२०२१. (स्पष्टीकरण आदेश क्र.५)\n६) शासनाचे आदेश क्र.टिपीएस-१८१८/प्र.क्र.२३६/१८(भाग-२)/नवि-१३,\nदि.२३/१२/२०२१. (स्पष्टीकरण आदेश क्र.६)\n७) शासनाचे आदेश क्र.टिपीएस-१८२१/९३३/नवि-१३, दि.२३/१२/२०२१.\n(स्पष्टीकरण आदेश क्र.७)\n८) शासनाचे आदेश क्र.टिपीएस-१८१८/२३६/१८(भाग-२)/नवि-१३,\nदि.२६/९/२०२२ (स्पष्टीकरण आदेश क्र.८)\n९) शासनाचे आदेश क्र.टिपीएस-१८१८/२३६/१८(भाग-२)/नवि-१३,\nदि.१२/१०/२०२२ (स्पष्टीकरण आदेश क्र.९)\n१०) शासनाचे आदेश क्र.टिपीएस-१८१८/प्र.क्र.२३६/१८(भाग-२)/नवि-१३,\nदिनांक १२/१०/२०२२. (स्पष्टीकरण आदेश क्र.१०)\n११) शासनाचे आदेश क्र.१८२१/२०२३/प्र.क्र.१०४/२२/नवि-३०,\nदिनांक २९/११/२०२२ व समक्रमांकाचे शुध्दीपत्रक दिनांक २/६/२०२३.\n१२) शासनाचे आदेश क्र.टिपीएस-१२२३/६०३/प्र.क्र.७२/२३/नवि-१२,\nदिनांक २५/८/२०२३ (स्पष्टीकरण आदेश क्र.१२)\nज्याअर्थी, शासनाने अधिसूचना क्र. टिपीएस १८१८/प्र.क्र.३३६/१८/कलम ३७(१कक)(ग) व कलम २०(४)/नवि-१३, दि.०२/१२/२०२० अन्वये राज्यातील सर्व नियोजन प्राधिकरणे (काही अपवाद\n492",
+  "translated_english_text": "Maharashtra Government  \nNagar Vikas Vibhag  \nMadam Kama Marg, Hutatma Rajguru Chowk, Ministry, Mumbai - 400 032.  \nEmail ID : soudd12-mh@mah.gov.in  \nOrder No. 13  \nNo. - : TPS-1221/2174/Pr. No. 58/22/Navi-12  \nDate :- 4 September, 2023.  \nSubject :- Unified Development Control and Promotion Regulations (UDCPR) Approved  \nRegulation No. 1.1(v) in force, regarding explanation.  \nReference :- 1) Government Order No. TPS-1818/Pr. No. 236/18(Part-2)/Navi-13,  \nDate. 14/1/2021. (Explanation Order No. 1)  \n2) Government Order No. TPS-1821/340/Pr. No. 68/2021/Navi-13,  \nDate. 10/5/2021. (Explanation Order No. 2)  \n3) Government Order No. TPS-1221/990/Pr. No. 44/21/Navi-12,  \nDate. 10/6/2021. (Explanation Order No. 3)  \n4) Government Order No. TPS-1221/1039/Pr. No. 42/21/Navi-12,  \nDate. 14/6/2021. (Explanation Order No. 4)  \n5) Government Order No. TPS-1818/Pr. No. 236/18(Part-2)/Navi-13,  \nDate. 17/9/2021. (Explanation Order No. 5)  \n6) Government Order No. TPS-1818/Pr. No. 236/18(Part-2)/Navi-13,  \nDate. 23/12/2021. (Explanation Order No. 6)  \n7) Government Order No. TPS-1821/933/Navi-13, Date. 23/12/2021.  \n(Explanation Order No. 7)  \n8) Government Order No. TPS-1818/236/18(Part-2)/Navi-13,  \nDate. 26/9/2022 (Explanation Order No. 8)  \n9) Government Order No. TPS-1818/236/18(Part-2)/Navi-13,  \nDate. 12/10/2022 (Explanation Order No. 9)  \n10) Government Order No. TPS-1818/Pr. No. 236/18(Part-2)/Navi-13,  \nDate 12/10/2022. (Explanation Order No. 10)  \n11) Government Order No. 1821/2023/Pr. No. 104/22/Navi-30,  \nDate 29/11/2022 and correction notice No. 2/6/2023.  \n12) Government Order No. TPS-1223/603/Pr. No. 72/23/Navi-12,  \nDate 25/8/2023 (Explanation Order No. 12)  \nWhereby, the Government has issued Notification No. TPS 1818/Pr. No. 336/18/Section 37(1(k)(g) and Section 20(4)/Navi-13, Date. 02/12/2020, regarding all planning authorities in the state (some exceptions  \n492",
+  "validation": {
+    "original_regulation_numbers": [
+      "1.1(v)"
+    ],
+    "translated_regulation_numbers": [
+      "1.1(v)"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [
+      "14/1/2021",
+      "10/5/2021",
+      "10/6/2021",
+      "14/6/2021",
+      "17/9/2021",
+      "23/12/2021",
+      "26/9/2022",
+      "12/10/2022",
+      "29/11/2022",
+      "2/6/2023",
+      "25/8/2023",
+      "02/12/2020"
+    ],
+    "translated_dates": [
+      "14/1/2021",
+      "10/5/2021",
+      "10/6/2021",
+      "14/6/2021",
+      "17/9/2021",
+      "23/12/2021",
+      "26/9/2022",
+      "12/10/2022",
+      "29/11/2022",
+      "2/6/2023",
+      "25/8/2023",
+      "02/12/2020"
+    ],
+    "missing_dates": [],
+    "original_emails": [
+      "soudd12-mh@mah.gov.in"
+    ],
+    "translated_emails": [
+      "soudd12-mh@mah.gov.in"
+    ],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [
+      "TPS-1221/2174/Pr. No. 58/22/Navi-12 Date :- 4 September",
+      "TPS-1818/Pr. No. 236/18(Part-2)/Navi-13",
+      "TPS-1821/340/Pr. No. 68/2021/Navi-13",
+      "TPS-1221/990/Pr. No. 44/21/Navi-12",
+      "TPS-1221/1039/Pr. No. 42/21/Navi-12",
+      "TPS-1821/933/Navi-13",
+      "TPS-1818/236/18(Part-2)/Navi-13",
+      "TPS-1223/603/Pr. No. 72/23/Navi-12",
+      "TPS-1221/2174/Pr. No. 58/22/Navi-12 Date"
+    ],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 1702,
+    "translated_characters": 1903,
+    "elapsed_seconds": 279.4
+  }
+}

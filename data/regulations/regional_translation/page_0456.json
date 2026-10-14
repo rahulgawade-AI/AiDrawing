@@ -1,0 +1,38 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 456,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0456.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\n०३. उक्त दोन तरतुदीपैकी विनियम ६.३, टेबल ६-G, नोट (xiv) मधील तरतुदीनुसार, एखाद्या भुखंडावर अनुज्ञेय कमाल बांधकाम क्षमता ठरविताना वरील मुद्दा ०१ मधे नमूद केल्यानुसार भूखंड क्षेत्र विचारात व्यावयाचे आहे. तर विनियम ११.२.७(iii) मधील तरतुदीनुसार, कमाल बांधकाम क्षमतेचा / TDR चा प्रत्यक्ष वापर वरील मुद्दा ०२ मधे नमूद केल्यानुसार भूखंड क्षेत्रावर करणे आवश्यक आहे.\nआपला,\n(किशोर गोखले)\nअवर सचिव, महाराष्ट्र शासन\nप्रत :-\nमा.संचालक, नगर रचना, महाराष्ट्र राज्य, पुणे\n© Users/kishore/Desktop/KVG/UDCPR/Final Sanction/clarification/Loading and utilisation of potential docs\n440",
+  "translated_english_text": "UDCPR-2020\n03. As per the provisions of Regulation 6.3, Table 6-G, Note (xiv), the area of the plot is to be considered as per the matter mentioned in point 01 above while determining the permissible building capacity on a plot. Then, as per the provisions of Regulation 11.2.7(iii), the direct use of the permissible building capacity / TDR is required to be made on the plot area as per the matter mentioned in point 02 above.\nYours,\n(Kishore Gokhale)\nUnder Secretary, Maharashtra Government\nCopy :-\nChief Officer, Urban Planning, Maharashtra State, Pune\n© Users/kishore/Desktop/KVG/UDCPR/Final Sanction/clarification/Loading and utilisation of potential docs\n440",
+  "validation": {
+    "original_regulation_numbers": [
+      "6.3",
+      "11.2.7(iii)"
+    ],
+    "translated_regulation_numbers": [
+      "6.3",
+      "11.2.7(iii)"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 575,
+    "translated_characters": 665,
+    "elapsed_seconds": 79.81
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 444,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0444.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\nपंपाचे जंक्शनपासून सोडावयाचे अंतरात सवलत देण्याची प्रकरणे विभागीय कार्यालयास प्राप्त झालेली आहेत. त्याबाबत सार्वजनिक बांधकाम विभागाशी सल्लामसलत करून, धोरण निश्चित करून मार्गदर्शन करणेची विनंती सहसंचालक नगर रचना, पुणे विभाग, पुणे यांनी केली आहे.\nवास्तविक मंजूर UDCPR मधील तरतूद स्पष्ट आहे. त्यानुसार वर्गिकृत रस्त्यावर स्थित भूखंडावर पेट्रोलपंप अनुज्ञेय करताना, रस्त्यांच्या जंक्शनपासूनचे अंतर हे IRC/MoRTH यांनी नमूद केल्यानुसार विचारात घ्यावयाचे आहे. त्यामुळे पेट्रोलपंप अनुज्ञेय करताना मंजूर नियमावलीतील तरतुदी विचारात घेणे आवश्यक आहे. जंक्शनपासूनचे अंतर हे सार्वजनिक बांधकाम विभागाच्या अख्यत्यारीतील विषय असून मंजूर नियमावलीतील तरतुदीप्रमाणे IRC/MoRTH यांनी नमूद केलेल्या अंतरामध्ये शिथिलता देण्याचे अधिकार सार्वजनिक बांधकाम विभागाचे असून अशा अंतरामध्ये त्या विभागाने शिथिलता दिल्यास त्याप्रमाणेचे अंतर विचारात घेऊन परवानगी देणे अपेक्षित आहे.\nत्यामुळे उपरोक्त वस्तुस्थिती विचारात घेऊन त्यानुसार आपल्या स्तरावरून पुढील कार्यवाही करण्यात यावी, असे आपणांस कळविण्याचे मला निर्देश आहेत.\nआपला,\n(किशोर वि. गोखले)\nअवर सचिव, महाराष्ट्र शासन.\nप्रति:-\nमा.संचालक, नगर रचना, महाराष्ट्र राज्य, पुणे.\n/- वरीलप्रमाणेच्या सूचना सर्व विभागीय सहसंचालक, नगर रचना, जिल्हाधिकारी व सर्व शाखा अधिकारी यांना आपल्या स्तरावरून देण्यात याव्यात.\n428",
+  "translated_english_text": "UDCPR-2020\nCases regarding concession in distance from Pump Junction are received by the Divisional Office. The request for guidance and determination of policy has been made by the Additional Chief Development Officer, Pune Division, Pune, after consultation with the Department of Public Works. \nThe actual approved UDCPR provisions are clear. According to that, while granting permission for a petrol pump on a classified road, the distance from the junctions of the roads should be considered as per the specifications mentioned by IRC/MoRTH. Therefore, it is necessary to consider the provisions of the approved regulations while granting permission for a petrol pump. The distance from the junction is a subject of the Department of Public Works' jurisdiction, and the authority of the Department of Public Works to relax the distance as per the specifications mentioned by IRC/MoRTH in the approved regulations is present. Hence, it is expected to grant permission considering the distance as per the relaxation provided by that department.\nTherefore, it is directed to carry out the subsequent action at our level considering the above-mentioned situation.\nYours,\n(Kishor V. Gokhale)\nUnder Secretary, Maharashtra Government.\nTo:-\nChief Development Officer, Urban Development, Maharashtra State, Pune.\n/- The above-mentioned instructions should be issued at your level to all Divisional Additional Chief Development Officers, Urban Development, District Collectors, and all Branch Officers.\n428",
+  "validation": {
+    "original_regulation_numbers": [],
+    "translated_regulation_numbers": [],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 1234,
+    "translated_characters": 1501,
+    "elapsed_seconds": 69.16
+  }
+}

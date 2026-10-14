@@ -1,0 +1,61 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 455,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0455.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\nमहाराष्ट्र शासन\nनगर विकास विभाग\n४ था मजला, मुख्य इमारत, मंत्रालय,\nमादाम कामा मार्ग, हुतात्मा राजगुरु चौक, मंत्रालय, मुंबई -४०० ०३२\nदुरध्वनी क्र.०२२-२२७९४१९६\nEmail ID : kishor.gokhale@gov.in\nक्र.टिपीएस-१८१८/प्र.क्र.२३६/१८(भाग-२)/नवि-१३\nदि.१७.०९.२०२१\nप्रति,\nमा.आयुक्त, पुणे महानगरपालिका, पुणे.\nविषय :- मंजूर एकत्रिकृत विकास नियंत्रण व प्रोत्साहन नियमावली (UDCPR) प्रमाणे भूखंडाच्या कमाल बांधकाम क्षमतेच्या गणनेसंदर्भात येणाऱ्या अडचणींबाबत मार्गदर्शन मिळणेबाबत\nसंदर्भ :- आपलेकडील पत्र क्र.७८२९, दि.०२.०९.२०२१ रोजीचे पत्र.\nमहोदय,\nउपरोक्त विषयानुषंगाने, विनियम ६.३, नुसारची तरतूद आणि विनियम ११.२.७(iii) नुसारची तरतूद यामध्ये संदिग्धता असल्याने मुद्दे उपस्थित झाल्याचे नमूद करून त्याबाबत शासनाचे मार्गदर्शन अपेक्षिले आहे.\nया अनुषंगाने आपणास खालीलप्रमाणे कळविण्याच्या मला सूचना आहेत.\n०१. विनियम ६.३, टेबल ६-G खालील नोट (xiv) आणि विनियम ११.२.७(iii) या तरतुदी वेगवेगळ्या असून त्या स्वयंस्पष्ट आहेत.\nविनियम ६.३ व त्या अंतर्गतचे टेबल ६-G मधील तरतुदी ह्या, एखाद्या भूखंडावर कमाल बांधकाम क्षमता किती अनुज्ञेय होईल याबाबत आहेत. यातील नोट (xiv) नुसार, एखाद्या भूखंडाच्या एकूण क्षेत्रामधून विकास योजना रस्ता/रस्तारुंदी, सुविधा जागा/आरक्षण याखालील क्षेत्र वगळून शिल्लक राहणाऱ्या निव्वळ भूखंड क्षेत्रावर मूळ चटई क्षेत्र निर्देशांक (Basic FSI) अनुज्ञेय राहील. तर विकास योजना रस्ता/रस्तारुंदी किंवा सुविधा जागा/आरक्षण याखालील क्षेत्र प्राधिकरणास हस्तांतरित केलेले असल्यास, त्यासहचे भूखंडाचे एकूण क्षेत्र विचारात घेऊन अशा एकूण भूखंड क्षेत्रानुसार Premium FSI &amp; TDR loading ची क्षमता अनुज्ञेय राहील.\n०२. विनियम ११.२.७ हा TDR चा प्रत्यक्ष वापर करण्यासंदर्भात असून यातील अ.क्र.(i) नुसार, एखाद्या भूखंडावर कमाल अनुज्ञेय बांधकाम क्षमता आणि TDR चा वापर विनियम ६.१, ६.२, ६.३ मधील तरतुदीनुसार अनुज्ञेय आहे. तर अ.क्र.(iii) नुसार, भूखंडाच्या एकूण क्षेत्रामधून विकास योजना रस्ता/रस्तारुंदी, आरक्षण/मानीवआरक्षण (सुविधा जागा) या प्रस्तावांनी बाधीत होणारे क्षेत्र वगळल्यानंतर शिल्लक राहणाऱ्या भूखंड क्षेत्रावर TDR चा प्रत्यक्ष वापर अनुज्ञेय आहे.\n©Udcpr.docs/Dsktop/KVG/UDCPR/Pmal Sanction/clarification/Loading and utilisation of potential docs\n439",
+  "translated_english_text": "UDCPR-2020\nMaharashtra Government\nNagar Vikas Department\n4th Floor, Main Building, Ministry,\nMadam Kamat Marg, Hutatma Rajguru Chowk, Ministry, Mumbai - 400 032\nPhone No. 022-22794196\nEmail ID : kishor.gokhale@gov.in\nRef. No. TPS-1818/Pr. No. 236/18(भाग-2)/Navi-13\nDate. 17.09.2021\nTo,\nShri. Commissioner, Pune Municipal Corporation, Pune.\nSubject :- Guidance regarding difficulties arising in calculation of maximum building capacity of a plot as per UDCPR, approved\nReference :- Your letter No. 7829 dated 02.09.2021\nSir,\nIn view of the above subject, there is ambiguity in the provisions of Regulation 6.3 and Regulation 11.2.7(iii), therefore, we are requesting for guidance from the Government.\nIn this regard, I am informing you as follows:\n01. Regulation 6.3, Table 6-G Note (xiv) and Regulation 11.2.7 are different provisions and are self-contained.\nThe provisions of Regulation 6.3 and Table 6-G thereof relate to the maximum allowable building capacity on a plot. According to Note (xiv), the basic FSI (floor space index) shall be allowed on the net plot area remaining after excluding the area under development plan road/route, utility area/ reservation. However, if the area under development plan road/route or utility area/reservation is transferred to the authority, then the total plot area shall be considered and the capacity for Premium FSI & TDR loading shall be allowed accordingly.\n02. Regulation 11.2.7 relates to the direct use of TDR. According to sub-clause (i), the maximum allowable building capacity on a plot and the use of TDR shall be allowed as per the provisions of Regulation 6.1, 6.2, 6.3. However, according to sub-clause (iii), the direct use of TDR shall be allowed on the net plot area remaining after excluding the areas affected by development plan road/route, reservation/utility area (utility space).\n©Udcpr.docs/Dsktop/KVG/UDCPR/Pmal Sanction/clarification/Loading and utilisation of potential docs\n439",
+  "validation": {
+    "original_regulation_numbers": [
+      "17.09.2021",
+      "02.09.2021",
+      "6.3",
+      "11.2.7(iii)",
+      "11.2.7",
+      "6.1",
+      "6.2"
+    ],
+    "translated_regulation_numbers": [
+      "17.09.2021",
+      "02.09.2021",
+      "6.3",
+      "11.2.7(iii)",
+      "11.2.7",
+      "6.1",
+      "6.2"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [
+      "17.09.2021",
+      "02.09.2021"
+    ],
+    "translated_dates": [
+      "17.09.2021",
+      "02.09.2021"
+    ],
+    "missing_dates": [],
+    "original_emails": [
+      "kishor.gokhale@gov.in"
+    ],
+    "translated_emails": [
+      "kishor.gokhale@gov.in"
+    ],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [
+      "TPS-1818/Pr. No. 236/18(भाग-2)/Navi-13 Date. 17.09.2021 To",
+      "TPS-1818/Pr. No. 236/18("
+    ],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 2028,
+    "translated_characters": 1950,
+    "elapsed_seconds": 125.55
+  }
+}

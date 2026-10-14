@@ -1,0 +1,77 @@
+from __future__ import annotations
+
+from math import hypot
+
+from shapely.geometry import LineString
+
+from townplanning.modules.vision.domain.dimension import (
+    Dimension,
+)
+
+
+class DimensionAssociation:
+    """
+    Associates dimensions with the nearest plot edge.
+
+    A Dimension is represented by a domain Line,
+    not a bounding box.
+    """
+
+    def associate(
+        self,
+        dimensions: list[Dimension],
+        edges: list[LineString],
+    ) -> list[tuple[Dimension, LineString | None]]:
+
+        associations = []
+
+        for dimension in dimensions:
+
+            dimension_line = dimension.line
+
+            #
+            # Get dimension midpoint from the
+            # domain Line.
+            #
+            start = dimension_line.start
+            end = dimension_line.end
+
+            center_x = (
+                start.x + end.x
+            ) / 2
+
+            center_y = (
+                start.y + end.y
+            ) / 2
+
+            #
+            # Find nearest plot edge.
+            #
+            nearest_edge = None
+            nearest_distance = float("inf")
+
+            for edge in edges:
+
+                distance = edge.distance(
+                    __import__(
+                        "shapely.geometry",
+                        fromlist=["Point"],
+                    ).Point(
+                        center_x,
+                        center_y,
+                    )
+                )
+
+                if distance < nearest_distance:
+
+                    nearest_distance = distance
+                    nearest_edge = edge
+
+            associations.append(
+                (
+                    dimension,
+                    nearest_edge,
+                )
+            )
+
+        return associations

@@ -1,0 +1,2014 @@
+#!/usr/bin/env python3
+
+"""
+UDCPR canonical source chunk builder.
+
+Design:
+
+1. The canonical INDEX/manifest is authoritative for:
+   - regulation number
+   - title
+   - printed start page
+   - manifest order
+
+2. Printed page -> PDF page is detected from the PDF.
+
+3. All canonical headings are located FIRST, globally, in manifest order.
+
+4. A canonical regulation boundary is the NEXT LOCATED CANONICAL
+   INDEX HEADING, not merely the next INDEX start page.
+
+5. Multiple canonical regulations may occur on the same PDF page.
+
+6. Sub-regulations which are NOT canonical INDEX entries remain inside
+   their parent regulation.
+
+7. Tables are extracted from every source page and retained.
+
+8. If an exact heading cannot be detected, the INDEX page is used as a
+   controlled fallback so that the regulation does not become empty.
+
+9. Duplicate regulation numbers are allowed when they have different
+   title/start-page occurrences, e.g. 10.14.
+
+10. PostgreSQL/Chroma are NOT modified.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import logging
+import re
+from collections import Counter
+from pathlib import Path
+from typing import Any
+
+import fitz
+
+
+LOG = logging.getLogger("udcpr-source")
+
+DEFAULT_MANIFEST = "data/regulations/udcpr_canonical_manifest.json"
+DEFAULT_OUTPUT = "data/regulations/udcpr_source_chunks.json"
+DEFAULT_JSONL = "data/regulations/udcpr_source_chunks.jsonl"
+DEFAULT_REPORT = "data/regulations/udcpr_source_validation.json"
+
+
+# ============================================================
+# BASIC HELPERS
+# ============================================================
+
+def clean(value: Any) -> str:
+    if value is None:
+        return ""
+
+    text = str(value)
+    text = text.replace("\u00a0", " ")
+    text = text.replace("\u2013", "-")
+    text = text.replace("\u2014", "-")
+    text = text.replace("\r", "\n")
+
+    text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+
+    return text.strip()
+
+
+def normalize_number(value: Any) -> str:
+    text = clean(value)
+
+    text = re.sub(r"\s*\(\s*", "(", text)
+    text = re.sub(r"\s*\)\s*", ")", text)
+
+    return text
+
+
+def normalize_match(value: Any) -> str:
+    text = clean(value).lower()
+
+    text = re.sub(r"\s+", " ", text)
+
+    text = re.sub(r"\s*\.\s*", ".", text)
+    text = re.sub(r"\s*\(\s*", "(", text)
+    text = re.sub(r"\s*\)\s*", ")", text)
+
+    return text.strip()
+
+
+def sha256(text: str) -> str:
+    return hashlib.sha256(
+        text.encode("utf-8")
+    ).hexdigest()
+
+
+# ============================================================
+# PDF PAGINATION
+# ============================================================
+
+def detect_printed_page(
+    doc: fitz.Document,
+    pdf_page_number: int,
+) -> int | None:
+
+    page = doc[pdf_page_number - 1]
+    height = page.rect.height
+
+    blocks = page.get_text(
+        "blocks",
+        sort=True,
+    )
+
+    candidates: list[int] = []
+
+    for block in blocks:
+
+        if len(block) < 5:
+            continue
+
+        x0, y0, x1, y1, text = block[:5]
+
+        if y0 < height * 0.88:
+            continue
+
+        text = clean(text)
+
+        if not re.fullmatch(
+            r"\d{1,4}",
+            text,
+        ):
+            continue
+
+        try:
+            n = int(text)
+        except ValueError:
+            continue
+
+        if 0 <= n <= 1000:
+            candidates.append(n)
+
+    if not candidates:
+        return None
+
+    return candidates[-1]
+
+
+def build_printed_to_pdf_map(
+    doc: fitz.Document,
+) -> dict[int, int]:
+
+    mapping: dict[int, int] = {}
+
+    for pdf_page in range(
+        1,
+        len(doc) + 1,
+    ):
+
+        printed = detect_printed_page(
+            doc,
+            pdf_page,
+        )
+
+        if printed is None:
+            continue
+
+        mapping.setdefault(
+            printed,
+            pdf_page,
+        )
+
+    return mapping
+
+
+# ============================================================
+# MANIFEST
+# ============================================================
+
+def load_manifest(
+    path: Path,
+) -> dict[str, Any]:
+
+    with path.open(
+        "r",
+        encoding="utf-8",
+    ) as f:
+        return json.load(f)
+
+
+def manifest_entries(
+    manifest: dict[str, Any],
+) -> list[dict[str, Any]]:
+
+    for key in (
+        "entries",
+        "regulations",
+        "items",
+    ):
+
+        value = manifest.get(key)
+
+        if isinstance(
+            value,
+            list,
+        ):
+            return value
+
+    raise RuntimeError(
+        "Cannot find regulation entries in manifest."
+    )
+
+
+def entry_printed_start(
+    entry: dict[str, Any],
+) -> int | None:
+
+    for key in (
+        "printed_page_start",
+        "page_start",
+        "printed_start",
+        "printed_page",
+    ):
+
+        value = entry.get(key)
+
+        if value is None:
+            continue
+
+        try:
+            return int(value)
+        except (
+            TypeError,
+            ValueError,
+        ):
+            pass
+
+    return None
+
+
+def entry_printed_end(
+    entry: dict[str, Any],
+) -> int | None:
+
+    for key in (
+        "printed_page_end",
+        "page_end",
+        "printed_end",
+    ):
+
+        value = entry.get(key)
+
+        if value is None:
+            continue
+
+        try:
+            return int(value)
+        except (
+            TypeError,
+            ValueError,
+        ):
+            pass
+
+    return None
+
+
+def entry_number(
+    entry: dict[str, Any],
+) -> str:
+
+    for key in (
+        "number",
+        "regulation_number",
+        "regulation_no",
+    ):
+
+        if entry.get(key) is not None:
+            return normalize_number(
+                entry[key]
+            )
+
+    return ""
+
+
+def entry_title(
+    entry: dict[str, Any],
+) -> str:
+
+    for key in (
+        "title",
+        "particulars",
+        "heading",
+        "name",
+    ):
+
+        if entry.get(key):
+            return clean(
+                entry[key]
+            )
+
+    return ""
+
+
+def entry_chapter(
+    entry: dict[str, Any],
+) -> str:
+
+    for key in (
+        "chapter",
+        "chapter_number",
+    ):
+
+        if entry.get(key) is not None:
+            return clean(
+                entry[key]
+            )
+
+    return ""
+
+
+# ============================================================
+# PAGE TEXT
+# ============================================================
+
+def get_page_lines(
+    page: fitz.Page,
+) -> list[dict[str, Any]]:
+
+    blocks = page.get_text(
+        "blocks",
+        sort=True,
+    )
+
+    lines: list[dict[str, Any]] = []
+
+    for block_index, block in enumerate(blocks):
+
+        if len(block) < 5:
+            continue
+
+        x0, y0, x1, y1, text = block[:5]
+
+        text = clean(text)
+
+        if not text:
+            continue
+
+        # Remove footer page number only.
+        if (
+            y0 >= page.rect.height * 0.88
+            and re.fullmatch(
+                r"\d{1,4}",
+                text,
+            )
+        ):
+            continue
+
+        lines.append(
+            {
+                "block_index": block_index,
+                "x0": x0,
+                "y0": y0,
+                "x1": x1,
+                "y1": y1,
+                "text": text,
+            }
+        )
+
+    return lines
+
+
+def page_body_text(
+    page: fitz.Page,
+) -> str:
+
+    lines = get_page_lines(page)
+
+    return "\n\n".join(
+        x["text"]
+        for x in lines
+    ).strip()
+
+
+# ============================================================
+# NUMBER MATCHING
+# ============================================================
+
+def number_regex(
+    number: str,
+) -> re.Pattern:
+
+    n = normalize_number(number)
+
+    # Examples:
+    #   2.1
+    #   2.1.1
+    #   2.2.5(a)
+    #   2.2.5(b)
+    #   14.1.1.6(i)
+    #   14.1.1.12(iv)
+    #
+    # Parenthetical suffixes belong directly to the
+    # preceding numeric component.
+
+    tokens = re.findall(
+        r"\d+|\([A-Za-z]+\)",
+        n,
+    )
+
+    if not tokens:
+        return re.compile(r"(?!x)x")
+
+    expression = ""
+
+    for token in tokens:
+
+        if token.startswith("("):
+
+            letter = re.escape(
+                token[1:-1]
+            )
+
+            expression += (
+                rf"\s*\(\s*{letter}\s*\)"
+            )
+
+        else:
+
+            if expression:
+                expression += r"\s*\.\s*"
+
+            expression += re.escape(token)
+
+    return re.compile(
+        rf"(?<![A-Za-z0-9])"
+        rf"{expression}"
+        rf"(?![A-Za-z0-9])",
+        re.IGNORECASE,
+    )
+
+
+# ============================================================
+# HEADING DETECTION
+
+# ============================================================
+# HEADING DETECTION
+# ============================================================
+
+def title_words(
+    title: str,
+) -> list[str]:
+
+    return [
+        x.lower()
+        for x in re.findall(
+            r"[A-Za-z0-9]+",
+            title,
+        )
+        if len(x) >= 3
+    ]
+
+
+def score_heading_candidate(
+    number: str,
+    title: str,
+    lines: list[dict[str, Any]],
+    index: int,
+) -> dict[str, Any] | None:
+
+    if index < 0 or index >= len(lines):
+        return None
+
+    nre = number_regex(number)
+
+    # A heading may be split across several PDF blocks.
+    # Search a reasonably small local region.
+    combined_parts = []
+
+    for j in range(
+        index,
+        min(index + 10, len(lines)),
+    ):
+        combined_parts.append(lines[j]["text"])
+
+    combined = " ".join(combined_parts)
+
+    normalized = normalize_match(combined)
+
+    match = nre.search(normalized)
+
+    if not match:
+        return None
+
+    # --------------------------------------------------------
+    # TITLE MATCH
+    # --------------------------------------------------------
+
+    title_clean = clean(title)
+
+    # Remove INDEX markers such as *, **, #.
+    title_clean = re.sub(
+        r"^[\\s*#]+",
+        "",
+        title_clean,
+    )
+
+    title_normalized = normalize_match(
+        title_clean
+    )
+
+    title_words_list = [
+        w
+        for w in re.findall(
+            r"[a-z0-9]+",
+            title_normalized,
+            re.IGNORECASE,
+        )
+        if len(w) >= 2
+    ]
+
+    matched = 0
+
+    for word in title_words_list:
+        if word in normalized:
+            matched += 1
+
+    ratio = (
+        matched / len(title_words_list)
+        if title_words_list
+        else 0.0
+    )
+
+    score = 100
+
+    score += matched * 8
+
+    if ratio >= 0.90:
+        score += 100
+    elif ratio >= 0.75:
+        score += 70
+    elif ratio >= 0.50:
+        score += 35
+
+    first = normalize_match(
+        lines[index]["text"]
+    )
+
+    # Strong signal: regulation number starts the block.
+    if nre.match(first):
+        score += 120
+
+    # Headings are generally short.
+    if len(first) <= 220:
+        score += 20
+
+    if len(first.split()) <= 25:
+        score += 20
+
+    # Prefer candidates where the title starts close
+    # to the regulation number.
+    prefix = normalized[:match.end() + 220]
+
+    if title_words_list:
+        first_title_word = title_words_list[0]
+
+        if first_title_word in prefix:
+            score += 25
+
+    return {
+        "line_index": index,
+        "block_index": lines[index]["block_index"],
+        "text": lines[index]["text"],
+        "score": score,
+        "kind": "canonical_heading",
+    }
+
+def find_heading_candidates(
+    lines: list[dict[str, Any]],
+    number: str,
+    title: str,
+) -> list[dict[str, Any]]:
+
+    candidates = []
+
+    for i in range(len(lines)):
+
+        candidate = score_heading_candidate(
+            number,
+            title,
+            lines,
+            i,
+        )
+
+        if candidate:
+            candidates.append(candidate)
+
+    # Remove duplicate candidates referring to the
+    # same physical block.
+    unique = {}
+
+    for candidate in candidates:
+
+        key = (
+            candidate["block_index"],
+            candidate["line_index"],
+        )
+
+        old = unique.get(key)
+
+        if old is None or candidate["score"] > old["score"]:
+            unique[key] = candidate
+
+    candidates = list(unique.values())
+
+    candidates.sort(
+        key=lambda x: (
+            x["score"],
+            -x["line_index"],
+        ),
+        reverse=True,
+    )
+
+    return candidates
+
+def find_heading_on_page(
+    doc: fitz.Document,
+    pdf_page: int,
+    number: str,
+    title: str,
+) -> dict[str, Any] | None:
+
+    page = doc[
+        pdf_page - 1
+    ]
+
+    lines = get_page_lines(
+        page
+    )
+
+    candidates = find_heading_candidates(
+        lines,
+        number,
+        title,
+    )
+
+    if not candidates:
+        return None
+
+    return candidates[0]
+
+
+# ============================================================
+# TABLES
+# ============================================================
+
+def detect_tables(
+    page: fitz.Page,
+) -> list[dict[str, Any]]:
+
+    results = []
+
+    try:
+
+        finder = page.find_tables()
+
+        for index, table in enumerate(
+            finder.tables,
+            start=1,
+        ):
+
+            try:
+                extracted = table.extract()
+            except Exception:
+                extracted = None
+
+            if not extracted:
+                continue
+
+            rows = []
+
+            for row in extracted:
+
+                rows.append(
+                    [
+                        clean(cell)
+                        for cell in row
+                    ]
+                )
+
+            if not rows:
+                continue
+
+            headers = rows[0]
+            data_rows = rows[1:]
+
+            markdown = []
+
+            if headers:
+
+                markdown.append(
+                    "| "
+                    + " | ".join(headers)
+                    + " |"
+                )
+
+                markdown.append(
+                    "| "
+                    + " | ".join(
+                        "---"
+                        for _ in headers
+                    )
+                    + " |"
+                )
+
+                for row in data_rows:
+
+                    padded = row + [
+                        ""
+                    ] * max(
+                        0,
+                        len(headers) - len(row),
+                    )
+
+                    markdown.append(
+                        "| "
+                        + " | ".join(
+                            padded[:len(headers)]
+                        )
+                        + " |"
+                    )
+
+            results.append(
+                {
+                    "table_index": index,
+                    "headers": headers,
+                    "rows": data_rows,
+                    "markdown": "\n".join(
+                        markdown
+                    ),
+                }
+            )
+
+    except Exception:
+
+        return []
+
+    return results
+
+
+# ============================================================
+# INDEX PAGE WINDOWS
+# ============================================================
+
+def build_page_windows(
+    entries: list[dict[str, Any]],
+    printed_to_pdf: dict[int, int],
+    total_pdf_pages: int,
+) -> list[dict[str, Any]]:
+
+    windows = []
+
+    for position, entry in enumerate(
+        entries
+    ):
+
+        number = entry_number(entry)
+        title = entry_title(entry)
+        chapter = entry_chapter(entry)
+
+        printed_start = entry_printed_start(
+            entry
+        )
+
+        if not number:
+            continue
+
+        pdf_start = None
+
+        if printed_start is not None:
+
+            pdf_start = printed_to_pdf.get(
+                printed_start
+            )
+
+        # Broad window ends at the PDF page
+        # immediately before the next INDEX
+        # printed start page.
+        next_printed_start = None
+
+        for later in entries[
+            position + 1:
+        ]:
+
+            p = entry_printed_start(
+                later
+            )
+
+            if p is not None:
+                next_printed_start = p
+                break
+
+        if next_printed_start is not None:
+
+            next_pdf = printed_to_pdf.get(
+                next_printed_start
+            )
+
+            if next_pdf is not None:
+
+                # IMPORTANT:
+                # Same printed page entries must
+                # share that page.
+                #
+                # Therefore the page itself remains
+                # searchable.
+                pdf_end = next_pdf
+
+            else:
+                pdf_end = total_pdf_pages
+
+        else:
+            pdf_end = total_pdf_pages
+
+        if pdf_start is not None:
+
+            pdf_start = max(
+                1,
+                min(
+                    pdf_start,
+                    total_pdf_pages,
+                ),
+            )
+
+        pdf_end = max(
+            1,
+            min(
+                pdf_end,
+                total_pdf_pages,
+            ),
+        )
+
+        if (
+            pdf_start is not None
+            and pdf_end < pdf_start
+        ):
+            pdf_end = pdf_start
+
+        windows.append(
+            {
+                "manifest_position": position,
+                "number": number,
+                "title": title,
+                "chapter": chapter,
+                "printed_start": printed_start,
+                "printed_end": entry_printed_end(
+                    entry
+                ),
+                "pdf_start": pdf_start,
+                "pdf_end": pdf_end,
+            }
+        )
+
+    return windows
+
+
+# ============================================================
+# GLOBAL CANONICAL HEADING LOCATION
+# ============================================================
+
+def locate_canonical_headings(
+    doc: fitz.Document,
+    windows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+
+    located = []
+
+    for position, original in enumerate(windows):
+
+        item = dict(original)
+
+        item["heading"] = None
+        item["heading_pdf_page"] = None
+        item["heading_found_method"] = None
+
+        start = item.get("pdf_start")
+        end = item.get("pdf_end")
+
+        if start is None:
+            located.append(item)
+            continue
+
+        search_end = end or len(doc)
+        search_end = min(
+            search_end,
+            len(doc),
+        )
+
+        candidates = []
+
+        for pdf_page in range(
+            start,
+            search_end + 1,
+        ):
+
+            page = doc[pdf_page - 1]
+
+            lines = get_page_lines(page)
+
+            page_candidates = find_heading_candidates(
+                lines,
+                item["number"],
+                item["title"],
+            )
+
+            for candidate in page_candidates:
+
+                c = dict(candidate)
+
+                c["pdf_page"] = pdf_page
+
+                # Distance from the INDEX page.
+                c["distance"] = pdf_page - start
+
+                # A candidate on the first page is preferred,
+                # but only after title/number confidence.
+                c["page_penalty"] = c["distance"] * 3
+
+                candidates.append(c)
+
+        if candidates:
+
+            # Strongest match first.
+            #
+            # Score is more important than page distance.
+            # This prevents a weak number occurrence on the
+            # first page from beating the real heading later.
+            candidates.sort(
+                key=lambda x: (
+                    x["score"] - x["page_penalty"],
+                    x["score"],
+                    -x["distance"],
+                    -x["line_index"],
+                ),
+                reverse=True,
+            )
+
+            best = candidates[0]
+
+            item["heading"] = best
+            item["heading_pdf_page"] = best["pdf_page"]
+            item["heading_found_method"] = "pdf_heading"
+
+        else:
+
+            # Controlled INDEX fallback.
+            #
+            # The regulation must never become empty merely
+            # because PyMuPDF failed to recognize its heading.
+            item["heading_pdf_page"] = start
+
+            item["heading"] = {
+                "line_index": 0,
+                "block_index": None,
+                "text": (
+                    f"{item['number']} "
+                    f"{item['title']}"
+                ).strip(),
+                "score": 0,
+                "kind": "index_page_fallback",
+            }
+
+            item["heading_found_method"] = (
+                "index_page_fallback"
+            )
+
+        located.append(item)
+
+    return located
+
+# ============================================================
+# BOUNDARY LOGIC
+
+# ============================================================
+# BOUNDARY LOGIC
+# ============================================================
+
+def actual_boundary_for_next_item(
+    current: dict[str, Any],
+    next_item: dict[str, Any] | None,
+) -> tuple[int | None, int | None]:
+
+    if next_item is None:
+        return None, None
+
+    next_page = next_item.get(
+        "heading_pdf_page"
+    )
+
+    if next_page is None:
+        return None, None
+
+    next_heading = (
+        next_item.get("heading")
+        or {}
+    )
+
+    next_line = next_heading.get(
+        "line_index"
+    )
+
+    return next_page, next_line
+
+def extract_chunk(
+    doc: fitz.Document,
+    current: dict[str, Any],
+    next_item: dict[str, Any] | None,
+) -> tuple[
+    str,
+    list[int],
+    list[dict[str, Any]],
+]:
+
+    start_page = current.get(
+        "heading_pdf_page"
+    )
+
+    if start_page is None:
+        return "", [], []
+
+    start_heading = (
+        current.get("heading")
+        or {}
+    )
+
+    start_line = start_heading.get(
+        "line_index",
+        0,
+    )
+
+    if (
+        current.get(
+            "heading_found_method"
+        ) == "index_page_fallback"
+    ):
+        start_line = 0
+
+    # --------------------------------------------------------
+    # NEXT CANONICAL BOUNDARY
+    # --------------------------------------------------------
+
+    next_page, next_line = (
+        actual_boundary_for_next_item(
+            current,
+            next_item,
+        )
+    )
+
+    if (
+        next_page is not None
+        and next_page < start_page
+    ):
+        next_page = None
+        next_line = None
+
+    # --------------------------------------------------------
+    # FALLBACK END
+    # --------------------------------------------------------
+
+    if next_page is None:
+
+        configured_end = current.get(
+            "pdf_end"
+        )
+
+        if configured_end is None:
+            end_page = len(doc)
+        else:
+            end_page = min(
+                configured_end,
+                len(doc),
+            )
+
+    else:
+
+        end_page = next_page
+
+    # --------------------------------------------------------
+    # SAME PAGE
+    # --------------------------------------------------------
+
+    if end_page == start_page:
+
+        lines = get_page_lines(
+            doc[start_page - 1]
+        )
+
+        if next_line is None:
+            selected = lines[
+                start_line:
+            ]
+        else:
+            selected = lines[
+                start_line:next_line
+            ]
+
+        text = "\n\n".join(
+            x["text"]
+            for x in selected
+        ).strip()
+
+        # If heading fallback somehow results
+        # in no text, preserve complete page.
+        if not text:
+            text = page_body_text(
+                doc[start_page - 1]
+            )
+
+        tables = []
+
+        for table in detect_tables(
+            doc[start_page - 1]
+        ):
+
+            tables.append(
+                {
+                    "pdf_page": start_page,
+                    **table,
+                }
+            )
+
+        return (
+            text,
+            [start_page],
+            tables,
+        )
+
+    # --------------------------------------------------------
+    # MULTI PAGE
+    # --------------------------------------------------------
+
+    parts = []
+    source_pages = []
+    tables_out = []
+
+    for page_no in range(
+        start_page,
+        end_page + 1,
+    ):
+
+        page = doc[
+            page_no - 1
+        ]
+
+        lines = get_page_lines(
+            page
+        )
+
+        if page_no == start_page:
+
+            selected = lines[
+                start_line:
+            ]
+
+        elif (
+            next_line is not None
+            and page_no == end_page
+        ):
+
+            selected = lines[
+                :next_line
+            ]
+
+        else:
+
+            selected = lines
+
+        if selected:
+
+            page_text = "\n\n".join(
+                x["text"]
+                for x in selected
+            ).strip()
+
+            if page_text:
+                parts.append(
+                    page_text
+                )
+
+        source_pages.append(
+            page_no
+        )
+
+        for table in detect_tables(
+            page
+        ):
+
+            tables_out.append(
+                {
+                    "pdf_page": page_no,
+                    **table,
+                }
+            )
+
+    text = "\n\n".join(
+        parts
+    ).strip()
+
+    return (
+        text,
+        source_pages,
+        tables_out,
+    )
+
+
+# ============================================================
+# VALIDATION
+# ============================================================
+
+def duplicate_occurrence_key(
+    chunk: dict[str, Any],
+) -> tuple:
+
+    return (
+        normalize_number(
+            chunk.get("number")
+        ),
+        clean(
+            chunk.get("title")
+        ).lower(),
+        chunk.get(
+            "printed_page_start"
+        ),
+    )
+
+
+def validate_chunks(
+    chunks: list[dict[str, Any]],
+) -> dict[str, Any]:
+
+    errors = []
+    warnings = []
+
+    # --------------------------------------------------------
+    # DUPLICATES
+    # --------------------------------------------------------
+    #
+    # Same number is NOT necessarily an error.
+    #
+    # Example:
+    #
+    # 10.14 @ 203
+    # 10.14 @ 205
+    #
+    # These are two different canonical occurrences.
+    # --------------------------------------------------------
+
+    occurrence_counter = Counter(
+        duplicate_occurrence_key(x)
+        for x in chunks
+    )
+
+    for occurrence, count in (
+        occurrence_counter.items()
+    ):
+
+        if count > 1:
+
+            errors.append(
+                "Duplicate canonical occurrence: "
+                f"{occurrence}"
+            )
+
+    # --------------------------------------------------------
+    # INDIVIDUAL CHUNKS
+    # --------------------------------------------------------
+
+    for chunk in chunks:
+
+        key = chunk["key"]
+
+        if not chunk.get(
+            "heading_found",
+            False,
+        ):
+
+            warnings.append(
+                f"{key}: PDF heading not detected; "
+                f"INDEX fallback used"
+            )
+
+        if not clean(
+            chunk.get(
+                "regulation_text"
+            )
+        ):
+
+            errors.append(
+                f"{key}: empty regulation_text"
+            )
+
+        if not chunk.get(
+            "source_pages"
+        ):
+
+            errors.append(
+                f"{key}: no source pages"
+            )
+
+    return {
+        "valid": not errors,
+        "error_count": len(errors),
+        "warning_count": len(warnings),
+        "errors": errors,
+        "warnings": warnings,
+    }
+
+
+# ============================================================
+# BUILD
+# ============================================================
+
+def build(
+    pdf_path: Path,
+    manifest_path: Path,
+) -> tuple[
+    dict[str, Any],
+    dict[str, Any],
+]:
+
+    doc = fitz.open(
+        pdf_path
+    )
+
+    try:
+
+        manifest = load_manifest(
+            manifest_path
+        )
+
+        entries = manifest_entries(
+            manifest
+        )
+
+        LOG.info(
+            "Manifest entries: %d",
+            len(entries),
+        )
+
+        # ----------------------------------------------------
+        # PAGE MAP
+        # ----------------------------------------------------
+
+        printed_to_pdf = (
+            build_printed_to_pdf_map(
+                doc
+            )
+        )
+
+        LOG.info(
+            "Printed pages detected: %d",
+            len(printed_to_pdf),
+        )
+
+        # ----------------------------------------------------
+        # INDEX WINDOWS
+        # ----------------------------------------------------
+
+        windows = build_page_windows(
+            entries,
+            printed_to_pdf,
+            len(doc),
+        )
+
+        # ----------------------------------------------------
+        # GLOBAL HEADING LOCATION
+        # ----------------------------------------------------
+
+        located = locate_canonical_headings(
+            doc,
+            windows,
+        )
+
+        pdf_headings_found = sum(
+            1
+            for x in located
+            if x.get(
+                "heading_found_method"
+            ) == "pdf_heading"
+        )
+
+        fallback_headings = sum(
+            1
+            for x in located
+            if x.get(
+                "heading_found_method"
+            ) == "index_page_fallback"
+        )
+
+        LOG.info(
+            "PDF headings found: %d",
+            pdf_headings_found,
+        )
+
+        LOG.info(
+            "INDEX fallback anchors: %d",
+            fallback_headings,
+        )
+
+        # ----------------------------------------------------
+        # CHUNKS
+        # ----------------------------------------------------
+
+        chunks = []
+
+        for i, current in enumerate(
+            located
+        ):
+
+            next_item = (
+                located[i + 1]
+                if i + 1 < len(located)
+                else None
+            )
+
+            (
+                regulation_text,
+                source_pages,
+                tables,
+            ) = extract_chunk(
+                doc,
+                current,
+                next_item,
+            )
+
+            printed_pages = []
+
+            for pdf_page in source_pages:
+
+                printed = detect_printed_page(
+                    doc,
+                    pdf_page,
+                )
+
+                if printed is not None:
+                    printed_pages.append(
+                        printed
+                    )
+
+            # ------------------------------------------------
+            # KEY
+            # ------------------------------------------------
+            #
+            # Include occurrence position so duplicate
+            # numbers such as 10.14 are preserved.
+            # ------------------------------------------------
+
+            key = (
+                f"{current['number']}"
+                f"@{current['printed_start']}"
+                f"#{i + 1}"
+            )
+
+            heading_method = current.get(
+                "heading_found_method"
+            )
+
+            chunk = {
+                "key": key,
+
+                "manifest_position": (
+                    current[
+                        "manifest_position"
+                    ]
+                ),
+
+                "number": current[
+                    "number"
+                ],
+
+                "chapter": current[
+                    "chapter"
+                ],
+
+                "title": current[
+                    "title"
+                ],
+
+                "printed_page_start": current[
+                    "printed_start"
+                ],
+
+                "printed_page_end": current[
+                    "printed_end"
+                ],
+
+                "pdf_page_start": current[
+                    "heading_pdf_page"
+                ],
+
+                "pdf_page_end": (
+                    source_pages[-1]
+                    if source_pages
+                    else None
+                ),
+
+                "printed_pages": printed_pages,
+
+                "source_pages": source_pages,
+
+                # PDF heading was actually detected.
+                "heading_found": (
+                    heading_method
+                    == "pdf_heading"
+                ),
+
+                "heading_found_method": (
+                    heading_method
+                ),
+
+                "heading": (
+                    current.get(
+                        "heading"
+                    )
+                    or {}
+                ),
+
+                "regulation_text": (
+                    regulation_text
+                ),
+
+                "text_sha256": sha256(
+                    regulation_text
+                ),
+
+                "tables": tables,
+
+                "table_count": len(
+                    tables
+                ),
+
+                "metadata": {
+                    "source_document": "UDCPR",
+                    "version": "2020",
+                    "source_pdf": str(
+                        pdf_path
+                    ),
+                    "extraction_engine": "PyMuPDF",
+                    "index_authoritative": True,
+                    "subregulations_policy": (
+                        "non-indexed subregulations "
+                        "remain inside parent chunk"
+                    ),
+                },
+            }
+
+            chunks.append(
+                chunk
+            )
+
+        # ----------------------------------------------------
+        # VALIDATION
+        # ----------------------------------------------------
+
+        validation = validate_chunks(
+            chunks
+        )
+
+        # ----------------------------------------------------
+        # REPORT
+        # ----------------------------------------------------
+
+        report = {
+            "source_document": {
+                "filename": pdf_path.name,
+                "path": str(
+                    pdf_path
+                ),
+                "pdf_pages": len(doc),
+            },
+
+            "manifest": {
+                "path": str(
+                    manifest_path
+                ),
+                "entries": len(
+                    entries
+                ),
+            },
+
+            "pagination": {
+                "printed_pages_detected": len(
+                    printed_to_pdf
+                ),
+                "sample": {
+                    str(k): v
+                    for k, v in list(
+                        sorted(
+                            printed_to_pdf.items()
+                        )
+                    )[:20]
+                },
+            },
+
+            "statistics": {
+                "manifest_entries": len(
+                    entries
+                ),
+
+                "chunks": len(
+                    chunks
+                ),
+
+                "pdf_headings_found": pdf_headings_found,
+
+                "index_fallback_anchors": fallback_headings,
+
+                "headings_found": (
+                    pdf_headings_found
+                    + fallback_headings
+                ),
+
+                "headings_missing": 0,
+
+                "empty_text": sum(
+                    1
+                    for x in chunks
+                    if not clean(
+                        x[
+                            "regulation_text"
+                        ]
+                    )
+                ),
+
+                "multi_page": sum(
+                    1
+                    for x in chunks
+                    if len(
+                        x[
+                            "source_pages"
+                        ]
+                    ) > 1
+                ),
+
+                "chunks_with_tables": sum(
+                    1
+                    for x in chunks
+                    if x[
+                        "table_count"
+                    ] > 0
+                ),
+
+                "tables_detected": sum(
+                    x[
+                        "table_count"
+                    ]
+                    for x in chunks
+                ),
+            },
+
+            "validation": validation,
+
+            "fallback_headings": [
+                {
+                    "number": x[
+                        "number"
+                    ],
+                    "title": x[
+                        "title"
+                    ],
+                    "printed_page": x[
+                        "printed_start"
+                    ],
+                    "pdf_page": x[
+                        "heading_pdf_page"
+                    ],
+                }
+                for x in located
+                if x.get(
+                    "heading_found_method"
+                ) == "index_page_fallback"
+            ],
+        }
+
+        output = {
+            "schema": (
+                "udcpr-canonical-source-chunks-v4"
+            ),
+
+            "source_document": {
+                "filename": pdf_path.name,
+                "path": str(
+                    pdf_path
+                ),
+                "version": "UDCPR-2020",
+            },
+
+            "manifest_path": str(
+                manifest_path
+            ),
+
+            "chunks": chunks,
+
+            "validation": validation,
+        }
+
+        return output, report
+
+    finally:
+
+        doc.close()
+
+
+# ============================================================
+# CLI
+# ============================================================
+
+def main() -> None:
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--pdf",
+        required=True,
+    )
+
+    parser.add_argument(
+        "--manifest",
+        default=DEFAULT_MANIFEST,
+    )
+
+    parser.add_argument(
+        "--output",
+        default=DEFAULT_OUTPUT,
+    )
+
+    parser.add_argument(
+        "--jsonl",
+        default=DEFAULT_JSONL,
+    )
+
+    parser.add_argument(
+        "--report",
+        default=DEFAULT_REPORT,
+    )
+
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format=(
+            "%(asctime)s "
+            "%(levelname)s "
+            "%(message)s"
+        ),
+    )
+
+    pdf_path = Path(
+        args.pdf
+    ).resolve()
+
+    manifest_path = Path(
+        args.manifest
+    ).resolve()
+
+    output_path = Path(
+        args.output
+    )
+
+    jsonl_path = Path(
+        args.jsonl
+    )
+
+    report_path = Path(
+        args.report
+    )
+
+    if not pdf_path.exists():
+        raise FileNotFoundError(
+            pdf_path
+        )
+
+    if not manifest_path.exists():
+        raise FileNotFoundError(
+            manifest_path
+        )
+
+    print()
+    print("=" * 100)
+    print(
+        "BUILDING UDCPR CANONICAL SOURCE CHUNKS V4"
+    )
+    print("=" * 100)
+
+    print(
+        "PDF     :",
+        pdf_path,
+    )
+
+    print(
+        "MANIFEST:",
+        manifest_path,
+    )
+
+    print("=" * 100)
+
+    output, report = build(
+        pdf_path,
+        manifest_path,
+    )
+
+    output_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    jsonl_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    report_path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    with output_path.open(
+        "w",
+        encoding="utf-8",
+    ) as f:
+
+        json.dump(
+            output,
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    with jsonl_path.open(
+        "w",
+        encoding="utf-8",
+    ) as f:
+
+        for chunk in output[
+            "chunks"
+        ]:
+
+            f.write(
+                json.dumps(
+                    chunk,
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
+
+    with report_path.open(
+        "w",
+        encoding="utf-8",
+    ) as f:
+
+        json.dump(
+            report,
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    stats = report[
+        "statistics"
+    ]
+
+    print()
+    print("=" * 100)
+    print("RESULT")
+    print("=" * 100)
+
+    print(
+        "Manifest entries       :",
+        stats[
+            "manifest_entries"
+        ],
+    )
+
+    print(
+        "Chunks                 :",
+        stats[
+            "chunks"
+        ],
+    )
+
+    print(
+        "PDF headings found     :",
+        stats[
+            "pdf_headings_found"
+        ],
+    )
+
+    print(
+        "INDEX fallback anchors :",
+        stats[
+            "index_fallback_anchors"
+        ],
+    )
+
+    print(
+        "Empty text             :",
+        stats[
+            "empty_text"
+        ],
+    )
+
+    print(
+        "Multi-page             :",
+        stats[
+            "multi_page"
+        ],
+    )
+
+    print(
+        "Chunks w/tables        :",
+        stats[
+            "chunks_with_tables"
+        ],
+    )
+
+    print(
+        "Tables detected        :",
+        stats[
+            "tables_detected"
+        ],
+    )
+
+    print(
+        "VALID                   :",
+        report[
+            "validation"
+        ][
+            "valid"
+        ],
+    )
+
+    print()
+    print(
+        "JSON  :",
+        output_path,
+    )
+
+    print(
+        "JSONL :",
+        jsonl_path,
+    )
+
+    print(
+        "REPORT:",
+        report_path,
+    )
+
+    validation = report[
+        "validation"
+    ]
+
+    if validation[
+        "warnings"
+    ]:
+
+        print()
+        print("=" * 100)
+        print("FIRST 30 WARNINGS")
+        print("=" * 100)
+
+        for warning in validation[
+            "warnings"
+        ][:30]:
+
+            print(
+                warning
+            )
+
+    if validation[
+        "errors"
+    ]:
+
+        print()
+        print("=" * 100)
+        print("FIRST 50 VALIDATION ERRORS")
+        print("=" * 100)
+
+        for error in validation[
+            "errors"
+        ][:50]:
+
+            print(
+                error
+            )
+
+        raise SystemExit(
+            2
+        )
+
+    print()
+    print("=" * 100)
+    print("BUILD SUCCESSFUL")
+    print("=" * 100)
+
+
+if __name__ == "__main__":
+    main()

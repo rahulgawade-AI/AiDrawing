@@ -1,0 +1,64 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 471,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0471.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\nमहाराष्ट्र शासन\nनगर विकास विभाग\nमादाम कामा मार्ग, हुतात्मा राजगुरु चौक, मंत्रालय, मुंबई - ४०० ०३२.\nEmail ID : soudd12-mh@mah.gov.in\nआदेश क्र. ८\nक्रमांक:-टिपीएस १८१८/प्र.क्र.२३६/१८(भाग-२)/नवि-१३ दिनांक:-२६सप्टेंबर,२०२२. \n  विषय :- एकत्रिकृत विकास नियंत्रण व प्रोत्साहन नियमावली (UDCPR) मंजूर \n  नियमावलीमधील विनियम क्र. 1.9(v) अन्वये स्पष्टीकरण देणेबाबत. \n  संदर्भ :- १) शासनाचे आदेश क्र.टिपीएस-१८१८/प्र.क्र.२३६/१८(भाग-२)/नवि-१३. \n  दिनांक १४/१/२०२१. ( स्पष्टीकरण आदेश क्र. १) \n  २) शासनाचे आदेश क्र.टिपीएस-१८२१/३४०/प्र.क्र.६८/२१/नवि-१३, \n  दिनांक १०/५/२०२१. ( स्पष्टीकरण आदेश क्र. २) \n  ३) शासनाचे आदेश क्र.टिपीएस-१२२१/९९०/प्र.क्र.४४/२१/नवि-१२, \n  दिनांक १०/६/२०२१. ( स्पष्टीकरण आदेश क्र. ३) \n  ४) शासनाचे आदेश क्र.टिपीएस-१२२१/१०३९/प्र.क्र.४२/२१/नवि-१२, \n  दिनांक १४/६/२०२१. ( स्पष्टीकरण आदेश क्र. ४) \n  ५) शासनाचे आदेश क्र.टिपीएस-१८१८/प्र.क्र.२३६/१८(भाग-२)/नवि-१३, \n  दिनांक १७/९/२०२१. ( स्पष्टीकरण आदेश क्र. ५) \n  ६) शासनाचे आदेश क्र.टिपीएस-१८१८/प्र.क्र.२३६/१८(भाग-२)/नवि-१३, \n  दिनांक २३/१२/२०२१. ( स्पष्टीकरण आदेश क्र. ६) \n  ७) शासनाचे आदेश क्र.टिपीएस-१८२१/९३३/नवि-१३, दिनांक २३/१२/२०२१. \n  ( स्पष्टीकरण आदेश क्र. ७)\nज्याअर्थी, शासनाने अधिसूचना क्र. टिपीएस १८१८ / प्र.क्र.२३६/१८/कलम ३७(१कक) (ग) \n  व कलम २०(४)/नवि-१३, दि.०२/१२/२०२० अन्वये राज्यातील सर्व नियोजन प्राधिकरणे (काही \n  अपवाद वगळता) आणि प्रादेशिक योजना क्षेत्राकरिता एकत्रिकृत विकास नियंत्रण व प्रोत्साहन \n  नियमावली मंजूर केली असून ती दि. ०३/१२/२०२० पासून अंमलात आली आहे;\n455",
+  "translated_english_text": "UDCPR-2020\nMaharashtra Government\nNagar Vikas Department\nMadam Kama Marg, Hutatma Rajguru Chowk, Ministry, Mumbai - 400 032.\nEmail ID : soudd12-mh@mah.gov.in\nOrder No. 8\nNo. - TPS 1818/Pr. No. 236/18 (Part-2)/Navi-13 Date:- 26 September, 2022.\nSubject :- Approval of Unified Development Control and Promotion Regulations (UDCPR)\nRegulation No. 1.9(v) in relation to providing explanation.\nReference :- 1) Government Order No. TPS-1818/Pr. No. 236/18 (Part-2)/Navi-13, Date 14/1/2021. (Explanation Order No. 1)\n2) Government Order No. TPS-1821/340/Pr. No. 68/21/Navi-13, Date 10/5/2021. (Explanation Order No. 2)\n3) Government Order No. TPS-1221/990/Pr. No. 44/21/Navi-12, Date 10/6/2021. (Explanation Order No. 3)\n4) Government Order No. TPS-1221/1039/Pr. No. 42/21/Navi-12, Date 14/6/2021. (Explanation Order No. 4)\n5) Government Order No. TPS-1818/Pr. No. 236/18 (Part-2)/Navi-13, Date 17/9/2021. (Explanation Order No. 5)\n6) Government Order No. TPS-1818/Pr. No. 236/18 (Part-2)/Navi-13, Date 23/12/2021. (Explanation Order No. 6)\n7) Government Order No. TPS-1821/933/Navi-13, Date 23/12/2021. (Explanation Order No. 7)\nWhereby, the Government has issued Notification No. TPS 1818 / Pr. No. 236/18/Section 37(1kk) (g) and Section 20(4)/Navi-13, dated 02/12/2020 approving Unified Development Control and Promotion Regulations for all planning authorities (except some exceptions) and regional planning areas, which came into force from 03/12/2020;",
+  "validation": {
+    "original_regulation_numbers": [
+      "1.9(v)"
+    ],
+    "translated_regulation_numbers": [
+      "1.9(v)"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [
+      "14/1/2021",
+      "10/5/2021",
+      "10/6/2021",
+      "14/6/2021",
+      "17/9/2021",
+      "23/12/2021",
+      "02/12/2020",
+      "03/12/2020"
+    ],
+    "translated_dates": [
+      "14/1/2021",
+      "10/5/2021",
+      "10/6/2021",
+      "14/6/2021",
+      "17/9/2021",
+      "23/12/2021",
+      "02/12/2020",
+      "03/12/2020"
+    ],
+    "missing_dates": [],
+    "original_emails": [
+      "soudd12-mh@mah.gov.in"
+    ],
+    "translated_emails": [
+      "soudd12-mh@mah.gov.in"
+    ],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [
+      "TPS-1818/Pr. No. 236/18 (Part-2)/Navi-13",
+      "TPS-1821/340/Pr. No. 68/21/Navi-13",
+      "TPS-1221/990/Pr. No. 44/21/Navi-12",
+      "TPS-1221/1039/Pr. No. 42/21/Navi-12",
+      "TPS-1821/933/Navi-13"
+    ],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 1452,
+    "translated_characters": 1450,
+    "elapsed_seconds": 153.24
+  }
+}

@@ -1,0 +1,57 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from townplanning.modules.vision.domain.dimension import Dimension
+from townplanning.modules.vision.domain.text_block import TextBlock
+from townplanning.modules.vision.ocr.dimension_extractor import (
+    DimensionExtractor,
+)
+from townplanning.modules.vision.ocr.ocr_engine import OCREngine
+from townplanning.modules.vision.ocr.paddle_ocr_engine import (
+    PaddleOCREngine,
+)
+from townplanning.modules.vision.ocr.text_normalizer import (
+    TextNormalizer,
+)
+
+
+class OCRService:
+
+    def __init__(
+        self,
+        engine: OCREngine | None = None,
+    ):
+
+        self._engine = engine or PaddleOCREngine()
+
+        self._normalizer = TextNormalizer()
+
+        self._dimension_extractor = DimensionExtractor()
+
+    def process(
+        self,
+        image_path: str | Path,
+        page: int = 1,
+    ) -> tuple[list[TextBlock], list[Dimension]]:
+
+        text_blocks = self._engine.extract(
+            Path(image_path),
+            page=page,
+        )
+
+        dimensions = []
+
+        for block in text_blocks:
+
+            block.text = self._normalizer.normalize(
+                block.text
+            )
+
+            dimensions.extend(
+                self._dimension_extractor.extract(
+                    block.text
+                )
+            )
+
+        return text_blocks, dimensions

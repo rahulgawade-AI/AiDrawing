@@ -1,0 +1,52 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 445,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0445.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\nमहाराष्ट्र शासन\nनगर विकास विभाग\nमादाम कामा मार्ग, हुतात्मा राजगुरु चौक, मंत्रालय, मुंबई - ४०० ०३२.\nक्रमांक:-टिपीएस-१२२१/९९०/प्र.क्र.४४/२१/नवि-१२\nदिनांक :- १० जून,२०२१\nप्रति,\nआयुक्त,\nठाणे महानगरपालिका, ठाणे.\nविषय :  एकत्रिकृत विकास नियंत्रण व प्रोत्साहन नियमावली (UDCPR) मधील विनियम ११.२.५ नुसार बांधोव सुविधा अंतर्गत विकास हक्क हस्तांतरण संदर्भातील बाबींच्या अंमलबजावणीकामी मार्गदर्शन मिळणेबाबत. \n संदर्भ :  १.आयुक्त, ठाणे महानगरपालिका यांचे पत्र क्र.ठामपा/आयुक्त/३२४/२०२१ दि.१५.०३.२०२१ \n    २.आयुक्त, ठाणे महानगरपालिका यांचे पत्र क्र.ठामपा/आयुक्त/२२/२०२१ दि.१२.०५.२०२१\nमहोदय,\nआपले संदर्भीय पत्रास अनुसरून खालील प्रमाणे आपणास कळविण्याचे मला आदेश आहेत.\n1) UDCPR २०२० विनियम ११.२.५ नुसार Amenity Construction TDR देण्याबाबतची तरतूद आहे. यापूर्वी पत्र क्र.टिपीएस-१२२१/४०३/२१/नवि-१२, दि.१७.०३.२०२१ मध्ये स्पष्ट केल्याप्रमाणे अनिवार्य / अपरिहार्य काम असल्यास त्याचा Construction TDR अनुज्ञेय करता येईलच, त्या व्यतिरिक्त -\n             \n i) MRTP कलम 2 (2) नुसार Amenity मध्ये \"Drainage\" चा समावेश होतो. त्यामुळे हा विनियम त्यास लागू राहील. \n ii) जागा ज्याच्या मालकीची आहे त्यांस / विकास हक्क धारण करणाऱ्यास किंवा भाडेकरु असल्यास त्यास जागेचा व बांधकामाचा TDR देय आहे. \n iii) चालू कामाचा Scope वाढून नाल्याचा समावेश झाल्यास किंवा नव्याने काम घेतल्यास त्याचा TDR देता येईल. \n iv) विनियम २.७.१ मध्ये Commencement बाबतचे स्पष्टीकरण देण्यात आले आहे. प्रस्तुत प्रकरणी Drainage चे काम जेव्हा चालू होईल, आणि जरी ते यापूर्वीच्या रस्त्याचा भाग असेल तरी, स्वतंत्रपणे विचारार्थ घेता येवू शकेल व त्यास प्रचलित नियमावलीनुसार 2 चा गुणाकार अनुज्ञेय असेल.\n429",
+  "translated_english_text": "UDCPR-2020  \nMaharashtra Government  \nNagar Vikas Vibhag  \nMadam Kama Marg, Hutatma Rajguru Chowk, Ministry, Mumbai - 400 032.  \nक्रमांक:-टिपीएस-1221/990/प्र.क्र.44/21/नवि-12  \nदिनांक :- 10 जून, 2021  \nप्रति,  \nCommissioner, Thane Municipal Corporation, Thane.  \nSubject : Guidance regarding the implementation of provisions related to transfer of development rights under the provision of Regulation 11.2.5 of UDCPR.  \nReference : 1. Commissioner, Thane Municipal Corporation's letter no.ठामपा/आयुक्त/324/2021 dated 15.03.2021  \n    2. Commissioner, Thane Municipal Corporation's letter no.ठामपा/आयुक्त/22/2021 dated 12.05.2021  \nSir,  \nAs per your reference letter, I am directed to inform you as follows:  \n1) Regulation 11.2.5 of UDCPR 2020 provides for the grant of Amenity Construction TDR. As clarified in the previous letter no.टिपीएस-1221/403/21/नवि-12 dated 17.03.2021, if the work is mandatory/compulsory, then the Construction TDR may be granted. Apart from that,  \n            \n i) MRTP Section 2 (2) provides that \"Drainage\" is included in Amenity. Therefore, this regulation shall apply to it.  \n ii) The owner of the land / the person holding development rights / the tenant shall be liable to pay TDR for the land and construction.  \n iii) If the scope of the ongoing work expands to include a drain or if new work is undertaken, then the TDR may be granted.  \n iv) Clarification regarding commencement is provided in Regulation 2.7.1. In the present case, the work of drainage shall be considered separately even if it is part of the previous road, and it shall be eligible for the existing regulation with a multiplier of 2 as per the applicable regulation.  \n429",
+  "validation": {
+    "original_regulation_numbers": [
+      "11.2.5",
+      "15.03.2021",
+      "12.05.2021",
+      "17.03.2021",
+      "2.7.1"
+    ],
+    "translated_regulation_numbers": [
+      "11.2.5",
+      "15.03.2021",
+      "12.05.2021",
+      "17.03.2021",
+      "2.7.1"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [
+      "15.03.2021",
+      "12.05.2021",
+      "17.03.2021"
+    ],
+    "translated_dates": [
+      "15.03.2021",
+      "12.05.2021",
+      "17.03.2021"
+    ],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 1547,
+    "translated_characters": 1682,
+    "elapsed_seconds": 138.47
+  }
+}

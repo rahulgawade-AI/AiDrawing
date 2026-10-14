@@ -1,0 +1,1099 @@
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+from townplanning.modules.planning.domain.missing_planning_fact import (
+    MissingPlanningFact,
+)
+
+from townplanning.modules.planning.services.udcpr_design_inputs import (
+    ALL_UDCPR_DESIGN_INPUTS,
+    UDCPRInputRequirement,
+)
+
+
+@dataclass(slots=True)
+class PlanningInputGateResult:
+    """
+    Result of UDCPR-aware planning input validation.
+    """
+
+    ready: bool
+
+    missing: list[MissingPlanningFact] = field(
+        default_factory=list
+    )
+
+    available: dict[str, Any] = field(
+        default_factory=dict
+    )
+
+    conditional: list[MissingPlanningFact] = field(
+        default_factory=list
+    )
+    needs_confirmation: list[MissingPlanningFact] = field(
+        default_factory=list
+    )
+
+    def to_dict(self) -> dict[str, Any]:
+
+        return {
+            "ready": self.ready,
+
+            "missing_information": [
+                {
+                    "field": item.field,
+                    "question": item.question,
+                    "reason": item.reason,
+                    "required_for": item.required_for,
+                }
+                for item in self.missing
+            ],
+
+            "conditional_information": [
+                {
+                    "field": item.field,
+                    "question": item.question,
+                    "reason": item.reason,
+                    "required_for": item.required_for,
+                }
+                for item in self.conditional
+            ],
+            "confirmation_required": [
+                {
+                    "field": item.field,
+                    "question": item.question,
+                    "reason": item.reason,
+                    "required_for": item.required_for,
+                }
+                for item in self.needs_confirmation
+            ],
+
+            "available_information": dict(
+                self.available
+            ),
+        }
+
+
+class PlanningInputGate:
+    """
+    UDCPR-aware planning/design input gate.
+
+    IMPORTANT:
+
+    This class DOES NOT calculate:
+
+        - FSI
+        - setbacks
+        - parking
+        - height
+        - fire requirements
+        - building geometry
+
+    It only determines whether enough information exists
+    to safely evaluate those requirements.
+
+    The actual regulatory values continue to come from:
+
+        PostgreSQL / deterministic rule engine
+        +
+        UDCPR source evidence
+    """
+
+    # ==========================================================
+    # INITIALIZATION
+    # ==========================================================
+
+    def __init__(
+        self,
+        requirements=ALL_UDCPR_DESIGN_INPUTS,
+    ) -> None:
+
+        self.requirements = tuple(
+            requirements
+        )
+
+    # ==========================================================
+    # PUBLIC API
+    # ==========================================================
+
+    def evaluate(
+        self,
+        facts: Any,
+        applicable_rules: list[Any] | None = None,
+    ) -> PlanningInputGateResult:
+
+        available = self._facts_to_dict(
+            facts
+        )
+
+        missing: list[
+            MissingPlanningFact
+        ] = []
+
+        conditional: list[
+            MissingPlanningFact
+        ] = []
+
+        needs_confirmation: list[
+            MissingPlanningFact
+        ] = []
+
+        for requirement in self.requirements:
+
+            # --------------------------------------------------
+            # Already available
+            # --------------------------------------------------
+
+            if self._has_fact(
+                available,
+                requirement.field,
+            ):
+                continue
+
+            # --------------------------------------------------
+            # User/design requirement is not universally required.
+            # --------------------------------------------------
+
+            if self._has_fact(
+                available,
+                requirement.field,
+            ):
+                if not self._fact_confidence_sufficient(
+                    facts,
+                    requirement.field,
+                ):
+                    needs_confirmation.append(
+                        MissingPlanningFact(
+                            field=requirement.field,
+                            question=(
+                                f"Please confirm the value for "
+                                f"{requirement.field}."
+                            ),
+                            reason=(
+                                "The value was extracted or supplied "
+                                "with insufficient confidence."
+                            ),
+                            required_for=list(
+                                requirement.required_for
+                            ),
+                        )
+                    )
+
+                continue
+
+            item = MissingPlanningFact(
+                field=requirement.field,
+
+                question=requirement.question,
+
+                reason=requirement.reason,
+
+                required_for=list(
+                    requirement.required_for
+                ),
+            )
+
+            # --------------------------------------------------
+            # Conditional vs core
+            # --------------------------------------------------
+
+            if requirement.conditional_on:
+                conditional.append(item)
+            else:
+                missing.append(item)
+
+        # ------------------------------------------------------
+        # Additional derived requirements
+        # ------------------------------------------------------
+
+        self._check_derived_requirements(
+            available=available,
+            missing=missing,
+            conditional=conditional,
+        )
+
+        # ------------------------------------------------------
+        # Readiness
+        #
+        # Core missing inputs block planning.
+        #
+        # Conditional missing inputs do not necessarily block
+        # initial planning, but MUST be resolved before the
+        # affected design feature is finalized.
+        # ------------------------------------------------------
+
+        return PlanningInputGateResult(
+            ready=not missing,
+            missing=missing,
+            available=available,
+            conditional=conditional,
+            needs_confirmation=needs_confirmation,
+        )
+
+    # ==========================================================
+    # REQUIREMENT EVALUATION
+    # ==========================================================
+
+    def _is_required(
+        self,
+        requirement: UDCPRInputRequirement,
+        available: dict[str, Any],
+    ) -> bool:
+
+        conditions = requirement.conditional_on
+
+        if not conditions:
+            return True
+
+        # ------------------------------------------------------
+        # Every conditional dependency must be active.
+        #
+        # Example:
+        #
+        # existing_built_up_area
+        #
+        # is required only when:
+        #
+        # existing_building=True
+        # AND
+        # redevelopment=True
+        # ------------------------------------------------------
+
+        for condition in conditions:
+
+            value = available.get(
+                condition
+            )
+
+            if not self._condition_active(
+                value
+            ):
+                return False
+
+        return True
+
+    # ==========================================================
+    # DERIVED REQUIREMENTS
+    # ==========================================================
+
+    def _check_derived_requirements(
+        self,
+        *,
+        available: dict[str, Any],
+        missing: list[MissingPlanningFact],
+        conditional: list[MissingPlanningFact],
+    ) -> None:
+
+        # ------------------------------------------------------
+        # ROAD FRONTAGE
+        # ------------------------------------------------------
+
+        road_width = available.get(
+            "road_width"
+        )
+
+        road_widths = available.get(
+            "road_widths"
+        )
+
+        road_frontages = available.get(
+            "road_frontages"
+        )
+
+        road_locations = available.get(
+            "road_locations"
+        )
+
+        has_road_width = (
+            self._has_value(road_width)
+            or self._has_value(road_widths)
+            or self._has_value(road_frontages)
+        )
+
+        if not has_road_width:
+
+            self._append_missing_once(
+                missing,
+                MissingPlanningFact(
+                    field="road_width",
+                    question=(
+                        "What is the width of each road "
+                        "abutting the plot in metres?"
+                    ),
+                    reason=(
+                        "Road width is used by UDCPR for "
+                        "FSI, setbacks, margins and "
+                        "building potential."
+                    ),
+                    required_for=[
+                        "FSI",
+                        "setbacks",
+                        "margins",
+                        "building potential",
+                    ],
+                ),
+            )
+
+        # ------------------------------------------------------
+        # ROAD FRONTAGE
+        # ------------------------------------------------------
+
+        frontage_count = available.get(
+            "road_frontage_count"
+        )
+
+        has_frontage = (
+            self._has_value(
+                frontage_count
+            )
+            or self._has_value(
+                road_locations
+            )
+            or self._has_value(
+                road_frontages
+            )
+        )
+
+        if not has_frontage:
+
+            self._append_missing_once(
+                missing,
+                MissingPlanningFact(
+                    field="road_frontage",
+                    question=(
+                        "Which side or sides of the plot "
+                        "abut a road?"
+                    ),
+                    reason=(
+                        "Road frontage determines the "
+                        "road-facing building sides and "
+                        "front setback treatment."
+                    ),
+                    required_for=[
+                        "front setback",
+                        "site access",
+                        "building orientation",
+                    ],
+                ),
+            )
+
+        # ------------------------------------------------------
+        # MULTIPLE ROADS
+        # ------------------------------------------------------
+
+        if (
+            self._has_multiple_roads(
+                available
+            )
+        ):
+
+            if not self._has_value(
+                available.get(
+                    "road_frontages"
+                )
+            ):
+
+                self._append_conditional_once(
+                    conditional,
+                    MissingPlanningFact(
+                        field="road_frontages",
+                        question=(
+                            "Provide each road frontage "
+                            "with its side/location and "
+                            "road width."
+                        ),
+                        reason=(
+                            "A plot abutting multiple roads "
+                            "must retain road-specific "
+                            "information for building "
+                            "placement and margins."
+                        ),
+                        required_for=[
+                            "front setback",
+                            "roadside margin",
+                            "building orientation",
+                        ],
+                    ),
+                )
+
+        # ------------------------------------------------------
+        # GROUP HOUSING
+        # ------------------------------------------------------
+
+        if self._condition_active(
+            available.get(
+                "group_housing"
+            )
+        ):
+
+            if not self._has_value(
+                available.get(
+                    "number_of_buildings"
+                )
+            ):
+
+                self._append_conditional_once(
+                    conditional,
+                    MissingPlanningFact(
+                        field="number_of_buildings",
+                        question=(
+                            "How many buildings or wings "
+                            "are proposed in the group "
+                            "housing scheme?"
+                        ),
+                        reason=(
+                            "Multiple-building layouts "
+                            "require building-separation "
+                            "and internal-access planning."
+                        ),
+                        required_for=[
+                            "building separation",
+                            "internal roads",
+                            "layout planning",
+                        ],
+                    ),
+                )
+
+        # ------------------------------------------------------
+        # MIXED USE
+        # ------------------------------------------------------
+
+        if self._condition_active(
+            available.get(
+                "mixed_use"
+            )
+        ):
+
+            if not self._has_value(
+                available.get(
+                    "requested_commercial_area"
+                )
+            ):
+
+                self._append_conditional_once(
+                    conditional,
+                    MissingPlanningFact(
+                        field="requested_commercial_area",
+                        question=(
+                            "What commercial area is "
+                            "proposed?"
+                        ),
+                        reason=(
+                            "The commercial component "
+                            "affects use-specific and "
+                            "parking requirements."
+                        ),
+                        required_for=[
+                            "mixed-use planning",
+                            "parking",
+                            "occupancy",
+                        ],
+                    ),
+                )
+
+        # ------------------------------------------------------
+        # REDEVELOPMENT
+        # ------------------------------------------------------
+
+        redevelopment = (
+            self._condition_active(
+                available.get(
+                    "redevelopment"
+                )
+            )
+            or str(
+                available.get(
+                    "development_type",
+                    ""
+                )
+            ).strip().lower()
+                in {
+                    "redevelopment",
+                    "reconstruction",
+                }
+        )
+
+        if redevelopment:
+
+            if not self._condition_active(
+                available.get(
+                    "existing_building"
+                )
+            ):
+
+                self._append_conditional_once(
+                    conditional,
+                    MissingPlanningFact(
+                        field="existing_building",
+                        question=(
+                            "Is there an existing authorised "
+                            "building on the plot?"
+                        ),
+                        reason=(
+                            "Redevelopment provisions depend "
+                            "on the existing authorised "
+                            "building."
+                        ),
+                        required_for=[
+                            "redevelopment FSI",
+                            "existing parking",
+                        ],
+                    ),
+                )
+
+        # ------------------------------------------------------
+        # AIRPORT
+        # ------------------------------------------------------
+
+        if self._condition_active(
+            available.get(
+                "airport_restriction"
+            )
+        ):
+
+            if not self._has_value(
+                available.get(
+                    "site_elevation"
+                )
+            ):
+
+                self._append_conditional_once(
+                    conditional,
+                    MissingPlanningFact(
+                        field="site_elevation",
+                        question=(
+                            "What is the site elevation "
+                            "above mean sea level?"
+                        ),
+                        reason=(
+                            "UDCPR uses site elevation when "
+                            "converting airport CCZM elevation "
+                            "to allowable building height."
+                        ),
+                        required_for=[
+                            "airport-controlled height",
+                        ],
+                    ),
+                )
+
+            if not self._has_value(
+                available.get(
+                    "cczm_permissible_elevation"
+                )
+            ):
+
+                self._append_conditional_once(
+                    conditional,
+                    MissingPlanningFact(
+                        field="cczm_permissible_elevation",
+                        question=(
+                            "What maximum top elevation is "
+                            "permitted by the applicable "
+                            "Airport Authority CCZM?"
+                        ),
+                        reason=(
+                            "The airport restriction must be "
+                            "known before finalising building "
+                            "height."
+                        ),
+                        required_for=[
+                            "maximum building height",
+                        ],
+                    ),
+                )
+
+        # ------------------------------------------------------
+        # PARKING
+        # ------------------------------------------------------
+
+        building_use = str(
+            available.get(
+                "building_use",
+                ""
+            )
+        ).lower()
+
+        if (
+            "residential"
+            in building_use
+            or self._condition_active(
+                available.get(
+                    "group_housing"
+                )
+            )
+        ):
+            # Unit count is a derived design output.
+            #
+            # Do not ask the user for requested_units unless
+            # the user explicitly specifies a mandatory unit count.
+            #
+            # The design engine should determine achievable
+            # units from:
+            #   - permissible built-up area
+            #   - usable floor plate
+            #   - carpet-area requirements
+            #   - circulation/core/service deductions
+            #   - applicable UDCPR constraints
+
+            
+            # if not self._has_value(
+            #     available.get(
+            #         "requested_units"
+            #     )
+            # ):
+
+            #     self._append_conditional_once(
+            #         conditional,
+            #         MissingPlanningFact(
+            #             field="requested_units",
+            #             question=(
+            #                 "How many residential "
+            #                 "tenements/dwelling units "
+            #                 "are required?"
+            #             ),
+            #             reason=(
+            #                 "Residential parking is based "
+            #                 "on tenement requirements and "
+            #                 "the proposed residential program."
+            #             ),
+            #             required_for=[
+            #                 "parking",
+            #                 "unit planning",
+            #             ],
+            #         ),
+            #     )
+
+            if not self._has_value(
+                available.get(
+                    "tenement_carpet_areas"
+                )
+            ):
+
+                self._append_conditional_once(
+                    conditional,
+                    MissingPlanningFact(
+                        field="tenement_carpet_areas",
+                        question=(
+                            "What is the carpet area of "
+                            "each residential tenement or "
+                            "each tenement-size category?"
+                        ),
+                        reason=(
+                            "Table 8-B classifies residential "
+                            "parking by tenement carpet area."
+                        ),
+                        required_for=[
+                            "car parking",
+                            "two-wheeler parking",
+                            "visitor parking",
+                        ],
+                    ),
+                )
+
+        # ------------------------------------------------------
+        # FIRE / EXIT
+        # ------------------------------------------------------
+
+            # ==========================================================
+        # BUILDING HEIGHT / FLOORS
+        # ==========================================================
+        #
+        # Height/floor information is required to establish the
+        # building-design envelope.
+        #
+        # IMPORTANT:
+        #
+        # - Do NOT ask the user for floor_areas here.
+        # - Floor areas are calculated later by the design engine.
+        # - requested_height is optional if floors + floor_height
+        #   are available.
+        # - requested_floors is optional if height is explicitly
+        #   supplied.
+        # - If neither is supplied, the planning system may derive
+        #   the permissible height/floors from applicable UDCPR
+        #   rules.
+        #
+        # ==========================================================
+
+        requested_height = available.get(
+            "requested_height"
+        )
+
+        requested_floors = available.get(
+            "requested_floors"
+        )
+
+        floor_height = available.get(
+            "floor_height"
+        )
+
+        building_height = available.get(
+            "building_height"
+        )
+
+        # ----------------------------------------------------------
+        # CASE 1:
+        # Explicit proposed height is available.
+        #
+        # No additional height input is required.
+        # The regulatory engine will validate it.
+        # ----------------------------------------------------------
+
+        if (
+            self._has_value(
+                requested_height
+            )
+            or self._has_value(
+                building_height
+            )
+        ):
+            pass
+
+        # ----------------------------------------------------------
+        # CASE 2:
+        # Floors + floor-to-floor height are available.
+        #
+        # Proposed height can be derived:
+        #
+        #     height = floors × floor_height
+        #
+        # No need to ask for requested_height.
+        # ----------------------------------------------------------
+
+        elif (
+            self._has_value(
+                requested_floors
+            )
+            and self._has_value(
+                floor_height
+            )
+        ):
+            pass
+
+        # ----------------------------------------------------------
+        # CASE 3:
+        # Floors are specified but floor height is missing.
+        #
+        # We need floor height to establish the proposed building
+        # height.
+        # ----------------------------------------------------------
+
+        elif self._has_value(
+            requested_floors
+        ):
+
+            self._append_missing_once(
+                missing,
+                MissingPlanningFact(
+                    field="floor_height",
+                    question=(
+                        "What floor-to-floor height is proposed "
+                        "for the building, in metres?"
+                    ),
+                    reason=(
+                        "The proposed building height must be "
+                        "established before finalising "
+                        "height-dependent planning and "
+                        "life-safety requirements."
+                    ),
+                    required_for=[
+                        "building height",
+                        "height-dependent UDCPR provisions",
+                        "fire/life-safety evaluation",
+                        "staircase requirements",
+                        "lift requirements",
+                    ],
+                ),
+            )
+
+        # ----------------------------------------------------------
+        # CASE 4:
+        # Neither height nor floor count is specified.
+        #
+        # Do not immediately force a user value here.
+        #
+        # The applicable UDCPR rules may determine the permissible
+        # height/floor envelope from:
+        #
+        #     plot + road + zone + building use + other facts
+        #
+        # The optimizer can subsequently determine the practical
+        # number of floors.
+        # ----------------------------------------------------------
+
+        else:
+            pass
+    # ==========================================================
+    # FACT CONVERSION
+    # ==========================================================
+
+    @staticmethod
+    def _facts_to_dict(
+        facts: Any,
+    ) -> dict[str, Any]:
+
+        if facts is None:
+            return {}
+
+        if isinstance(
+            facts,
+            dict,
+        ):
+            return dict(
+                facts
+            )
+
+        to_dict = getattr(
+            facts,
+            "to_dict",
+            None,
+        )
+
+        if callable(
+            to_dict
+        ):
+
+            value = to_dict()
+
+            if isinstance(
+                value,
+                dict,
+            ):
+                return dict(
+                    value
+                )
+
+        result: dict[str, Any] = {}
+
+        fields = getattr(
+            facts,
+            "__dataclass_fields__",
+            {},
+        )
+
+        for name in fields:
+
+            try:
+                value = getattr(
+                    facts,
+                    name,
+                )
+            except Exception:
+                continue
+
+            if value is not None:
+                result[name] = value
+
+        values = getattr(
+            facts,
+            "values",
+            None,
+        )
+
+        if isinstance(
+            values,
+            dict,
+        ):
+            result.update(
+                values
+            )
+
+        return result
+
+
+
+    @staticmethod
+    def _fact_confidence_sufficient(
+        facts: Any,
+        field: str,
+        threshold: float = 0.85,
+    ) -> bool:
+
+        confidence = getattr(
+            facts,
+            "fact_confidence",
+            None,
+        )
+
+        if not isinstance(confidence, dict):
+            return True
+
+        value = confidence.get(field)
+
+        if value is None:
+            return True
+
+        try:
+            return float(value) >= threshold
+        except (
+            TypeError,
+            ValueError,
+        ):
+            return False
+
+    # ==========================================================
+    # VALUE HELPERS
+    # ==========================================================
+
+    @staticmethod
+    def _has_value(
+        value: Any,
+    ) -> bool:
+
+        if value is None:
+            return False
+
+        if isinstance(
+            value,
+            str,
+        ):
+            return bool(
+                value.strip()
+            )
+
+        if isinstance(
+            value,
+            (list, tuple, set, dict),
+        ):
+            return len(value) > 0
+
+        return True
+
+    @classmethod
+    def _has_fact(
+        cls,
+        values: dict[str, Any],
+        field: str,
+    ) -> bool:
+
+        return cls._has_value(
+            values.get(field)
+        )
+
+    @classmethod
+    def _condition_active(
+        cls,
+        value: Any,
+    ) -> bool:
+
+        if value is None:
+            return False
+
+        if isinstance(
+            value,
+            bool,
+        ):
+            return value
+
+        if isinstance(
+            value,
+            str,
+        ):
+
+            normalized = (
+                value.strip()
+                .lower()
+            )
+
+            if normalized in {
+                "",
+                "false",
+                "no",
+                "none",
+                "unknown",
+            }:
+                return False
+
+            return True
+
+        return bool(
+            value
+        )
+
+    @staticmethod
+    def _has_multiple_roads(
+        available: dict[str, Any],
+    ) -> bool:
+
+        frontage_count = available.get(
+            "road_frontage_count"
+        )
+
+        if (
+            isinstance(
+                frontage_count,
+                int,
+            )
+            and frontage_count > 1
+        ):
+            return True
+
+        road_widths = available.get(
+            "road_widths"
+        )
+
+        if isinstance(
+            road_widths,
+            (list, tuple),
+        ) and len(
+            road_widths
+        ) > 1:
+            return True
+
+        road_frontages = available.get(
+            "road_frontages"
+        )
+
+        if isinstance(
+            road_frontages,
+            (list, tuple),
+        ) and len(
+            road_frontages
+        ) > 1:
+            return True
+
+        return False
+
+    # ==========================================================
+    # LIST HELPERS
+    # ==========================================================
+
+    @staticmethod
+    def _append_missing_once(
+        items: list[
+            MissingPlanningFact
+        ],
+        item: MissingPlanningFact,
+    ) -> None:
+
+        if any(
+            existing.field
+            == item.field
+            for existing in items
+        ):
+            return
+
+        items.append(
+            item
+        )
+
+    @staticmethod
+    def _append_conditional_once(
+        items: list[
+            MissingPlanningFact
+        ],
+        item: MissingPlanningFact,
+    ) -> None:
+
+        if any(
+            existing.field
+            == item.field
+            for existing in items
+        ):
+            return
+
+        items.append(
+            item
+        )

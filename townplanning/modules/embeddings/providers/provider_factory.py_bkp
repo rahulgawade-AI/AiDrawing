@@ -1,0 +1,35 @@
+from __future__ import annotations
+
+from townplanning.core.settings import get_settings
+
+from townplanning.modules.llm.providers.base_provider import BaseLLMProvider
+from townplanning.modules.llm.providers.ollama_provider import OllamaProvider
+from townplanning.modules.llm.providers.openai_provider import OpenAIProvider
+
+
+class ProviderFactory:
+    """
+    Factory class for creating an LLM provider based on configuration.
+    """
+
+    @staticmethod
+    def create() -> BaseLLMProvider:
+
+        settings = get_settings()
+
+        provider_name = settings.AI_PROVIDER.lower()
+
+        providers = {
+            "ollama": OllamaProvider,
+            "openai": OpenAIProvider,
+        }
+
+        provider_cls = providers.get(provider_name)
+
+        if provider_cls is None:
+            raise ValueError(
+                f"Unsupported AI provider '{provider_name}'. "
+                f"Supported providers: {', '.join(providers.keys())}"
+            )
+
+        return provider_cls()

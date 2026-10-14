@@ -1,0 +1,62 @@
+from townplanning.modules.embeddings.providers.provider_factory import (
+    EmbeddingProviderFactory,
+)
+from townplanning.modules.embeddings.services.embedding_service import (
+    EmbeddingService,
+)
+from townplanning.modules.vectordb.repositories.chroma_repository import (
+    ChromaRepository,
+)
+from townplanning.modules.search.services.semantic_search_service import (
+    SemanticSearchService,
+)
+from townplanning.modules.search.services.context_builder import (
+    ContextBuilder,
+)
+from townplanning.modules.llm.providers.provider_factory import (
+    ProviderFactory,
+)
+from townplanning.modules.llm.services.llm_service import (
+    LLMService,
+)
+from townplanning.modules.llm.services.prompt_builder import (
+    PromptBuilder,
+)
+from townplanning.workflows.question_answering_workflow import (
+    QuestionAnsweringWorkflow,
+)
+
+
+class ApplicationContainer:
+
+    def question_answering_workflow(self):
+
+        embedding_provider = EmbeddingProviderFactory.create()
+
+        embedding_service = EmbeddingService(
+            embedding_provider,
+        )
+
+        vectordb = ChromaRepository()
+
+        semantic_search = SemanticSearchService(
+            embedding_service=embedding_service,
+            vectordb=vectordb,
+        )
+
+        context_builder = ContextBuilder()
+
+        prompt_builder = PromptBuilder()
+
+        llm_provider = ProviderFactory.create()
+
+        llm_service = LLMService(
+            llm_provider,
+        )
+
+        return QuestionAnsweringWorkflow(
+            semantic_search=semantic_search,
+            context_builder=context_builder,
+            prompt_builder=prompt_builder,
+            llm_service=llm_service,
+        )

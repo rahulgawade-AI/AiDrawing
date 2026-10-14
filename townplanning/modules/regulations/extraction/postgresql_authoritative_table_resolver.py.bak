@@ -1,0 +1,2669 @@
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from typing import Any, Mapping
+
+from sqlalchemy import select
+
+from townplanning.infrastructure.database.models import Table as TableModel
+
+
+# ============================================================================
+# DATA MODELS
+# ============================================================================
+
+@dataclass(slots=True)
+class SelectedTable:
+    """
+    Explicit table selected from the Chroma regulatory source.
+
+    Chroma determines WHICH table is applicable.
+    PostgreSQL supplies the authoritative table contents.
+    """
+
+    regulation_number: str
+    table_number: str
+    table_title: str = ""
+    table: Any | None = None
+    reason: str = ""
+    source_text: str = ""
+
+
+@dataclass(slots=True)
+class PostgreSQLConstraint:
+    key: str
+    value: Any
+    unit: str | None = None
+
+    source_rule_id: str = ""
+    regulation_id: str = ""
+    rule_name: str = ""
+    category: str = "regulatory"
+    priority: int = 1
+
+    status: str = "verified"
+    reason: str = ""
+
+    metadata: dict[str, Any] = field(
+        default_factory=dict
+    )
+
+
+@dataclass(slots=True)
+class PostgreSQLResolution:
+    constraints: list[PostgreSQLConstraint] = field(
+        default_factory=list
+    )
+
+    warnings: list[str] = field(
+        default_factory=list
+    )
+
+    errors: list[str] = field(
+        default_factory=list
+    )
+
+    missing_inputs: list[str] = field(
+        default_factory=list
+    )
+
+    selections: list[SelectedTable] = field(
+        default_factory=list
+    )
+
+    status: str = "INSUFFICIENT_RULE_DATA"
+
+
+# ============================================================================
+# FIELD ALIASES
+# ============================================================================
+
+FIELD_ALIASES = {
+    "basic_fsi": (
+        "basic fsi",
+        "basic floor space index",
+    ),
+
+    "premium_fsi": (
+        "fsi on payment of premium",
+        "premium fsi",
+        "premium floor space index",
+    ),
+
+    "tdr_fsi": (
+        "tdr fsi",
+        "fsi through tdr",
+        "fsi through development rights",
+        "maximum permissible tdr loading",
+        "tdr loading",
+    ),
+
+    "maximum_fsi": (
+        "maximum fsi",
+        "maximum building potential",
+        "maximum building potential on plot",
+        "maximum permissible fsi",
+    ),
+
+    "incentive_fsi": (
+        "incentive fsi",
+        "incentive",
+        "additional fsi",
+    ),
+
+    "front_setback": (
+        "front setback",
+        "front margin",
+        "minimum front setback",
+        "min front setback",
+        "setback from road side",
+        "minimum setback from road side",
+    ),
+
+    "rear_setback": (
+        "rear setback",
+        "rear margin",
+        "minimum rear setback",
+        "min rear setback",
+        "minimum rear margins",
+    ),
+
+    "side_setback": (
+        "side setback",
+        "side margin",
+        "minimum side setback",
+        "min side setback",
+        "minimum side margins",
+    ),
+
+    "side_setback_left": (
+        "left side setback",
+        "left side margin",
+        "side setback left",
+        "side margin left",
+        "minimum side margins",
+        "minimum side margin",
+    ),
+
+    "side_setback_right": (
+        "right side setback",
+        "right side margin",
+        "side setback right",
+        "side margin right",
+        "minimum side margins",
+        "minimum side margin",
+    ),
+
+    "maximum_height_m": (
+        "maximum height",
+        "max height",
+        "building height",
+        "height of building",
+        "permissible height",
+    ),
+
+    "maximum_storeys": (
+        "maximum storeys",
+        "maximum stories",
+        "max storeys",
+        "number of storeys",
+        "number of stories",
+    ),
+
+    "car_parking_required": (
+        "car parking required",
+        "car parking",
+        "car spaces",
+        "parking spaces required car",
+    ),
+
+    "two_wheeler_parking_required": (
+        "two wheeler parking",
+        "two-wheeler parking",
+        "scooter parking",
+        "scooter spaces",
+    ),
+
+    "visitor_parking_required": (
+        "visitor parking",
+        "visitor parking required",
+        "visitors parking",
+    ),
+}
+
+
+# ============================================================================
+# RESOLVER
+# ============================================================================
+
+class PostgreSQLAuthoritativeTableResolver:
+
+    FIELD_ALIASES = {
+        "front_setback": (
+            "front setback",
+            "minimum front setback",
+            "minimum setback from road side",
+            "setback from road side",
+            "road side setback",
+        ),
+
+        "rear_setback": (
+            "rear setback",
+            "minimum rear setback",
+            "minimum rear margins",
+            "rear margin",
+        ),
+
+        "side_setback_left": (
+            "side setback",
+            "side setback left",
+            "minimum side setback",
+            "minimum side margins",
+            "side margin",
+        ),
+
+        "side_setback_right": (
+            "side setback",
+            "side setback right",
+            "minimum side setback",
+            "minimum side margins",
+            "side margin",
+        ),
+
+        "basic_fsi": (
+            "basic fsi",
+            "basic floor space index",
+        ),
+
+        "premium_fsi": (
+            "premium fsi",
+            "fsi on payment of premium",
+            "fsi on premium",
+            "premium",
+        ),
+
+        "tdr_fsi": (
+            "tdr fsi",
+            "tdr loading",
+            "maximum permissible tdr loading",
+            "tdr",
+        ),
+
+        "maximum_fsi": (
+            "maximum fsi",
+            "maximum permissible fsi",
+            "maximum building potential",
+            "maximum building potential on plot",
+            "maximum building potential on plot including in-situ fsi",
+            "building potential",
+        ),
+
+        "car_parking_required": (
+            "car parking required",
+            "car parking",
+            "parking spaces required car",
+            "car spaces",
+            "car",
+        ),
+
+        "two_wheeler_parking_required": (
+            "two wheeler parking required",
+            "two wheeler parking",
+            "two-wheeler parking",
+            "scooter parking",
+            "scooter spaces",
+            "scooter",
+            "two wheeler",
+        ),
+
+        "visitor_parking_required": (
+            "visitor parking required",
+            "visitor parking",
+            "visitor spaces",
+        ),
+
+        "parking_factor": (
+            "multiplying factor",
+            "parking multiplying factor",
+            "factor",
+        ),
+
+        "maximum_height_m": (
+            "maximum height",
+            "maximum building height",
+            "height",
+        ),
+
+        "minimum_height_m": (
+            "minimum height",
+            "minimum building height",
+            "height",
+        ),
+
+        "minimum_open_space": (
+            "minimum open space",
+            "open space",
+        ),
+
+        "road_widening": (
+            "road widening",
+            "road widening line",
+        ),
+    }
+
+    def __init__(self, session):
+        self.session = session
+
+    # ========================================================================
+    # PUBLIC RESOLUTION
+    # ========================================================================
+
+    def resolve(
+        self,
+        facts: Any,
+        selected_regulations: list[Any] | None = None,
+        chroma_sources: list[Any] | None = None,
+        requested_fields: list[str] | None = None,
+        regulatory_sources: list[Any] | None = None,
+    ) -> PostgreSQLResolution:
+
+        if chroma_sources is None:
+            chroma_sources = (
+                regulatory_sources or []
+            )
+
+        requested_fields = (
+            requested_fields or []
+        )
+
+        result = PostgreSQLResolution()
+
+        regulations = (
+            self._selected_regulation_numbers(
+                selected_regulations
+            )
+        )
+
+        if not regulations:
+            result.warnings.append(
+                "Authoritative source resolution: "
+                "no selected regulations were supplied."
+            )
+            return result
+
+        # ====================================================================
+        # REGULATION LOOP
+        # ====================================================================
+
+        for regulation_number in regulations:
+
+            source_text = (
+                self._source_text_for_regulation(
+                    regulation_number,
+                    chroma_sources,
+                )
+            )
+
+            # ---------------------------------------------------------------
+            # Chroma decides whether this regulation points to a table.
+            # ---------------------------------------------------------------
+
+            table_numbers = (
+                self._extract_table_references(
+                    [source_text]
+                )
+            )
+
+            if table_numbers:
+
+                for table_number in table_numbers:
+
+                    table = (
+                        self._find_postgresql_table(
+                            regulation_number,
+                            table_number,
+                        )
+                    )
+
+                    if table is None:
+
+                        result.warnings.append(
+                            "PostgreSQL table "
+                            f"{table_number} selected for "
+                            f"regulation "
+                            f"{regulation_number} was not found."
+                        )
+
+                        continue
+
+                    # -------------------------------------------------------
+                    # Explicit selection.
+                    # -------------------------------------------------------
+
+                    selection = SelectedTable(
+                        regulation_number=(
+                            regulation_number
+                        ),
+                        table_number=table_number,
+                        table_title=str(
+                            getattr(
+                                table,
+                                "title",
+                                "",
+                            )
+                            or f"Table {table_number}"
+                        ),
+                        table=table,
+                        reason=(
+                            "Selected from Chroma "
+                            "regulatory source."
+                        ),
+                        source_text=source_text,
+                    )
+
+                    result.selections.append(
+                        selection
+                    )
+
+                    # -------------------------------------------------------
+                    # COMPLETE PostgreSQL TABLE → JSON
+                    # -------------------------------------------------------
+
+                    table_json = (
+                        self._table_to_json(
+                            table
+                        )
+                    )
+
+                    # -------------------------------------------------------
+                    # JSON → deterministic extraction
+                    # -------------------------------------------------------
+
+                    constraints = (
+    self._extract_from_table_json(
+        table_json=table_json,
+        facts=facts,
+        requested_fields=requested_fields,
+        regulation_number=regulation_number,
+        table_number=table_number,
+    )
+)
+
+                    result.constraints.extend(
+                        constraints
+                    )
+
+                    # -------------------------------------------------------
+                    # Follow explicitly referenced tables.
+                    # -------------------------------------------------------
+
+                    chained = (
+                        self._extract_table_references_from_table_json(
+                            table_json,
+                            exclude={
+                                table_number.upper()
+                            },
+                        )
+                    )
+
+                    for chained_number in chained:
+
+                        chained_table = (
+                            self._find_postgresql_table(
+                                regulation_number,
+                                chained_number,
+                            )
+                        )
+
+                        if chained_table is None:
+
+                            result.warnings.append(
+                                "Referenced PostgreSQL "
+                                "table "
+                                f"{chained_number} was not found "
+                                f"for regulation "
+                                f"{regulation_number}."
+                            )
+
+                            continue
+
+                        result.selections.append(
+                            SelectedTable(
+                                regulation_number=(
+                                    regulation_number
+                                ),
+                                table_number=(
+                                    chained_number
+                                ),
+                                table_title=str(
+                                    getattr(
+                                        chained_table,
+                                        "title",
+                                        "",
+                                    )
+                                    or
+                                    f"Table {chained_number}"
+                                ),
+                                table=chained_table,
+                                reason=(
+                                    f"Referenced by "
+                                    f"Table {table_number}."
+                                ),
+                                source_text=source_text,
+                            )
+                        )
+
+                        chained_json = (
+                            self._table_to_json(
+                                chained_table
+                            )
+                        )
+
+                        chained_constraints = (
+                            self._extract_from_table_json(
+                                regulation_number,
+                                chained_number,
+                                chained_json,
+                                facts,
+                                requested_fields,
+                            )
+                        )
+
+                        result.constraints.extend(
+                            chained_constraints
+                        )
+
+            else:
+
+                # -----------------------------------------------------------
+                # PROSE PATH
+                # -----------------------------------------------------------
+
+                result.constraints.extend(
+                    self._resolve_prose(
+                        regulation_number,
+                        source_text,
+                        requested_fields,
+                    )
+                )
+
+        # ====================================================================
+        # Deduplicate
+        # ====================================================================
+
+        result.constraints = (
+            self._deduplicate(
+                result.constraints
+            )
+        )
+
+        # ====================================================================
+        # Conflict detection
+        # ====================================================================
+
+        conflicts = (
+            self._find_conflicts(
+                result.constraints
+            )
+        )
+
+        if conflicts:
+            result.errors.extend(
+                conflicts
+            )
+
+        if result.errors:
+            result.status = "ERROR"
+
+        elif result.constraints:
+            result.status = "RESOLVED"
+
+        else:
+            result.status = (
+                "INSUFFICIENT_RULE_DATA"
+            )
+
+        return result
+
+    # ========================================================================
+    # REGULATION HELPERS
+    # ========================================================================
+
+    @staticmethod
+    def _selected_regulation_numbers(
+        selected_regulations,
+    ):
+
+        output = []
+
+        for item in (
+            selected_regulations or []
+        ):
+
+            if isinstance(
+                item,
+                str,
+            ):
+                number = item
+
+            elif isinstance(
+                item,
+                Mapping,
+            ):
+                number = (
+                    item.get(
+                        "number"
+                    )
+                    or item.get(
+                        "regulation_number"
+                    )
+                    or item.get(
+                        "regulation_id"
+                    )
+                )
+
+            else:
+                number = (
+                    getattr(
+                        item,
+                        "number",
+                        None,
+                    )
+                    or getattr(
+                        item,
+                        "regulation_number",
+                        None,
+                    )
+                    or getattr(
+                        item,
+                        "id",
+                        None,
+                    )
+                )
+
+            if number is None:
+                continue
+
+            number = str(
+                number
+            ).strip()
+
+            if (
+                number
+                and number not in output
+            ):
+                output.append(
+                    number
+                )
+
+        return output
+
+    @classmethod
+    def _source_text_for_regulation(
+        cls,
+        regulation_number,
+        sources,
+    ):
+
+        target = cls._norm(
+            regulation_number
+        )
+
+        texts = []
+
+        for source in (
+            sources or []
+        ):
+
+            metadata = getattr(
+                source,
+                "metadata",
+                None,
+            )
+
+            if (
+                metadata is None
+                and isinstance(
+                    source,
+                    Mapping,
+                )
+            ):
+                metadata = source.get(
+                    "metadata",
+                    {},
+                )
+
+            metadata = metadata or {}
+
+            source_number = (
+                metadata.get(
+                    "regulation_number"
+                )
+                or metadata.get(
+                    "number"
+                )
+                or metadata.get(
+                    "regulation"
+                )
+            )
+
+            if (
+                source_number is not None
+                and cls._norm(
+                    source_number
+                ) != target
+            ):
+                continue
+
+            text = getattr(
+                source,
+                "text",
+                None,
+            )
+
+            if (
+                text is None
+                and isinstance(
+                    source,
+                    Mapping,
+                )
+            ):
+                text = (
+                    source.get("text")
+                    or source.get("content")
+                    or source.get("document")
+                )
+
+            if text:
+                texts.append(
+                    str(text)
+                )
+
+        return "\n".join(
+            texts
+        )
+
+    # ========================================================================
+    # NORMALIZATION
+    # ========================================================================
+
+    @staticmethod
+    def _norm(value):
+
+        if value is None:
+            return ""
+
+        text = str(value)
+
+        text = text.replace(
+            "\n",
+            " ",
+        )
+
+        text = text.replace(
+            "\r",
+            " ",
+        )
+
+        text = text.replace(
+            "–",
+            "-",
+        )
+
+        text = text.replace(
+            "—",
+            "-",
+        )
+
+        return re.sub(
+            r"\s+",
+            " ",
+            text,
+        ).strip().lower()
+
+    # ========================================================================
+    # TABLE REFERENCE EXTRACTION
+    # ========================================================================
+
+    @classmethod
+    def _extract_table_references(
+        cls,
+        texts,
+    ):
+
+        found = []
+
+        pattern = (
+            r"\bTable\s+"
+            r"(?:No\.?\s*)?"
+            r"([0-9]+"
+            r"(?:\.[0-9]+)?"
+            r"(?:\s*[-–]\s*[A-Za-z0-9]+))"
+            r"(?=\s|[.,;:)]+|$)"
+        )
+
+        for text in (
+            texts or []
+        ):
+
+            if not text:
+                continue
+
+            for match in re.finditer(
+                pattern,
+                str(text),
+                re.I,
+            ):
+
+                value = re.sub(
+                    r"\s*[-–]\s*",
+                    "-",
+                    match.group(1),
+                ).upper()
+
+                if value not in found:
+                    found.append(
+                        value
+                    )
+
+        return found
+
+    @classmethod
+    def _table_number(
+        cls,
+        text,
+    ):
+
+        if not text:
+            return None
+
+        patterns = (
+            r"\btable\s*"
+            r"(?:no\.?\s*)?"
+            r"([0-9]+\s*[-–]\s*[A-Za-z0-9]+)\b",
+
+            r"\btable\s*"
+            r"(?:no\.?\s*)?"
+            r"([0-9]+\s*[A-Za-z])\b",
+        )
+
+        for pattern in patterns:
+
+            match = re.search(
+                pattern,
+                str(text),
+                re.I,
+            )
+
+            if match:
+
+                return re.sub(
+                    r"\s*[-–]\s*",
+                    "-",
+                    match.group(1),
+                ).upper()
+
+        return None
+
+    # ========================================================================
+    # POSTGRESQL TABLE LOOKUP
+    # ========================================================================
+
+    def _fetch_all_tables(self):
+
+        stmt = select(
+            TableModel
+        ).order_by(
+            TableModel.page_number,
+            TableModel.table_index,
+        )
+
+        return list(
+            self.session.scalars(
+                stmt
+            )
+        )
+
+    def _tables_for_regulation(
+        self,
+        regulation_number,
+    ):
+
+        # TableModel.regulation_id is not reliably
+        # linked to the canonical regulation UUID.
+        #
+        # Therefore table identification is based
+        # on the actual stored table content.
+
+        return self._fetch_all_tables()
+
+    @classmethod
+    def _table_number_from_model(
+        cls,
+        table,
+    ):
+
+        for value in (
+            getattr(
+                table,
+                "title",
+                None,
+            ),
+            getattr(
+                table,
+                "markdown",
+                None,
+            ),
+            getattr(
+                table,
+                "headers",
+                None,
+            ),
+        ):
+
+            if not value:
+                continue
+
+            number = cls._table_number(
+                str(value)
+            )
+
+            if number:
+                return number
+
+        return None
+
+    def _find_postgresql_table(
+        self,
+        regulation_number,
+        table_number,
+    ):
+
+        wanted = self._norm(
+            table_number
+        )
+
+        candidates = (
+            self._tables_for_regulation(
+                regulation_number
+            )
+        )
+
+        matches = []
+
+        for table in candidates:
+
+            number = (
+                self._table_number_from_model(
+                    table
+                )
+            )
+
+            if (
+                number
+                and self._norm(
+                    number
+                ) == wanted
+            ):
+
+                matches.append(
+                    table
+                )
+
+        if matches:
+
+            populated = [
+                table
+                for table in matches
+                if getattr(
+                    table,
+                    "rows",
+                    None,
+                )
+            ]
+
+            if populated:
+                return max(
+                    populated,
+                    key=lambda table: len(
+                        getattr(
+                            table,
+                            "rows",
+                            []
+                        )
+                        or []
+                    ),
+                )
+
+            return matches[0]
+
+        # Content fallback.
+        for table in candidates:
+
+            text = " ".join(
+                str(
+                    getattr(
+                        table,
+                        field_name,
+                        ""
+                    )
+                    or ""
+                )
+                for field_name in (
+                    "title",
+                    "markdown",
+                    "headers",
+                )
+            )
+
+            if (
+                wanted in self._norm(
+                    text
+                )
+                and getattr(
+                    table,
+                    "rows",
+                    None,
+                )
+            ):
+                return table
+
+        return None
+
+    # ========================================================================
+    # TABLE → JSON
+    # ========================================================================
+
+    def _table_to_json(
+        self,
+        table,
+    ):
+
+        headers = self._normalize_headers(
+            getattr(
+                table,
+                "headers",
+                None,
+            )
+        )
+
+        rows = getattr(
+            table,
+            "rows",
+            None,
+        ) or []
+
+        json_rows = []
+
+        for row in rows:
+
+            if isinstance(
+                row,
+                Mapping,
+            ):
+
+                output = {}
+
+                for key, value in (
+                    row.items()
+                ):
+
+                    clean_key = (
+                        self._clean_header(
+                            key
+                        )
+                    )
+
+                    if clean_key:
+                        output[
+                            clean_key
+                        ] = value
+
+                json_rows.append(
+                    output
+                )
+
+                continue
+
+            if isinstance(
+                row,
+                (list, tuple),
+            ):
+
+                output = {}
+
+                for index, value in (
+                    enumerate(row)
+                ):
+
+                    if index < len(
+                        headers
+                    ):
+                        key = headers[
+                            index
+                        ]
+                    else:
+                        key = (
+                            f"column_{index + 1}"
+                        )
+
+                    output[key] = value
+
+                json_rows.append(
+                    output
+                )
+
+                continue
+
+            json_rows.append(
+                {
+                    "value": row
+                }
+            )
+
+        return {
+            "id": getattr(
+                table,
+                "id",
+                None,
+            ),
+            "page_number": getattr(
+                table,
+                "page_number",
+                None,
+            ),
+            "table_index": getattr(
+                table,
+                "table_index",
+                None,
+            ),
+            "title": getattr(
+                table,
+                "title",
+                "",
+            ),
+            "headers": headers,
+            "rows": json_rows,
+            "markdown": getattr(
+                table,
+                "markdown",
+                "",
+            ),
+            "metadata": getattr(
+                table,
+                "extra_metadata",
+                {},
+            ) or {},
+        }
+
+    @classmethod
+    def _normalize_headers(
+        cls,
+        headers,
+    ):
+
+        if not headers:
+            return []
+
+        if (
+            isinstance(
+                headers,
+                list,
+            )
+            and headers
+            and all(
+                isinstance(
+                    x,
+                    (list, tuple),
+                )
+                for x in headers
+            )
+        ):
+
+            width = max(
+                (
+                    len(x)
+                    for x in headers
+                ),
+                default=0,
+            )
+
+            output = []
+
+            for index in range(
+                width
+            ):
+
+                parts = []
+
+                for header_row in headers:
+
+                    if index >= len(
+                        header_row
+                    ):
+                        continue
+
+                    value = (
+                        cls._clean_header(
+                            header_row[
+                                index
+                            ]
+                        )
+                    )
+
+                    if (
+                        value
+                        and value not in parts
+                    ):
+                        parts.append(
+                            value
+                        )
+
+                output.append(
+                    " | ".join(parts)
+                    if parts
+                    else
+                    f"column_{index + 1}"
+                )
+
+            return output
+
+        return [
+            cls._clean_header(
+                value
+            )
+            or f"column_{index + 1}"
+            for index, value in enumerate(
+                headers
+            )
+        ]
+
+    @staticmethod
+    def _clean_header(
+        value,
+    ):
+
+        if value is None:
+            return ""
+
+        return re.sub(
+            r"\s+",
+            " ",
+            str(value)
+            .replace(
+                "\n",
+                " ",
+            )
+            .replace(
+                "\r",
+                " ",
+            ),
+        ).strip()
+
+    # ========================================================================
+    # JSON ROW SELECTION
+    # ========================================================================
+
+    def _extract_from_table_json(
+    self,
+    table_json,
+    facts,
+    requested_fields,
+    regulation_number,
+    table_number,
+):
+        """
+        Deterministically extract regulatory values from one complete
+        PostgreSQL table represented as normalized JSON.
+
+        Flow:
+
+            PostgreSQL table
+                ↓
+            normalized JSON
+                ↓
+            applicable row(s)
+                ↓
+            requested column
+                ↓
+            constraint
+
+        No AI and no hardcoded UDCPR numeric values.
+        """
+
+        constraints = []
+
+        if not table_json:
+            return constraints
+
+        rows = table_json.get("rows") or []
+
+        if not rows:
+            return constraints
+
+        # --------------------------------------------------------------
+        # Normalize rows into dictionaries.
+        # --------------------------------------------------------------
+
+        normalized_rows = []
+
+        headers = (
+            table_json.get("headers")
+            or []
+        )
+
+        # Flatten nested headers.
+        flat_headers = []
+
+        for header in headers:
+
+            if isinstance(header, (list, tuple)):
+
+                parts = [
+                    str(x).strip()
+                    for x in header
+                    if x is not None
+                    and str(x).strip()
+                ]
+
+                flat_headers.append(
+                    " | ".join(parts)
+                )
+
+            else:
+                flat_headers.append(
+                    str(header).strip()
+                )
+
+        for row in rows:
+
+            if isinstance(row, dict):
+
+                normalized_rows.append(
+                    {
+                        str(k).strip(): v
+                        for k, v in row.items()
+                    }
+                )
+
+            elif isinstance(row, (list, tuple)):
+
+                row_dict = {}
+
+                for index, value in enumerate(row):
+
+                    if index < len(flat_headers):
+                        key = flat_headers[index]
+                    else:
+                        key = f"column_{index + 1}"
+
+                    row_dict[key] = value
+
+                normalized_rows.append(row_dict)
+
+        if not normalized_rows:
+            return constraints
+
+        # --------------------------------------------------------------
+        # Remove completely empty rows.
+        # --------------------------------------------------------------
+
+        normalized_rows = [
+            row
+            for row in normalized_rows
+            if any(
+                value is not None
+                and str(value).strip()
+                not in {"", "-", "--"}
+                for value in row.values()
+            )
+        ]
+
+        if not normalized_rows:
+            return constraints
+
+        # --------------------------------------------------------------
+        # First try normal applicability matching.
+        #
+        # If the table contains a dimension such as road width, carpet
+        # area or authority, only matching rows are retained.
+        # --------------------------------------------------------------
+
+        applicable_rows = []
+
+        for row in normalized_rows:
+
+            try:
+                applies = self._row_matches_facts(
+                    row,
+                    facts,
+                )
+            except TypeError:
+                # Compatibility with older method signature.
+                try:
+                    applies = self._row_matches_facts(
+                        row,
+                        facts,
+                        flat_headers,
+                    )
+                except Exception:
+                    applies = False
+
+            if applies:
+                applicable_rows.append(row)
+
+        # --------------------------------------------------------------
+        # Some extracted UDCPR tables have the dimension in a parent
+        # header rather than the row dictionary. If applicability
+        # matching found nothing, use the table-specific deterministic
+        # fallback.
+        # --------------------------------------------------------------
+
+        if not applicable_rows:
+
+            table_text = self._norm(
+                " ".join(
+                    [
+                        str(table_json.get("title") or ""),
+                        str(table_json.get("markdown") or ""),
+                        " ".join(
+                            str(h)
+                            for h in flat_headers
+                        ),
+                    ]
+                )
+            )
+
+            # Table 6-D / 6-G:
+            # road width is the applicable dimension.
+            if (
+                "6-d" in self._norm(table_number)
+                or "6-g" in self._norm(table_number)
+                or "road width" in table_text
+            ):
+
+                road_width = self._fact_values(
+                    facts
+                ).get("road_width")
+
+                if road_width is not None:
+
+                    for row in normalized_rows:
+
+                        row_text = " ".join(
+                            str(v)
+                            for v in row.values()
+                            if v is not None
+                        )
+
+                        if self._matches_number_range(
+                            row_text,
+                            road_width,
+                        ):
+                            applicable_rows.append(row)
+
+            # Table 8-B:
+            # tenement carpet area determines the row.
+            if (
+                "8-b" in self._norm(table_number)
+                or "size of tenement" in table_text
+            ):
+
+                fact_values = self._fact_values(
+                    facts
+                )
+
+                carpet_areas = (
+                    fact_values.get(
+                        "tenement_carpet_areas"
+                    )
+                    or fact_values.get(
+                        "tenement_carpet_area"
+                    )
+                )
+
+                if carpet_areas is not None:
+
+                    if not isinstance(
+                        carpet_areas,
+                        (list, tuple),
+                    ):
+                        carpet_areas = [
+                            carpet_areas
+                        ]
+
+                    for row in normalized_rows:
+
+                        row_text = " ".join(
+                            str(v)
+                            for v in row.values()
+                            if v is not None
+                        )
+
+                        for area in carpet_areas:
+
+                            if self._matches_number_range(
+                                row_text,
+                                area,
+                            ):
+                                if row not in applicable_rows:
+                                    applicable_rows.append(
+                                        row
+                                    )
+                                break
+
+            # Table 8-C:
+            # authority determines the row.
+            if (
+                "8-c" in self._norm(table_number)
+                or "multiplying factor" in table_text
+            ):
+
+                fact_values = self._fact_values(
+                    facts
+                )
+
+                authority = (
+                    fact_values.get(
+                        "planning_authority"
+                    )
+                    or fact_values.get(
+                        "municipality"
+                    )
+                    or fact_values.get(
+                        "municipal_corporation"
+                    )
+                    or fact_values.get(
+                        "competent_authority"
+                    )
+                )
+
+                if authority:
+
+                    authority_norm = self._norm(
+                        authority
+                    )
+
+                    for row in normalized_rows:
+
+                        row_text = self._norm(
+                            " ".join(
+                                str(v)
+                                for v in row.values()
+                                if v is not None
+                            )
+                        )
+
+                        if (
+                            authority_norm in row_text
+                            or (
+                                "pune" in authority_norm
+                                and "pune" in row_text
+                            )
+                            or (
+                                "municipal corporation"
+                                in authority_norm
+                                and
+                                "municipal corporation"
+                                in row_text
+                            )
+                        ):
+                            if row not in applicable_rows:
+                                applicable_rows.append(
+                                    row
+                                )
+
+        # --------------------------------------------------------------
+        # If there is still no applicable row, do not invent anything.
+        # --------------------------------------------------------------
+
+        if not applicable_rows:
+            return constraints
+
+        # --------------------------------------------------------------
+        # Extract requested fields.
+        # --------------------------------------------------------------
+
+        for field in requested_fields:
+
+            aliases = self.FIELD_ALIASES.get(
+                field,
+                (field,),
+            )
+
+            values = []
+
+            for row in applicable_rows:
+
+                value = self._extract_field_from_row(
+                    row,
+                    aliases,
+                )
+
+                if value is None:
+                    continue
+
+                values.append(
+                    value
+                )
+
+            if not values:
+                continue
+
+            # ----------------------------------------------------------
+            # Deduplicate identical values.
+            # ----------------------------------------------------------
+
+            unique_values = []
+
+            for value in values:
+
+                if value not in unique_values:
+                    unique_values.append(
+                        value
+                    )
+
+            # ----------------------------------------------------------
+            # Conflicting regulatory values must never be silently
+            # selected.
+            # ----------------------------------------------------------
+
+            if len(unique_values) > 1:
+
+                # If this is left/right side setback, the same source
+                # column can legitimately supply both sides.
+                if field in {
+                    "side_setback_left",
+                    "side_setback_right",
+                }:
+
+                    value = unique_values[0]
+
+                else:
+                    continue
+
+            else:
+                value = unique_values[0]
+
+            # ----------------------------------------------------------
+            # Unit inference.
+            # ----------------------------------------------------------
+
+            unit = None
+
+            if "fsi" in field:
+                unit = None
+
+            elif (
+                "setback" in field
+                or "margin" in field
+                or "height" in field
+            ):
+                unit = "m"
+
+            elif "parking" in field:
+                unit = "spaces"
+
+            constraints.append(
+                self._make_constraint(
+                    key=field,
+                    value=value,
+                    unit=unit,
+                    regulation_number=regulation_number,
+                    table_number=table_number,
+                )
+            )
+
+        return constraints
+
+    # ========================================================================
+    # ROW FACT MATCHING
+    # ========================================================================
+
+    def _row_matches_facts(
+    self,
+    row,
+    facts,
+):
+        """
+        Determine whether a complete normalized JSON row applies
+        to the supplied PlanningFacts.
+
+        IMPORTANT:
+        We do not assume that the dimension is stored under a
+        particular header. PDF table extraction frequently produces
+        sparse/multi-level headers, so we inspect both headers and
+        cell values.
+        """
+
+        if not row:
+            return False
+
+        values = self._fact_values(facts)
+
+        road_width = values.get("road_width")
+
+        authority = (
+            values.get("planning_authority")
+            or values.get("municipality")
+            or values.get("municipal_corporation")
+            or values.get("competent_authority")
+        )
+
+        carpet_areas = (
+            values.get("tenement_carpet_areas")
+            or values.get("tenement_carpet_area")
+        )
+
+        if carpet_areas is not None:
+            if not isinstance(
+                carpet_areas,
+                (list, tuple),
+            ):
+                carpet_areas = [carpet_areas]
+
+        # ------------------------------------------------------------------
+        # First inspect header/value pairs.
+        # ------------------------------------------------------------------
+
+        recognized_dimension = False
+
+        for header, raw_value in row.items():
+
+            if raw_value is None:
+                continue
+
+            header_norm = self._norm(header)
+            cell_text = str(raw_value).strip()
+
+            if not cell_text:
+                continue
+
+            # --------------------------------------------------------------
+            # ROAD WIDTH
+            # --------------------------------------------------------------
+
+            if (
+                "road width" in header_norm
+                or "width of road" in header_norm
+                or "road side" in header_norm
+            ):
+
+                if road_width is not None:
+
+                    recognized_dimension = True
+
+                    if not self._matches_number_range(
+                        cell_text,
+                        road_width,
+                    ):
+                        return False
+
+            # --------------------------------------------------------------
+            # TENEMENT / CARPET AREA
+            # --------------------------------------------------------------
+
+            if (
+                "size of tenement" in header_norm
+                or "tenement size" in header_norm
+                or "carpet area" in header_norm
+            ):
+
+                if carpet_areas:
+
+                    recognized_dimension = True
+
+                    numeric_areas = [
+                        area
+                        for area in carpet_areas
+                        if self._to_number(area) is not None
+                    ]
+
+                    if numeric_areas:
+
+                        if not any(
+                            self._matches_number_range(
+                                cell_text,
+                                area,
+                            )
+                            for area in numeric_areas
+                        ):
+                            return False
+
+            # --------------------------------------------------------------
+            # AUTHORITY
+            # --------------------------------------------------------------
+
+            if (
+                "authority" in header_norm
+                or "area" in header_norm
+            ):
+
+                if authority:
+
+                    authority_norm = self._norm(
+                        authority
+                    )
+
+                    cell_norm = self._norm(
+                        cell_text
+                    )
+
+                    # Don't treat a generic "Area" column as a mandatory
+                    # authority match unless it actually contains authority
+                    # information.
+                    if (
+                        "municipal corporation"
+                        in cell_norm
+                        or "municipality"
+                        in cell_norm
+                        or "authority"
+                        in cell_norm
+                        or "pune"
+                        in cell_norm
+                        or "pcmc"
+                        in cell_norm
+                    ):
+
+                        recognized_dimension = True
+
+                        if not (
+                            cell_norm in authority_norm
+                            or authority_norm in cell_norm
+                            or self._categorical_match(
+                                cell_norm,
+                                authority_norm,
+                            )
+                        ):
+
+                            # Generic municipal-corporation branch.
+                            if not (
+                                "municipal corporation"
+                                in cell_norm
+                                and
+                                "municipal corporation"
+                                in authority_norm
+                            ):
+                                return False
+
+        # ------------------------------------------------------------------
+        # IMPORTANT FALLBACK:
+        #
+        # PDF table extraction can put the dimension in a different
+        # column/header structure. Therefore inspect the complete row.
+        # ------------------------------------------------------------------
+
+        complete_row_text = self._norm(
+            " ".join(
+                str(value)
+                for value in row.values()
+                if value is not None
+            )
+        )
+
+        # ------------------------------------------------------------------
+        # Road width fallback.
+        # ------------------------------------------------------------------
+
+        if road_width is not None:
+
+            # If the row contains a textual numeric range that matches the
+            # road width, this is an applicable row.
+            for value in row.values():
+
+                if value is None:
+                    continue
+
+                text = str(value)
+
+                if self._matches_number_range(
+                    text,
+                    road_width,
+                ):
+                    return True
+
+        # ------------------------------------------------------------------
+        # Carpet-area fallback.
+        # ------------------------------------------------------------------
+
+        if carpet_areas:
+
+            numeric_areas = [
+                area
+                for area in carpet_areas
+                if self._to_number(area) is not None
+            ]
+
+            for area in numeric_areas:
+
+                for value in row.values():
+
+                    if value is None:
+                        continue
+
+                    if self._matches_number_range(
+                        str(value),
+                        area,
+                    ):
+                        return True
+
+        # ------------------------------------------------------------------
+        # Authority fallback.
+        # ------------------------------------------------------------------
+
+        if authority:
+
+            authority_norm = self._norm(
+                authority
+            )
+
+            if (
+                authority_norm
+                and (
+                    authority_norm in complete_row_text
+                    or "pune" in complete_row_text
+                    and "pune" in authority_norm
+                    or (
+                        "municipal corporation"
+                        in complete_row_text
+                        and
+                        "municipal corporation"
+                        in authority_norm
+                    )
+                )
+            ):
+                return True
+
+        # ------------------------------------------------------------------
+        # If an explicit header-based dimension was successfully matched,
+        # the row is applicable.
+        # ------------------------------------------------------------------
+
+        if recognized_dimension:
+            return True
+
+        # ------------------------------------------------------------------
+        # A row without any dimension cannot safely be selected.
+        # ------------------------------------------------------------------
+
+        return False
+
+
+
+
+    # =======================================================================
+    # scaler value parsing
+    #========================================================================
+    def _parse_scalar(self, value):
+        """
+        Convert a PostgreSQL/PDF-extracted table cell into a deterministic
+        scalar value.
+
+        Returns:
+            int/float for numeric values
+            cleaned string for non-numeric values
+            None for empty / placeholder values
+        """
+
+        if value is None:
+            return None
+
+        # Already numeric
+        if isinstance(value, bool):
+            return value
+
+        if isinstance(value, (int, float)):
+            return value
+
+        text = str(value).strip()
+
+        if not text:
+            return None
+
+        # Common PDF/table placeholders
+        normalized = text.strip().lower()
+
+        if normalized in {
+            "-",
+            "--",
+            "—",
+            "–",
+            "na",
+            "n/a",
+            "nil",
+            "none",
+            "not applicable",
+            "not available",
+        }:
+            return None
+
+        # Remove common formatting without changing the actual value.
+        cleaned = (
+            text.replace(",", "")
+            .replace("\n", " ")
+            .strip()
+        )
+
+        # --------------------------------------------------------------
+        # Extract numeric scalar.
+        #
+        # Examples:
+        #   "1.10"       -> 1.10
+        #   "1.10 FSI"   -> 1.10
+        #   "3.00 m"     -> 3.00
+        #   "150 sq.m."  -> 150
+        #   "2"          -> 2
+        # --------------------------------------------------------------
+
+        match = re.search(
+            r"[-+]?(?:\d+(?:\.\d+)?|\.\d+)",
+            cleaned,
+        )
+
+        if match:
+            number_text = match.group(0)
+
+            try:
+                number = float(number_text)
+
+                # Preserve integer-looking values as int.
+                if number.is_integer():
+                    return int(number)
+
+                return number
+
+            except (TypeError, ValueError):
+                pass
+
+        # Not numeric: return cleaned text.
+        return cleaned
+
+    
+
+    # ========================================================================
+    # JSON FIELD EXTRACTION
+    # ========================================================================
+
+    def _extract_field_from_row(
+    self,
+    row,
+    aliases,
+):
+        """
+        Extract one regulatory value from a normalized JSON row.
+
+        Supports:
+        - normal headers
+        - multi-level headers
+        - headers containing parent/child labels
+        - PDF-extracted newline/spacing variations
+        """
+
+        # ------------------------------------------------------------------
+        # First pass: exact/alias header matching.
+        # ------------------------------------------------------------------
+
+        candidates = []
+
+        for header, value in row.items():
+
+            if value is None:
+                continue
+
+            header_norm = self._norm(
+                header
+            )
+
+            if not header_norm:
+                continue
+
+            for alias in aliases:
+
+                alias_norm = self._norm(
+                    alias
+                )
+
+                if (
+                    alias_norm
+                    and alias_norm in header_norm
+                ):
+
+                    parsed = self._parse_scalar(
+                        value
+                    )
+
+                    if parsed is not None:
+                        candidates.append(
+                            parsed
+                        )
+
+                    break
+
+        if candidates:
+
+            # If all matching columns contain the same
+            # value, return it.
+            first = candidates[0]
+
+            if all(
+                candidate == first
+                for candidate in candidates
+            ):
+                return first
+
+            # Prefer the first deterministic column
+            # rather than combining unrelated columns.
+            return first
+
+        # ------------------------------------------------------------------
+        # Second pass: handle parent/child headers such as:
+        #
+        # Parking Spaces Required | Car
+        # Parking Spaces Required | Scooter
+        #
+        # or:
+        #
+        # For all Municipal Corporations | Basic FSI
+        # ------------------------------------------------------------------
+
+        for header, value in row.items():
+
+            if value is None:
+                continue
+
+            header_norm = self._norm(
+                header
+            )
+
+            # --------------------------------------------------------------
+            # FSI
+            # --------------------------------------------------------------
+
+            if (
+                "fsi" in header_norm
+                or "floor space index" in header_norm
+            ):
+
+                parsed = self._parse_scalar(
+                    value
+                )
+
+                if parsed is None:
+                    continue
+
+                for alias in aliases:
+
+                    alias_norm = self._norm(
+                        alias
+                    )
+
+                    if (
+                        alias_norm in header_norm
+                        or (
+                            alias_norm == "basic fsi"
+                            and "basic" in header_norm
+                        )
+                        or (
+                            alias_norm
+                            == "premium fsi"
+                            and (
+                                "premium"
+                                in header_norm
+                            )
+                        )
+                        or (
+                            alias_norm == "tdr fsi"
+                            and (
+                                "tdr"
+                                in header_norm
+                            )
+                        )
+                        or (
+                            alias_norm
+                            == "maximum fsi"
+                            and (
+                                "maximum"
+                                in header_norm
+                                or "building potential"
+                                in header_norm
+                            )
+                        )
+                    ):
+                        return parsed
+
+            # --------------------------------------------------------------
+            # SETBACK / MARGIN
+            # --------------------------------------------------------------
+
+            if (
+                "setback" in header_norm
+                or "margin" in header_norm
+            ):
+
+                parsed = self._parse_scalar(
+                    value
+                )
+
+                if parsed is None:
+                    continue
+
+                for alias in aliases:
+
+                    alias_norm = self._norm(
+                        alias
+                    )
+
+                    if (
+                        alias_norm in header_norm
+                        or (
+                            alias_norm
+                            in (
+                                "side setback",
+                                "side setback left",
+                                "side setback right",
+                            )
+                            and "side" in header_norm
+                        )
+                        or (
+                            alias_norm
+                            == "front setback"
+                            and "front" in header_norm
+                        )
+                        or (
+                            alias_norm
+                            == "rear setback"
+                            and "rear" in header_norm
+                        )
+                    ):
+                        return parsed
+
+            # --------------------------------------------------------------
+            # PARKING
+            # --------------------------------------------------------------
+
+            if (
+                "parking" in header_norm
+                or "car" in header_norm
+                or "scooter" in header_norm
+                or "two wheeler" in header_norm
+            ):
+
+                parsed = self._parse_scalar(
+                    value
+                )
+
+                if parsed is None:
+                    continue
+
+                for alias in aliases:
+
+                    alias_norm = self._norm(
+                        alias
+                    )
+
+                    if (
+                        alias_norm in header_norm
+                    ):
+                        return parsed
+
+                    if (
+                        alias_norm
+                        == "car parking required"
+                        and "car" in header_norm
+                        and "scooter" not in header_norm
+                    ):
+                        return parsed
+
+                    if (
+                        alias_norm
+                        == "two wheeler parking required"
+                        and (
+                            "scooter"
+                            in header_norm
+                            or "two wheeler"
+                            in header_norm
+                        )
+                    ):
+                        return parsed
+
+        return None
+    # ========================================================================
+    # CHAINED TABLE REFERENCES
+    # ========================================================================
+
+    @classmethod
+    def _extract_table_references_from_table_json(
+        cls,
+        table_json,
+        exclude=None,
+    ):
+
+        exclude = {
+            str(x).upper()
+            for x in (
+                exclude or set()
+            )
+        }
+
+        texts = []
+
+        if table_json.get(
+            "title"
+        ):
+            texts.append(
+                str(
+                    table_json[
+                        "title"
+                    ]
+                )
+            )
+
+        for row in (
+            table_json.get(
+                "rows",
+                [],
+            )
+            or []
+        ):
+
+            if not isinstance(
+                row,
+                Mapping,
+            ):
+                continue
+
+            for key, value in (
+                row.items()
+            ):
+
+                key_norm = cls._norm(
+                    key
+                )
+
+                if any(
+                    word in key_norm
+                    for word in (
+                        "remark",
+                        "note",
+                        "reference",
+                        "regulation",
+                        "provision",
+                    )
+                ):
+
+                    if value:
+                        texts.append(
+                            str(value)
+                        )
+
+        references = (
+            cls._extract_table_references(
+                texts
+            )
+        )
+
+        return [
+            ref
+            for ref in references
+            if ref.upper()
+            not in exclude
+        ]
+
+    # ========================================================================
+    # NUMERIC HELPERS
+    # ========================================================================
+
+    @staticmethod
+    def _to_number(
+        value,
+    ):
+
+        if value is None:
+            return None
+
+        if isinstance(
+            value,
+            bool,
+        ):
+            return None
+
+        if isinstance(
+            value,
+            (int, float),
+        ):
+            return float(value)
+
+        match = re.search(
+            r"[-+]?\d+(?:\.\d+)?",
+            str(value).replace(
+                ",",
+                "",
+            ),
+        )
+
+        if not match:
+            return None
+
+        try:
+            return float(
+                match.group(0)
+            )
+        except ValueError:
+            return None
+
+    @classmethod
+    def _matches_number_range(
+        cls,
+        text,
+        value,
+    ):
+
+        number = cls._to_number(
+            value
+        )
+
+        if number is None:
+            return False
+
+        normalized = cls._norm(
+            text
+        )
+
+        numbers = [
+            float(x)
+            for x in re.findall(
+                r"[-+]?\d+(?:\.\d+)?",
+                normalized,
+            )
+        ]
+
+        if not numbers:
+            return False
+
+        if (
+            "below" in normalized
+            and len(numbers) == 1
+        ):
+            return (
+                number < numbers[0]
+            )
+
+        if (
+            (
+                "upto" in normalized
+                or "up to" in normalized
+            )
+            and len(numbers) == 1
+        ):
+            return (
+                number <= numbers[0]
+            )
+
+        if (
+            "above" in normalized
+            and len(numbers) == 1
+        ):
+            return (
+                number >= numbers[0]
+            )
+
+        if (
+            "more than" in normalized
+            and len(numbers) == 1
+        ):
+            return (
+                number > numbers[0]
+            )
+
+        if len(numbers) >= 2:
+
+            low = numbers[0]
+            high = numbers[1]
+
+            if "below" in normalized:
+                return (
+                    number >= low
+                    and number < high
+                )
+
+            return (
+                number >= low
+                and number <= high
+            )
+
+        if len(numbers) == 1:
+            return abs(
+                number - numbers[0]
+            ) < 1e-9
+
+        return False
+
+    @classmethod
+    def _categorical_match(
+        cls,
+        row_value,
+        fact_value,
+    ):
+
+        row_norm = cls._norm(
+            row_value
+        )
+
+        fact_norm = cls._norm(
+            fact_value
+        )
+
+        if not row_norm or not fact_norm:
+            return False
+
+        if row_norm == fact_norm:
+            return True
+
+        if row_norm in fact_norm:
+            return True
+
+        if fact_norm in row_norm:
+            return True
+
+        row_tokens = set(
+            re.findall(
+                r"[a-z0-9]+",
+                row_norm,
+            )
+        )
+
+        fact_tokens = set(
+            re.findall(
+                r"[a-z0-9]+",
+                fact_norm,
+            )
+        )
+
+        return bool(
+            row_tokens
+            & fact_tokens
+        )
+
+    # ========================================================================
+    # FACTS
+    # ========================================================================
+
+    @staticmethod
+    def _fact_values(
+        facts,
+    ):
+
+        if facts is None:
+            return {}
+
+        if isinstance(
+            facts,
+            Mapping,
+        ):
+            return dict(
+                facts
+            )
+
+        if hasattr(
+            facts,
+            "model_dump",
+        ):
+
+            try:
+                return facts.model_dump()
+            except Exception:
+                pass
+
+        if hasattr(
+            facts,
+            "dict",
+        ):
+
+            try:
+                return facts.dict()
+            except Exception:
+                pass
+
+        if hasattr(
+            facts,
+            "__dict__",
+        ):
+            return dict(
+                facts.__dict__
+            )
+
+        return {}
+
+    # ========================================================================
+    # DEDUPLICATION / CONFLICTS
+    # ========================================================================
+
+    @staticmethod
+    def _deduplicate(
+        constraints,
+    ):
+
+        output = []
+        seen = set()
+
+        for constraint in (
+            constraints
+        ):
+
+            key = (
+                constraint.key,
+                repr(
+                    constraint.value
+                ),
+                constraint.unit,
+            )
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+            output.append(
+                constraint
+            )
+
+        return output
+
+    @staticmethod
+    def _find_conflicts(
+        constraints,
+    ):
+
+        grouped = {}
+
+        for constraint in (
+            constraints
+        ):
+
+            grouped.setdefault(
+                constraint.key,
+                [],
+            ).append(
+                constraint.value
+            )
+
+        errors = []
+
+        for key, values in (
+            grouped.items()
+        ):
+
+            unique = {
+                repr(value)
+                for value in values
+            }
+
+            if len(unique) > 1:
+
+                errors.append(
+                    "Multiple PostgreSQL rows "
+                    "matched with conflicting "
+                    f"values for: {key}."
+                )
+
+        return errors

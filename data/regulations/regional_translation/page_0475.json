@@ -1,0 +1,67 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 475,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0475.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\nमहाराष्ट्र शासन\nनगर विकास विभाग\nमोदाम कामा मार्ग, हुतात्मा राजगुरु चौक, मंत्रालय, मुंबई - ४०००३२.\nEmail ID : soudd12-mh@mah.gov.in\nक्रमांक-: टिपीएस-१२२२/१५४४/प्र.क्र.१२८/२२/नवि-१२ दिनांक :-२६ सप्टेंबर,२०२२.\n✓प्रति,\nआयुक्त,\nवसई-विरार शहर महानगरपालिका,\nविरार.\nविषय :- एकत्रिकृत विकास नियंत्रण व प्रोत्साहन नियमावली (UDCPR) मधील विनियम १.९ (v) नुसार स्पष्टीकरण मिळणेबाबत...\nसंदर्भ :- १) आपले शासनास पत्र क्र.व.वि.श.म./नर/शा/५४३/२०२२-२३, दि.२८/६/२०२२ रोजीचे पत्र.\n२) शासन स्पष्टीकरण क्रमांक टिपीएस-१२२२/१५४४/ प्र.क्र.१२८/२२/ नवि-१२, दिनांक २६/९/२०२२.\n३) शासन निदेश क्र.टिपीएस-१२२२/१५४४/प्र.क्र.१२८/२२/नवि-१२, दिनांक २६/९/२०२२.\nमहोदय,\nविषयांकित प्रकरणी संदर्भित पत्र क्र. १ अन्वये आपण वसई-विरार उपनगराच्या मंजूर विकास योजनेमधील मौ.चुळणे येथील स.नं.८६/१ व ८६/२ या जमिनीचे ७/१२ उता-यानुसार एकूण क्षेत्र ५१६०.०० चौ.मी. असून, त्यापैकी ताब्यात नसलेले ३९.६७ चौ.मी. क्षेत्र वजा जाता उर्वरित ५१४०.०० चौ.मी. क्षेत्रापैकी २९९९.६९ चौ.मी. (५८.३६%) क्षेत्र रहिवास वापर विभागामध्ये व २१४०.०० चौ.मी. (४१.६४%) क्षेत्र हरित क्षेत्रामध्ये समाविष्ट असून, एकत्रिकृत विकास नियंत्रण नियमावलीमधील विनियम क्र.२.३(vi) नुसार कार्यवाही करणेस तसेच सदरच्या तरतुदीनुसार विकास परवानगी कामी अधिमूल्य रक्कम कशा प्रकारे वसूल करून घेणेत यावा, याबाबत एकत्रिकृत विकास नियंत्रण नियमावलीमधील विनियम क्र.१.९ (v) नुसार स्पष्टीकरण मिळणेस शासनास विनंती केली आहे. त्या अनुषंगाने आपणांस खालीलप्रमाणे कळविण्याचे मला आदेश आहेत.\n459",
+  "translated_english_text": "UDCPR-2020  \nMaharashtra Government  \nNagar Vikas Department  \nModam Kama Marg, Hutatma Rajguru Chowk, Ministry, Mumbai - 400032.  \nEmail ID : soudd12-mh@mah.gov.in  \nKramank -: TIPPS-1222/1544/Pr.Kr.128/22/Navi-12 Dinank -: 26 September, 2022.  \n✓Pari,  \nAayukt,  \nVasai-Virar City Municipal Corporation,  \nVirar.  \nSubject :- Clarification regarding Regulation 1.9(v) of Unified Development Control and Promotion Regulations (UDCPR)...  \nSandarbh :- 1) Your Government's Letter No. V.Vi.Sh.M./Nar/Sha/543/2022-23, dated 28/6/2022.  \n2) Government's Clarification No. TIPPS-1222/1544/Pr.Kr.128/22/Navi-12, dated 26/9/2022.  \n3) Government's Notice No. TIPPS-1222/1544/Pr.Kr.128/22/Navi-12, dated 26/9/2022.  \nMahoday,  \nRegarding the subject matter, in reference to Letter No. 1, you have received that in the approved development plan of Vasai-Virar suburb, the total area of Mau. Chulane, S.No. 86/1 and 86/2, 7/12 Uta-yanusar is 5160.00 sq.m., of which 39.67 sq.m. area is not under control, and the remaining 5140.00 sq.m. area includes 2999.69 sq.m. (58.36%) area in the residential use department and 2140.00 sq.m. (41.64%) area in the green area, and in accordance with Regulation 2.3(vi) of Unified Development Control and Promotion Regulations, you are requested to clarify to the Government regarding how to collect the additional amount for development permit, and in accordance with Regulation 1.9(v) of Unified Development Control and Promotion Regulations, you are instructed to provide the clarification.  \n459",
+  "validation": {
+    "original_regulation_numbers": [
+      "1.9",
+      "5160.00",
+      "39.67",
+      "5140.00",
+      "2999.69",
+      "58.36",
+      "2140.00",
+      "41.64",
+      "2.3(vi)"
+    ],
+    "translated_regulation_numbers": [
+      "1.9(v)",
+      "5160.00",
+      "39.67",
+      "5140.00",
+      "2999.69",
+      "58.36",
+      "2140.00",
+      "41.64",
+      "2.3(vi)"
+    ],
+    "missing_regulation_numbers": [
+      "1.9"
+    ],
+    "original_dates": [
+      "28/6/2022",
+      "26/9/2022"
+    ],
+    "translated_dates": [
+      "28/6/2022",
+      "26/9/2022"
+    ],
+    "missing_dates": [],
+    "original_emails": [
+      "soudd12-mh@mah.gov.in"
+    ],
+    "translated_emails": [
+      "soudd12-mh@mah.gov.in"
+    ],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [
+      "TIPPS-1222/1544/Pr.Kr.128/22/Navi-12 Dinank -: 26 September",
+      "TIPPS-1222/1544/Pr.Kr.128/22/Navi-12"
+    ],
+    "missing_notification_numbers": [],
+    "passed": false
+  },
+  "statistics": {
+    "source_characters": 1390,
+    "translated_characters": 1526,
+    "elapsed_seconds": 140.06
+  }
+}

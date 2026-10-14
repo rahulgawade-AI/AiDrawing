@@ -1,0 +1,492 @@
+from __future__ import annotations
+
+from collections import OrderedDict
+from typing import Any
+
+from townplanning.infrastructure.database.models.table import Table
+from townplanning.infrastructure.database.models.regulation_model import RegulationModel
+from townplanning.infrastructure.database.session import SessionLocal
+
+from .regulatory_context import (
+    RegulatoryContext,
+    RegulatorySource,
+)
+
+
+class RegulatoryContextRetriever:
+    """
+    Retrieves source evidence for regulatory semantic extraction.
+
+    Responsibilities:
+      1. Semantic retrieval from Chroma.
+      2. Identify relevant regulation numbers.
+      3. Load all tables belonging to those regulations.
+      4. Load the source regulation text.
+      5. Preserve provenance.
+
+    This class does NOT:
+      - calculate FSI
+      - calculate setbacks
+      - determine applicability
+      - calculate parking
+      - interpret regulatory values
+    """
+
+    def __init__(
+        self,
+        collection,
+        embedding_service,
+        db_session_factory=SessionLocal,
+    ):
+        self.collection = collection
+        self.embedding_service = embedding_service
+        self.db_session_factory = db_session_factory
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def retrieve(
+        self,
+        query: str,
+        requested_fields: list[str] | None = None,
+        top_k: int = 20,
+        related_regulation_limit: int = 20,
+    ) -> RegulatoryContext:
+
+        requested_fields = requested_fields or []
+
+        context = RegulatoryContext(
+            query=query,
+            requested_fields=requested_fields,
+        )
+
+        chroma_results = self._query_chroma(
+            query=query,
+            top_k=top_k,
+        )
+
+        regulation_numbers = self._extract_regulation_numbers(
+            chroma_results
+        )
+
+        regulation_numbers = regulation_numbers[
+            :related_regulation_limit
+        ]
+
+        db_sources = self._load_regulation_sources(
+            regulation_numbers
+        )
+
+        # Primary Chroma evidence first.
+        primary_sources = self._convert_chroma_results(
+            chroma_results
+        )
+
+        context.add_sources(primary_sources)
+        context.add_sources(db_sources)
+
+        context.metadata.update(
+            {
+                "chroma_result_count": len(primary_sources),
+                "regulation_count": len(regulation_numbers),
+                "regulation_numbers": regulation_numbers,
+            }
+        )
+
+        return self._deduplicate(context)
+
+    # ------------------------------------------------------------------
+    # Chroma
+    # ------------------------------------------------------------------
+
+    def _query_chroma(
+        self,
+        query: str,
+        top_k: int,
+    ) -> dict[str, Any]:
+
+        embedding = self.embedding_service.embed_query(query)
+
+        return self.collection.query(
+            query_embeddings=[embedding],
+            n_results=top_k,
+            include=[
+                "documents",
+                "metadatas",
+                "distances",
+            ],
+        )
+
+    # ------------------------------------------------------------------
+    # Regulation identification
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _extract_regulation_numbers(
+        chroma_results: dict[str, Any],
+    ) -> list[str]:
+
+        found: OrderedDict[str, None] = OrderedDict()
+
+        metadatas = chroma_results.get("metadatas") or [[]]
+
+        for metadata in metadatas[0]:
+
+            if not isinstance(metadata, dict):
+                continue
+
+            candidates = [
+                metadata.get("regulation_number"),
+                metadata.get("regulationNumber"),
+                metadata.get("regulation"),
+                metadata.get("number"),
+            ]
+
+            for value in candidates:
+
+                if value is None:
+                    continue
+
+                value = str(value).strip()
+
+                if value:
+                    found.setdefault(value, None)
+                    break
+
+        return list(found.keys())
+
+    # ------------------------------------------------------------------
+    # Convert Chroma evidence
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _convert_chroma_results(
+        results: dict[str, Any],
+    ) -> list[RegulatorySource]:
+
+        documents = results.get("documents") or [[]]
+        metadatas = results.get("metadatas") or [[]]
+        distances = results.get("distances") or [[]]
+        ids = results.get("ids") or [[]]
+
+        documents = documents[0]
+        metadatas = metadatas[0]
+        distances = distances[0]
+        ids = ids[0]
+
+        sources: list[RegulatorySource] = []
+
+        for index, document in enumerate(documents):
+
+            metadata = (
+                metadatas[index]
+                if index < len(metadatas)
+                else {}
+            )
+
+            distance = (
+                distances[index]
+                if index < len(distances)
+                else None
+            )
+
+            source_id = (
+                str(ids[index])
+                if index < len(ids)
+                else f"chroma:{index}"
+            )
+
+            regulation_number = None
+
+            if isinstance(metadata, dict):
+                regulation_number = (
+                    metadata.get("regulation_number")
+                    or metadata.get("regulationNumber")
+                    or metadata.get("regulation")
+                    or metadata.get("number")
+                )
+
+            sources.append(
+                RegulatorySource(
+                    source_id=source_id,
+                    text=str(document or ""),
+                    regulation_number=(
+                        str(regulation_number)
+                        if regulation_number is not None
+                        else None
+                    ),
+                    page=(
+                        metadata.get("page")
+                        if isinstance(metadata, dict)
+                        else None
+                    ),
+                    source_type="chroma",
+                    metadata={
+                        **(
+                            metadata
+                            if isinstance(metadata, dict)
+                            else {}
+                        ),
+                        "chroma_distance": distance,
+                    },
+                )
+            )
+
+        return sources
+
+    # ------------------------------------------------------------------
+    # PostgreSQL source context
+    # ------------------------------------------------------------------
+
+    def _load_regulation_sources(
+        self,
+        regulation_numbers: list[str],
+    ) -> list[RegulatorySource]:
+
+        if not regulation_numbers:
+            return []
+
+        db = self.db_session_factory()
+
+        try:
+            regulations = (
+                db.query(RegulationModel)
+                .filter(
+                    RegulationModel.number.in_(
+                        regulation_numbers
+                    )
+                )
+                .all()
+            )
+
+            sources: list[RegulatorySource] = []
+
+            for regulation in regulations:
+
+                # --------------------------------------------------
+                # Regulation source text
+                # --------------------------------------------------
+
+                regulation_text = self._get_regulation_text(
+                    regulation
+                )
+
+                if regulation_text:
+
+                    sources.append(
+                        RegulatorySource(
+                            source_id=(
+                                f"regulation:{regulation.id}"
+                            ),
+                            text=regulation_text,
+                            regulation_number=(
+                                regulation.number
+                            ),
+                            page=(
+                                regulation.page_start
+                            ),
+                            source_type="postgres_regulation",
+                            metadata={
+                                "regulation_id": (
+                                    str(regulation.id)
+                                ),
+                                "title": (
+                                    regulation.title
+                                ),
+                            },
+                        )
+                    )
+
+                # --------------------------------------------------
+                # ALL related tables
+                # --------------------------------------------------
+
+                tables = (
+                    db.query(Table)
+                    .filter(
+                        Table.regulation_id
+                        == regulation.id
+                    )
+                    .order_by(
+                        Table.page_number,
+                        Table.table_index,
+                    )
+                    .all()
+                )
+
+                for table in tables:
+
+                    table_text = self._table_to_text(
+                        table
+                    )
+
+                    if not table_text:
+                        continue
+
+                    sources.append(
+                        RegulatorySource(
+                            source_id=(
+                                f"table:{table.id}"
+                            ),
+                            text=table_text,
+                            regulation_number=(
+                                regulation.number
+                            ),
+                            page=(
+                                table.page_number
+                            ),
+                            source_type="postgres_table",
+                            table_id=str(table.id),
+                            table_number=(
+                                self._detect_table_number(
+                                    table
+                                )
+                            ),
+                            table_title=(
+                                table.title
+                            ),
+                            metadata={
+                                "regulation_id": (
+                                    str(regulation.id)
+                                ),
+                                "table_index": (
+                                    table.table_index
+                                ),
+                            },
+                        )
+                    )
+
+            return sources
+
+        finally:
+            db.close()
+
+    # ------------------------------------------------------------------
+    # Text helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _get_regulation_text(
+        regulation,
+    ) -> str:
+
+        candidates = [
+            getattr(regulation, "text", None),
+            getattr(regulation, "description", None),
+            getattr(regulation, "content", None),
+            getattr(regulation, "source_text", None),
+        ]
+
+        for value in candidates:
+
+            if value and str(value).strip():
+                return str(value).strip()
+
+        return ""
+
+    @staticmethod
+    def _table_to_text(table) -> str:
+
+        parts: list[str] = []
+
+        if table.title:
+            parts.append(
+                f"TABLE TITLE: {table.title}"
+            )
+
+        if table.headers:
+            parts.append(
+                "HEADERS:\n"
+                + "\n".join(
+                    f"{i}: {value}"
+                    for i, value in enumerate(
+                        table.headers
+                    )
+                )
+            )
+
+        if table.rows:
+            parts.append("ROWS:")
+
+            for row_index, row in enumerate(
+                table.rows
+            ):
+                parts.append(
+                    f"ROW {row_index}: "
+                    + " | ".join(
+                        str(value)
+                        for value in row
+                    )
+                )
+
+        if table.markdown:
+            parts.append(
+                "MARKDOWN:\n"
+                + table.markdown
+            )
+
+        return "\n\n".join(parts).strip()
+
+    @staticmethod
+    def _detect_table_number(table) -> str | None:
+
+        text = " ".join(
+            [
+                str(table.title or ""),
+                str(table.markdown or ""),
+            ]
+        )
+
+        import re
+
+        patterns = [
+            r"\bTable\s+(?:No\.)?\s*([0-9]+(?:[-.][A-Za-z0-9]+)*)",
+            r"\bTable\s+([0-9]+(?:[-.][A-Za-z0-9]+)*)",
+        ]
+
+        for pattern in patterns:
+
+            match = re.search(
+                pattern,
+                text,
+                flags=re.IGNORECASE,
+            )
+
+            if match:
+                return match.group(1)
+
+        return None
+
+    # ------------------------------------------------------------------
+    # Deduplication
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _deduplicate(
+        context: RegulatoryContext,
+    ) -> RegulatoryContext:
+
+        seen: set[str] = set()
+        unique: list[RegulatorySource] = []
+
+        for source in context.sources:
+
+            key = (
+                source.source_id
+                or (
+                    source.regulation_number,
+                    source.page,
+                    source.text[:500],
+                ).__str__()
+            )
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+            unique.append(source)
+
+        context.sources = unique
+
+        return context

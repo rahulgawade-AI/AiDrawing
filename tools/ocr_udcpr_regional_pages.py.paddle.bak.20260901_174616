@@ -1,0 +1,1196 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import argparse
+import json
+import re
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+import fitz  # PyMuPDF
+
+try:
+    from paddleocr import PaddleOCR
+except ImportError:
+    print(
+        "ERROR: PaddleOCR is not installed.\n"
+        "Install with:\n"
+        "  pip install paddleocr paddlepaddle pymupdf"
+    )
+    sys.exit(1)
+
+
+# ============================================================
+# DEFAULT CONFIGURATION
+# ============================================================
+
+DEFAULT_PDF = Path(
+    "data/regulations/UDCPR.pdf"
+)
+
+DEFAULT_OUTPUT = Path(
+    "data/regulations/regional_ocr"
+)
+
+DEFAULT_REPORT = Path(
+    "/tmp/udcpr_regional_ocr_report.json"
+)
+
+DEFAULT_START_PAGE = 441
+DEFAULT_END_PAGE = 511
+
+
+# ============================================================
+# HELPERS
+# ============================================================
+
+def normalize_space(value: str) -> str:
+    if not value:
+        return ""
+
+    return re.sub(
+        r"[ \t]+",
+        " ",
+        value,
+    ).strip()
+
+
+def is_devanagari(value: str) -> bool:
+    """
+    Return True when text contains Devanagari characters.
+
+    Marathi is primarily written using Devanagari.
+    """
+
+    return bool(
+        re.search(
+            r"[\u0900-\u097F]",
+            value or "",
+        )
+    )
+
+
+def is_likely_english(value: str) -> bool:
+    """
+    Detect whether a line contains meaningful Latin/English text.
+    """
+
+    if not value:
+        return False
+
+    latin = len(
+        re.findall(
+            r"[A-Za-z]",
+            value,
+        )
+    )
+
+    devanagari = len(
+        re.findall(
+            r"[\u0900-\u097F]",
+            value,
+        )
+    )
+
+    return latin > 0 and latin >= devanagari
+
+
+def classify_text(value: str) -> str:
+
+    if not value:
+        return "unknown"
+
+    has_devanagari = is_devanagari(value)
+    has_english = is_likely_english(value)
+
+    if has_devanagari and has_english:
+        return "mixed"
+
+    if has_devanagari:
+        return "regional"
+
+    if has_english:
+        return "english"
+
+    return "other"
+
+
+def safe_filename(page_number: int) -> str:
+    return f"page_{page_number:04d}"
+
+
+# ============================================================
+# OCR INITIALIZATION
+# ============================================================
+
+def create_ocr():
+
+    print()
+    print("=" * 110)
+    print("INITIALIZING PADDLEOCR")
+    print("=" * 110)
+
+    print("Language        : Devanagari / Marathi capable OCR")
+    print("OCR engine      : PaddleOCR")
+    print("Text detection  : enabled")
+    print("Text recognition: enabled")
+
+    # --------------------------------------------------------
+    # PaddleOCR API compatibility.
+    #
+    # Recent PaddleOCR versions accept lang="dev".
+    # Older installations may require a different language
+    # configuration.
+    # --------------------------------------------------------
+
+    try:
+
+        ocr = PaddleOCR(
+            lang="dev",
+            use_doc_orientation_classify=False,
+            use_doc_unwarping=False,
+            use_textline_orientation=True,
+        )
+
+        print("Language mode   : dev")
+        return ocr
+
+    except TypeError:
+
+        print(
+            "WARNING: Older PaddleOCR API detected."
+        )
+
+        try:
+
+            ocr = PaddleOCR(
+                lang="dev",
+            )
+
+            print("Language mode   : dev")
+            return ocr
+
+        except Exception as exc:
+
+            raise RuntimeError(
+                "Unable to initialize PaddleOCR: "
+                + str(exc)
+            )
+
+
+# ============================================================
+# PDF PAGE RENDERING
+# ============================================================
+
+def render_page(
+    document,
+    physical_page: int,
+    dpi: int,
+):
+    """
+    Render one physical PDF page to PNG.
+
+    physical_page is 1-based.
+    """
+
+    index = physical_page - 1
+
+    if index < 0 or index >= len(document):
+        raise RuntimeError(
+            f"PDF page {physical_page} is outside document."
+        )
+
+    page = document.load_page(index)
+
+    zoom = dpi / 72.0
+
+    matrix = fitz.Matrix(
+        zoom,
+        zoom,
+    )
+
+    pixmap = page.get_pixmap(
+        matrix=matrix,
+        alpha=False,
+    )
+
+    return pixmap
+
+
+# ============================================================
+# PADDLE OCR RESULT NORMALIZATION
+# ============================================================
+
+def extract_ocr_lines(
+    ocr_result: Any,
+) -> list[dict]:
+
+    """
+    Normalize PaddleOCR output into:
+
+        {
+            text,
+            confidence,
+            bbox,
+            language
+        }
+
+    Supports the modern PaddleOCR result structure.
+    """
+
+    lines = []
+
+    if ocr_result is None:
+        return lines
+
+    # --------------------------------------------------------
+    # PaddleOCR 3.x Result object
+    # --------------------------------------------------------
+
+    results = ocr_result
+
+    if not isinstance(
+        results,
+        (list, tuple),
+    ):
+        results = [results]
+
+    for result in results:
+
+        # Modern result object behaves like a dict.
+        try:
+            data = result.json
+        except Exception:
+            data = None
+
+        if callable(data):
+            try:
+                data = data()
+            except Exception:
+                data = None
+
+        if isinstance(data, str):
+
+            try:
+                data = json.loads(data)
+            except Exception:
+                data = None
+
+        if isinstance(data, dict):
+
+            # Usually:
+            #
+            # data["res"]["rec_texts"]
+            # data["res"]["rec_scores"]
+            # data["res"]["rec_boxes"]
+
+            payload = data.get(
+                "res",
+                data,
+            )
+
+            texts = payload.get(
+                "rec_texts",
+                [],
+            )
+
+            scores = payload.get(
+                "rec_scores",
+                [],
+            )
+
+            boxes = payload.get(
+                "rec_boxes",
+                [],
+            )
+
+            for i, text_value in enumerate(
+                texts
+            ):
+
+                text_value = str(
+                    text_value or ""
+                ).strip()
+
+                if not text_value:
+                    continue
+
+                confidence = None
+
+                if i < len(scores):
+                    try:
+                        confidence = float(
+                            scores[i]
+                        )
+                    except (
+                        TypeError,
+                        ValueError,
+                    ):
+                        confidence = None
+
+                bbox = None
+
+                if i < len(boxes):
+
+                    try:
+                        bbox = boxes[i].tolist()
+
+                    except AttributeError:
+
+                        try:
+                            bbox = list(
+                                boxes[i]
+                            )
+                        except Exception:
+                            bbox = None
+
+                lines.append(
+                    {
+                        "text": text_value,
+                        "confidence": confidence,
+                        "bbox": bbox,
+                        "language": classify_text(
+                            text_value
+                        ),
+                    }
+                )
+
+            if lines:
+                return lines
+
+        # ----------------------------------------------------
+        # Older PaddleOCR style.
+        #
+        # [[box, (text, confidence)], ...]
+        # ----------------------------------------------------
+
+        try:
+
+            raw = result
+
+            if isinstance(
+                raw,
+                list,
+            ):
+
+                for item in raw:
+
+                    if not isinstance(
+                        item,
+                        (list, tuple),
+                    ):
+                        continue
+
+                    if len(item) < 2:
+                        continue
+
+                    bbox = item[0]
+                    recognition = item[1]
+
+                    if not isinstance(
+                        recognition,
+                        (list, tuple),
+                    ):
+                        continue
+
+                    if len(recognition) < 1:
+                        continue
+
+                    text_value = str(
+                        recognition[0] or ""
+                    ).strip()
+
+                    if not text_value:
+                        continue
+
+                    confidence = None
+
+                    if len(recognition) > 1:
+
+                        try:
+                            confidence = float(
+                                recognition[1]
+                            )
+                        except (
+                            TypeError,
+                            ValueError,
+                        ):
+                            pass
+
+                    lines.append(
+                        {
+                            "text": text_value,
+                            "confidence": confidence,
+                            "bbox": bbox,
+                            "language": classify_text(
+                                text_value
+                            ),
+                        }
+                    )
+
+        except Exception:
+            pass
+
+    return lines
+
+
+# ============================================================
+# OCR ONE PAGE
+# ============================================================
+
+def ocr_page(
+    ocr,
+    image_path: Path,
+) -> list[dict]:
+
+    try:
+
+        result = ocr.predict(
+            str(image_path)
+        )
+
+        return extract_ocr_lines(
+            result
+        )
+
+    except AttributeError:
+
+        # Older PaddleOCR API
+        result = ocr.ocr(
+            str(image_path),
+            cls=True,
+        )
+
+        return extract_ocr_lines(
+            result
+        )
+
+
+# ============================================================
+# BUILD PAGE TEXT
+# ============================================================
+
+def build_page_text(
+    lines: list[dict],
+) -> str:
+
+    values = []
+
+    for line in lines:
+
+        text_value = str(
+            line.get("text") or ""
+        ).strip()
+
+        if text_value:
+            values.append(
+                text_value
+            )
+
+    return "\n".join(
+        values
+    )
+
+
+# ============================================================
+# PAGE STATISTICS
+# ============================================================
+
+def page_statistics(
+    lines: list[dict],
+):
+
+    regional = 0
+    english = 0
+    mixed = 0
+    other = 0
+
+    confidence_values = []
+
+    for line in lines:
+
+        language = line.get(
+            "language"
+        )
+
+        if language == "regional":
+            regional += 1
+
+        elif language == "english":
+            english += 1
+
+        elif language == "mixed":
+            mixed += 1
+
+        else:
+            other += 1
+
+        confidence = line.get(
+            "confidence"
+        )
+
+        if confidence is not None:
+
+            try:
+                confidence_values.append(
+                    float(confidence)
+                )
+            except (
+                TypeError,
+                ValueError,
+            ):
+                pass
+
+    average_confidence = None
+
+    if confidence_values:
+
+        average_confidence = (
+            sum(confidence_values)
+            / len(confidence_values)
+        )
+
+    return {
+        "line_count": len(lines),
+        "regional_lines": regional,
+        "english_lines": english,
+        "mixed_lines": mixed,
+        "other_lines": other,
+        "average_confidence":
+            average_confidence,
+    }
+
+
+# ============================================================
+# PROCESS PAGE
+# ============================================================
+
+def process_page(
+    document,
+    ocr,
+    physical_page: int,
+    output_dir: Path,
+    dpi: int,
+):
+
+    page_name = safe_filename(
+        physical_page
+    )
+
+    image_path = (
+        output_dir
+        / f"{page_name}.png"
+    )
+
+    json_path = (
+        output_dir
+        / f"{page_name}.json"
+    )
+
+    text_path = (
+        output_dir
+        / f"{page_name}.txt"
+    )
+
+    print()
+    print(
+        "-" * 110
+    )
+
+    print(
+        f"PDF PAGE {physical_page}"
+    )
+
+    # --------------------------------------------------------
+    # Render
+    # --------------------------------------------------------
+
+    pixmap = render_page(
+        document,
+        physical_page,
+        dpi,
+    )
+
+    pixmap.save(
+        str(image_path)
+    )
+
+    print(
+        f"Rendered       : {image_path}"
+    )
+
+    # --------------------------------------------------------
+    # OCR
+    # --------------------------------------------------------
+
+    lines = ocr_page(
+        ocr,
+        image_path,
+    )
+
+    text = build_page_text(
+        lines
+    )
+
+    statistics = page_statistics(
+        lines
+    )
+
+    # --------------------------------------------------------
+    # Preserve everything.
+    # --------------------------------------------------------
+
+    page_record = {
+        "schema": "udcpr-regional-ocr-v1",
+
+        "created_at":
+            datetime.now().isoformat(),
+
+        "source": {
+            "pdf": "UDCPR.pdf",
+            "physical_pdf_page":
+                physical_page,
+        },
+
+        "ocr": {
+            "engine": "PaddleOCR",
+            "language": "dev",
+            "dpi": dpi,
+        },
+
+        "statistics":
+            statistics,
+
+        "text":
+            text,
+
+        "lines":
+            lines,
+    }
+
+    with json_path.open(
+        "w",
+        encoding="utf-8",
+    ) as f:
+
+        json.dump(
+            page_record,
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    with text_path.open(
+        "w",
+        encoding="utf-8",
+    ) as f:
+
+        f.write(
+            text
+        )
+
+    print(
+        f"OCR lines      : "
+        f"{statistics['line_count']}"
+    )
+
+    print(
+        f"Regional lines : "
+        f"{statistics['regional_lines']}"
+    )
+
+    print(
+        f"English lines  : "
+        f"{statistics['english_lines']}"
+    )
+
+    print(
+        f"Mixed lines    : "
+        f"{statistics['mixed_lines']}"
+    )
+
+    if statistics[
+        "average_confidence"
+    ] is not None:
+
+        print(
+            "Avg confidence : "
+            f"{statistics['average_confidence']:.4f}"
+        )
+
+    print(
+        f"JSON           : {json_path}"
+    )
+
+    print(
+        f"TXT            : {text_path}"
+    )
+
+    return {
+        "page": physical_page,
+        "image": str(
+            image_path
+        ),
+        "json": str(
+            json_path
+        ),
+        "text": str(
+            text_path
+        ),
+        "statistics":
+            statistics,
+    }
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "OCR UDCPR regional-language "
+            "pages without modifying the database."
+        )
+    )
+
+    parser.add_argument(
+        "--pdf",
+        default=str(
+            DEFAULT_PDF
+        ),
+    )
+
+    parser.add_argument(
+        "--output",
+        default=str(
+            DEFAULT_OUTPUT
+        ),
+    )
+
+    parser.add_argument(
+        "--report",
+        default=str(
+            DEFAULT_REPORT
+        ),
+    )
+
+    parser.add_argument(
+        "--start-page",
+        type=int,
+        default=DEFAULT_START_PAGE,
+    )
+
+    parser.add_argument(
+        "--end-page",
+        type=int,
+        default=DEFAULT_END_PAGE,
+    )
+
+    parser.add_argument(
+        "--dpi",
+        type=int,
+        default=200,
+    )
+
+    args = parser.parse_args()
+
+    pdf_path = Path(
+        args.pdf
+    )
+
+    output_dir = Path(
+        args.output
+    )
+
+    report_path = Path(
+        args.report
+    )
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    if not pdf_path.exists():
+
+        raise RuntimeError(
+            f"PDF not found: {pdf_path}"
+        )
+
+    if args.start_page < 1:
+        raise RuntimeError(
+            "start-page must be >= 1"
+        )
+
+    if args.end_page < args.start_page:
+
+        raise RuntimeError(
+            "end-page must be >= start-page"
+        )
+
+    output_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    # --------------------------------------------------------
+    # Header
+    # --------------------------------------------------------
+
+    print("=" * 110)
+    print(
+        "UDCPR REGIONAL PAGE OCR"
+    )
+    print("=" * 110)
+
+    print()
+    print(
+        "IMPORTANT:"
+    )
+
+    print(
+        "This script ONLY performs OCR."
+    )
+
+    print(
+        "It does NOT modify PostgreSQL."
+    )
+
+    print(
+        "It does NOT modify ChromaDB."
+    )
+
+    print(
+        "It does NOT translate text."
+    )
+
+    print(
+        "It does NOT summarize text."
+    )
+
+    print(
+        "It preserves original OCR output."
+    )
+
+    print()
+    print(
+        f"PDF          : {pdf_path}"
+    )
+
+    print(
+        f"Pages        : "
+        f"{args.start_page} -> "
+        f"{args.end_page}"
+    )
+
+    print(
+        f"DPI          : {args.dpi}"
+    )
+
+    print(
+        f"Output       : {output_dir}"
+    )
+
+    print(
+        f"Report       : {report_path}"
+    )
+
+    # --------------------------------------------------------
+    # Open PDF
+    # --------------------------------------------------------
+
+    document = fitz.open(
+        str(pdf_path)
+    )
+
+    pdf_page_count = len(
+        document
+    )
+
+    print()
+    print("=" * 110)
+    print(
+        "PDF"
+    )
+    print("=" * 110)
+
+    print(
+        f"PDF pages    : "
+        f"{pdf_page_count}"
+    )
+
+    if args.end_page > pdf_page_count:
+
+        raise RuntimeError(
+            f"Requested page "
+            f"{args.end_page}, but PDF "
+            f"contains only "
+            f"{pdf_page_count} pages."
+        )
+
+    # --------------------------------------------------------
+    # OCR
+    # --------------------------------------------------------
+
+    ocr = create_ocr()
+
+    results = []
+    failures = []
+
+    print()
+    print("=" * 110)
+    print(
+        "PROCESSING REGIONAL PAGES"
+    )
+    print("=" * 110)
+
+    for physical_page in range(
+        args.start_page,
+        args.end_page + 1,
+    ):
+
+        try:
+
+            result = process_page(
+                document,
+                ocr,
+                physical_page,
+                output_dir,
+                args.dpi,
+            )
+
+            results.append(
+                result
+            )
+
+        except Exception as exc:
+
+            print()
+            print(
+                f"ERROR PAGE "
+                f"{physical_page}: "
+                f"{exc}"
+            )
+
+            failures.append(
+                {
+                    "page":
+                        physical_page,
+                    "error":
+                        str(exc),
+                }
+            )
+
+    document.close()
+
+    # --------------------------------------------------------
+    # Summary
+    # --------------------------------------------------------
+
+    regional_pages = 0
+    english_pages = 0
+    empty_pages = 0
+
+    total_lines = 0
+
+    for result in results:
+
+        stats = result[
+            "statistics"
+        ]
+
+        total_lines += stats[
+            "line_count"
+        ]
+
+        if stats[
+            "regional_lines"
+        ] > 0:
+
+            regional_pages += 1
+
+        if stats[
+            "english_lines"
+        ] > 0:
+
+            english_pages += 1
+
+        if stats[
+            "line_count"
+        ] == 0:
+
+            empty_pages += 1
+
+    report = {
+        "schema":
+            "udcpr-regional-ocr-report-v1",
+
+        "created_at":
+            datetime.now().isoformat(),
+
+        "source": {
+            "pdf":
+                str(pdf_path),
+            "pdf_page_count":
+                pdf_page_count,
+            "start_page":
+                args.start_page,
+            "end_page":
+                args.end_page,
+        },
+
+        "ocr": {
+            "engine":
+                "PaddleOCR",
+            "dpi":
+                args.dpi,
+        },
+
+        "output":
+            str(output_dir),
+
+        "summary": {
+            "requested_pages":
+                args.end_page
+                - args.start_page
+                + 1,
+
+            "processed_pages":
+                len(results),
+
+            "failed_pages":
+                len(failures),
+
+            "pages_with_regional_text":
+                regional_pages,
+
+            "pages_with_english_text":
+                english_pages,
+
+            "empty_pages":
+                empty_pages,
+
+            "total_ocr_lines":
+                total_lines,
+        },
+
+        "pages":
+            results,
+
+        "failures":
+            failures,
+
+        "database_changes":
+            False,
+
+        "chroma_changes":
+            False,
+
+        "translation_performed":
+            False,
+
+        "summary_performed":
+            False,
+    }
+
+    with report_path.open(
+        "w",
+        encoding="utf-8",
+    ) as f:
+
+        json.dump(
+            report,
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    # --------------------------------------------------------
+    # Final result
+    # --------------------------------------------------------
+
+    print()
+    print("=" * 110)
+    print(
+        "OCR SUMMARY"
+    )
+    print("=" * 110)
+
+    print(
+        f"Requested pages          : "
+        f"{report['summary']['requested_pages']}"
+    )
+
+    print(
+        f"Processed pages          : "
+        f"{report['summary']['processed_pages']}"
+    )
+
+    print(
+        f"Failed pages             : "
+        f"{report['summary']['failed_pages']}"
+    )
+
+    print(
+        f"Pages with regional text : "
+        f"{regional_pages}"
+    )
+
+    print(
+        f"Pages with English text  : "
+        f"{english_pages}"
+    )
+
+    print(
+        f"Empty OCR pages          : "
+        f"{empty_pages}"
+    )
+
+    print(
+        f"Total OCR lines          : "
+        f"{total_lines}"
+    )
+
+    print()
+    print(
+        f"Report: {report_path}"
+    )
+
+    if failures:
+
+        print()
+        print(
+            "WARNING: Some pages failed OCR."
+        )
+
+        sys.exit(2)
+
+    print()
+    print(
+        "PASS: Regional pages OCR completed."
+    )
+
+    print()
+    print(
+        "NO PostgreSQL changes were made."
+    )
+
+    print(
+        "NO ChromaDB changes were made."
+    )
+
+    print(
+        "NO translation was performed."
+    )
+
+    print(
+        "NO summarization was performed."
+    )
+
+
+if __name__ == "__main__":
+    main()

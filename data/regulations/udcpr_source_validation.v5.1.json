@@ -1,0 +1,72 @@
+{
+  "source_document": {
+    "filename": "UDCPR.pdf",
+    "path": "/home/ubuntu/llmproject/ai-town-planning/data/regulations/UDCPR.pdf",
+    "pdf_pages": 511
+  },
+  "manifest": {
+    "path": "/home/ubuntu/llmproject/ai-town-planning/data/regulations/udcpr_canonical_manifest.json",
+    "entries": 329
+  },
+  "pagination": {
+    "printed_pages_detected": 495,
+    "sample": {
+      "1": 17,
+      "2": 18,
+      "3": 19,
+      "4": 20,
+      "5": 21,
+      "6": 22,
+      "7": 23,
+      "8": 24,
+      "9": 25,
+      "10": 26,
+      "11": 27,
+      "12": 28,
+      "13": 29,
+      "14": 30,
+      "15": 31,
+      "16": 32,
+      "17": 33,
+      "18": 34,
+      "19": 35,
+      "20": 36
+    }
+  },
+  "statistics": {
+    "manifest_entries": 329,
+    "chunks": 329,
+    "pdf_headings_found": 327,
+    "index_fallback_anchors": 2,
+    "headings_found": 329,
+    "headings_missing": 0,
+    "empty_text": 0,
+    "multi_page": 147,
+    "chunks_with_tables": 292,
+    "tables_detected": 1087
+  },
+  "validation": {
+    "valid": true,
+    "error_count": 0,
+    "warning_count": 2,
+    "errors": [],
+    "warnings": [
+      "2.2.5(a)@25#25: PDF heading not detected; INDEX fallback used",
+      "2.2.5(b)@25#26: PDF heading not detected; INDEX fallback used"
+    ]
+  },
+  "fallback_headings": [
+    {
+      "number": "2.2.5(a)",
+      "title": "Sub-division Layout Plan",
+      "printed_page": 25,
+      "pdf_page": 41
+    },
+    {
+      "number": "2.2.5(b)",
+      "title": "Amalgamation Plan",
+      "printed_page": 25,
+      "pdf_page": 41
+    }
+  ]
+}

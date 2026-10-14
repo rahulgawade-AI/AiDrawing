@@ -1,0 +1,1847 @@
+from __future__ import annotations
+
+"""
+Ollama-based UDCPR constraint discovery.
+
+Purpose
+-------
+This module discovers the COMPLETE SET of planning constraints that may be
+required to generate a building plan.
+
+The deterministic planning engine remains responsible for calculating and
+validating regulatory values.
+
+Ollama is used here for:
+
+    User/site facts
+          +
+    PostgreSQL UDCPR rules
+          +
+    PostgreSQL persisted UDCPR tables
+          +
+    regulatory context
+          |
+          v
+       Ollama
+          |
+          v
+    Constraint discovery
+          |
+          v
+ConstraintDiscoveryResult
+
+Important
+---------
+This module does NOT replace the deterministic UDCPR rule engine.
+
+Ollama discovers WHAT needs to be checked.
+
+The deterministic engine calculates WHAT the permitted value is.
+"""
+
+from dataclasses import dataclass, field
+from typing import Any
+import json
+import re
+
+
+# ---------------------------------------------------------------------------
+# RESULT OBJECT
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class ConstraintDiscoveryResult:
+    """
+    Stable result object consumed by tests and future planning services.
+    """
+
+    status: str
+    model: str
+
+    constraints: list[dict[str, Any]] = field(
+        default_factory=list
+    )
+
+    unresolved: list[dict[str, Any]] = field(
+        default_factory=list
+    )
+
+    facts: dict[str, Any] = field(
+        default_factory=dict
+    )
+
+    rule_count: int = 0
+    table_count: int = 0
+
+    error: str | None = None
+
+    @property
+    def constraint_count(self) -> int:
+        return len(self.constraints)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "status": self.status,
+            "model": self.model,
+            "constraint_count": self.constraint_count,
+            "constraints": self.constraints,
+            "unresolved": self.unresolved,
+            "facts": self.facts,
+            "rule_count": self.rule_count,
+            "table_count": self.table_count,
+            "error": self.error,
+        }
+
+
+# ---------------------------------------------------------------------------
+# SERVICE
+# ---------------------------------------------------------------------------
+
+
+class ConstraintDiscovery:
+    """
+    Uses Ollama to discover planning constraints from:
+
+    1. user/site facts
+    2. database UDCPR rules
+    3. persisted UDCPR tables
+
+    The service is intentionally independent from the deterministic
+    ConstraintCalculator.
+    """
+
+    def __init__(
+        self,
+        ollama=None,
+        rule_resolver=None,
+        table_repository=None,
+        model: str = "qwen3:8b",
+        max_rules: int = 150,
+        max_tables: int = 100,
+    ):
+        self.ollama = ollama
+        self.rule_resolver = rule_resolver
+        self.table_repository = table_repository
+
+        self.model = model
+        self.max_rules = max_rules
+        self.max_tables = max_tables
+
+        if self.ollama is None:
+            from townplanning.modules.planning.llm.ollama_client import (
+                OllamaClient,
+            )
+
+            self.ollama = OllamaClient(
+                model=model,
+                timeout=600,
+            )
+
+    # ------------------------------------------------------------------
+    # PUBLIC API
+    # ------------------------------------------------------------------
+
+    def discover(
+        self,
+        facts: Any,
+        rules: list[Any] | None = None,
+        max_rules: int | None = None,
+        max_tables: int | None = None,
+    ) -> ConstraintDiscoveryResult:
+
+        try:
+
+            fact_values = self._facts_to_dict(
+                facts
+            )
+
+            # ----------------------------------------------------------
+            # LOAD RULES
+            # ----------------------------------------------------------
+
+            if rules is None:
+
+                rules = self._load_rules(
+                    facts=facts,
+                    max_rules=(
+                        max_rules
+                        if max_rules is not None
+                        else self.max_rules
+                    ),
+                )
+
+            # ----------------------------------------------------------
+            # LOAD TABLES
+            # ----------------------------------------------------------
+
+            tables = self._load_relevant_tables(
+                facts=facts,
+                max_tables=(
+                    max_tables
+                    if max_tables is not None
+                    else self.max_tables
+                ),
+                rules=rules,
+            )
+
+            # ----------------------------------------------------------
+            # BUILD PROMPT
+            # ----------------------------------------------------------
+
+            prompt = self._build_prompt(
+                facts=fact_values,
+                rules=rules,
+                tables=tables,
+            )
+
+            # ----------------------------------------------------------
+            # OLLAMA
+            # ----------------------------------------------------------
+
+            raw = self.ollama.generate(
+                prompt
+            )
+            print("\n" + "=" * 100)
+            print("RAW OLLAMA RESPONSE")
+            print("=" * 100)
+            print(raw)
+            print("=" * 100)
+
+            parsed = self._parse_json(
+                raw
+            )
+
+            # --------------------------------------------------------------
+            # RETRY WITH SMALL PROMPT
+            # --------------------------------------------------------------
+
+            if parsed is None:
+            
+                retry_prompt = self._build_retry_prompt(
+                    facts=fact_values,
+                    rules=rules,
+                    tables=tables,
+                )
+
+                retry_raw = self.ollama.generate(
+                    retry_prompt
+                )
+
+                parsed = self._parse_json(
+                    retry_raw
+                )
+
+            # --------------------------------------------------------------
+            # Still invalid
+            # --------------------------------------------------------------
+
+            if parsed is None:
+            
+                return ConstraintDiscoveryResult(
+                    status="error",
+                    model=self.model,
+                    constraints=[],
+                    unresolved=[
+                        {
+                            "reason":
+                                "Ollama returned non-JSON output "
+                                "after two attempts"
+                        }
+                    ],
+                    facts=fact_values,
+                    rule_count=len(rules),
+                    table_count=len(tables),
+                    error=(
+                        "Ollama returned non-JSON output "
+                        "after two attempts"
+                    ),
+                )
+
+            normalized = self._normalize_result(
+                parsed=parsed,
+                facts=fact_values,
+                rules=rules,
+                tables=tables,
+            )
+
+            return ConstraintDiscoveryResult(
+                status=normalized["status"],
+                model=normalized["model"],
+                constraints=normalized[
+                    "constraints"
+                ],
+                unresolved=normalized[
+                    "unresolved"
+                ],
+                facts=normalized["facts"],
+                rule_count=normalized[
+                    "rule_count"
+                ],
+                table_count=normalized[
+                    "table_count"
+                ],
+                error=normalized.get(
+                    "error"
+                ),
+            )
+
+        except Exception as exc:
+
+            return ConstraintDiscoveryResult(
+                status="error",
+                model=self.model,
+                constraints=[],
+                unresolved=[
+                    {
+                        "reason": str(exc)
+                    }
+                ],
+                facts=self._facts_to_dict(
+                    facts
+                ),
+                error=str(exc),
+            )
+
+    # ------------------------------------------------------------------
+    # FACTS
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _facts_to_dict(
+        facts: Any,
+    ) -> dict[str, Any]:
+
+        if facts is None:
+            return {}
+
+        if isinstance(
+            facts,
+            dict,
+        ):
+            return dict(facts)
+
+        if hasattr(
+            facts,
+            "to_dict",
+        ):
+            try:
+                return dict(
+                    facts.to_dict()
+                )
+            except Exception:
+                pass
+
+        if hasattr(
+            facts,
+            "__dict__",
+        ):
+            return {
+                key: value
+                for key, value
+                in vars(facts).items()
+                if not key.startswith("_")
+            }
+
+        try:
+            return dict(facts)
+        except Exception:
+            return {
+                "value": str(facts)
+            }
+
+    # ------------------------------------------------------------------
+    # RULE LOADING
+    # ------------------------------------------------------------------
+
+    def _load_rules(
+        self,
+        facts: Any,
+        max_rules: int,
+    ) -> list[Any]:
+
+        if self.rule_resolver is None:
+            return []
+
+        try:
+
+            if hasattr(
+                self.rule_resolver,
+                "resolve_building_rules",
+            ):
+
+                rules = (
+                    self.rule_resolver
+                    .resolve_building_rules(
+                        facts
+                    )
+                )
+
+            elif hasattr(
+                self.rule_resolver,
+                "resolve",
+            ):
+
+                rules = (
+                    self.rule_resolver
+                    .resolve(facts)
+                )
+
+            else:
+                return []
+
+            return list(
+                rules or []
+            )[:max_rules]
+
+        except Exception:
+            return []
+
+    # ------------------------------------------------------------------
+    # TABLE LOADING
+    # ------------------------------------------------------------------
+
+    def _load_relevant_tables(
+        self,
+        facts: Any,
+        max_tables: int,
+        rules: list[Any] | None = None,
+    ) -> list[dict[str, Any]]:
+
+        if self.table_repository is None:
+            return []
+
+        try:
+
+            if hasattr(
+                self.table_repository,
+                "list",
+            ):
+
+                raw_tables = (
+                    self.table_repository
+                    .list()
+                )
+
+            else:
+                raw_tables = []
+
+            # ----------------------------------------------------------
+            # Build rule text safely.
+            #
+            # Earlier implementation failed because some rule fields
+            # contained tuples. Everything is converted to str here.
+            # ----------------------------------------------------------
+
+            rule_text_parts: list[str] = []
+
+            for rule in rules or []:
+
+                category = str(
+                    getattr(
+                        rule,
+                        "category",
+                        "",
+                    )
+                    or ""
+                )
+
+                name = str(
+                    getattr(
+                        rule,
+                        "name",
+                        "",
+                    )
+                    or ""
+                )
+
+                description = str(
+                    getattr(
+                        rule,
+                        "description",
+                        "",
+                    )
+                    or ""
+                )
+
+                result = getattr(
+                    rule,
+                    "result",
+                    None,
+                )
+
+                if isinstance(
+                    result,
+                    (dict, list),
+                ):
+                    result_text = json.dumps(
+                        result,
+                        ensure_ascii=False,
+                        default=str,
+                    )
+                else:
+                    result_text = str(
+                        result or ""
+                    )
+
+                rule_text_parts.append(
+                    " ".join(
+                        [
+                            category,
+                            name,
+                            description,
+                            result_text,
+                        ]
+                    )
+                )
+
+            rule_text = " ".join(
+                rule_text_parts
+            ).lower()
+
+            # ----------------------------------------------------------
+            # Relevant keywords
+            # ----------------------------------------------------------
+
+            keywords = [
+                "parking",
+                "setback",
+                "margin",
+                "marginal",
+                "height",
+                "fsi",
+                "tdr",
+                "incentive",
+                "coverage",
+                "ground",
+                "open space",
+                "amenity",
+                "fire",
+                "stair",
+                "staircase",
+                "lift",
+                "accessibility",
+                "egress",
+                "exit",
+                "road",
+                "building",
+                "ventilation",
+                "light",
+                "floor",
+                "storey",
+                "plot",
+                "reservation",
+                "recreation",
+                "balcony",
+                "parking area",
+            ]
+
+            tables: list[dict[str, Any]] = []
+
+            for table in raw_tables:
+
+                title = str(
+                    getattr(
+                        table,
+                        "title",
+                        "",
+                    )
+                    or ""
+                )
+
+                headers_raw = (
+                    getattr(
+                        table,
+                        "headers",
+                        None,
+                    )
+                    or []
+                )
+
+                rows_raw = (
+                    getattr(
+                        table,
+                        "rows",
+                        None,
+                    )
+                    or []
+                )
+
+                # ------------------------------------------------------
+                # IMPORTANT:
+                # Convert every header/row element to string.
+                # ------------------------------------------------------
+
+                headers = [
+                    str(value)
+                    for value in headers_raw
+                ]
+
+                rows = self._safe_rows(
+                    rows_raw
+                )
+
+                row_text = json.dumps(
+                    rows,
+                    ensure_ascii=False,
+                    default=str,
+                )
+
+                searchable = (
+                    f"{title} "
+                    f"{' '.join(headers)} "
+                    f"{row_text}"
+                ).lower()
+
+                relevance = 0
+
+                for keyword in keywords:
+
+                    if keyword in searchable:
+                        relevance += 1
+
+                    if keyword in rule_text:
+                        relevance += 1
+
+                # Table title and common regulatory tables receive
+                # additional priority.
+                if "table no.8-b" in searchable:
+                    relevance += 100
+
+                if "parking requirements" in searchable:
+                    relevance += 100
+
+                if "table no. 8-b" in searchable:
+                    relevance += 100
+
+                if relevance <= 0:
+                    continue
+
+                tables.append(
+                    {
+                        "id": str(
+                            getattr(
+                                table,
+                                "id",
+                                "",
+                            )
+                            or ""
+                        ),
+                        "page": getattr(
+                            table,
+                            "page",
+                            None,
+                        ),
+                        "index": getattr(
+                            table,
+                            "index",
+                            None,
+                        ),
+                        "title": title,
+                        "headers": headers,
+                        "rows": rows,
+                        "relevance": relevance,
+                    }
+                )
+
+            tables.sort(
+                key=lambda item:
+                    (
+                        item.get(
+                            "relevance",
+                            0,
+                        ),
+                        -(item.get(
+                            "page",
+                            0,
+                        ) or 0),
+                    ),
+                reverse=True,
+            )
+
+            return tables[:max_tables]
+
+        except Exception as exc:
+
+            # Table loading must never prevent constraint discovery.
+            return [
+                {
+                    "error":
+                        f"Table loading failed: {exc}"
+                }
+            ]
+
+    # ------------------------------------------------------------------
+    # SAFE TABLE ROW CONVERSION
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _safe_rows(
+        rows: Any,
+    ) -> list[Any]:
+
+        if not isinstance(
+            rows,
+            list,
+        ):
+            return []
+
+        result = []
+
+        for row in rows:
+
+            if isinstance(
+                row,
+                dict,
+            ):
+
+                result.append(
+                    {
+                        str(key):
+                            ConstraintDiscovery
+                            ._json_safe(value)
+                        for key, value
+                        in row.items()
+                    }
+                )
+
+            elif isinstance(
+                row,
+                (list, tuple),
+            ):
+
+                result.append(
+                    [
+                        ConstraintDiscovery
+                        ._json_safe(value)
+                        for value in row
+                    ]
+                )
+
+            else:
+
+                result.append(
+                    ConstraintDiscovery
+                    ._json_safe(row)
+                )
+
+        return result
+
+    # ------------------------------------------------------------------
+    # JSON SAFE
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _json_safe(
+        value: Any,
+    ) -> Any:
+
+        if value is None:
+            return None
+
+        if isinstance(
+            value,
+            (str, int, float, bool),
+        ):
+            return value
+
+        if isinstance(
+            value,
+            dict,
+        ):
+            return {
+                str(key):
+                    ConstraintDiscovery
+                    ._json_safe(val)
+                for key, val
+                in value.items()
+            }
+
+        if isinstance(
+            value,
+            (list, tuple),
+        ):
+            return [
+                ConstraintDiscovery
+                ._json_safe(item)
+                for item in value
+            ]
+
+        return str(value)
+
+    # ------------------------------------------------------------------
+    # PROMPT
+    # ------------------------------------------------------------------
+
+    def _build_prompt(
+        self,
+        facts: dict[str, Any],
+        rules: list[Any],
+        tables: list[dict[str, Any]],
+    ) -> str:
+
+        rules_payload = []
+
+        for rule in rules:
+
+            rules_payload.append(
+                {
+                    "id": str(
+                        getattr(
+                            rule,
+                            "rule_id",
+                            getattr(
+                                rule,
+                                "id",
+                                "",
+                            ),
+                        )
+                        or ""
+                    ),
+                    "category": str(
+                        getattr(
+                            rule,
+                            "category",
+                            "",
+                        )
+                        or ""
+                    ),
+                    "name": str(
+                        getattr(
+                            rule,
+                            "name",
+                            "",
+                        )
+                        or ""
+                    ),
+                    "description": str(
+                        getattr(
+                            rule,
+                            "description",
+                            "",
+                        )
+                        or ""
+                    ),
+                    "status": str(
+                        getattr(
+                            rule,
+                            "status",
+                            "",
+                        )
+                        or ""
+                    ),
+                    "condition":
+                        self._json_safe(
+                            getattr(
+                                rule,
+                                "condition",
+                                {},
+                            )
+                        ),
+                    "result":
+                        self._json_safe(
+                            getattr(
+                                rule,
+                                "result",
+                                {},
+                            )
+                        ),
+                }
+            )
+
+        prompt = f"""
+
+You are the Regulatory Constraint Discovery Engine for an AI Town Planning Platform.
+
+Your task is to determine the COMPLETE SET OF REGULATORY CONSTRAINTS
+that must be considered when planning and designing the user's proposed
+project.
+
+You are NOT generating a building design.
+
+You are NOT generating CAD/DXF/SVG/PDF drawings.
+
+You are NOT inventing regulatory values.
+
+Your job is to identify which regulatory constraints are relevant,
+which are conditional, which require additional information, and which
+are not applicable to the proposed project.
+
+============================================================
+AUTHORITATIVE SOURCES
+============================================================
+
+You may receive regulatory evidence from:
+
+1. Original UDCPR PDF
+2. PostgreSQL UDCPR rules
+3. PostgreSQL extracted UDCPR tables
+4. Existing deterministic calculations
+5. User-provided project facts
+6. Facts extracted from the user's plot/site image
+
+The UDCPR PDF and PostgreSQL regulatory data are the authoritative
+regulatory sources.
+
+Use the supplied evidence to determine applicability.
+
+Do not invent a regulation simply because it is common in building
+design.
+
+If the supplied sources do not establish a regulatory requirement,
+mark it as:
+
+"needs_verification"
+
+rather than inventing a value.
+
+============================================================
+PROJECT INPUT
+============================================================
+
+The project can be ANY type of development.
+
+Examples include:
+
+- Residential apartment building
+- Residential bungalow
+- Villa
+- Row house
+- Commercial building
+- Office
+- Shop / mercantile building
+- Hotel
+- Hospital
+- Nursing home
+- Restaurant
+- School
+- College
+- Hostel
+- Institutional building
+- Industrial building
+- Warehouse
+- Mixed-use development
+- Public / semi-public building
+- Parking building
+- Other special-use building
+
+The user's actual project type must ALWAYS take precedence over
+examples in this prompt.
+
+Project information may include:
+
+building_type
+building_use
+occupancy
+zone_type
+plot_area
+plot_dimensions
+road_width
+road_frontage
+road_locations
+number_of_units
+unit_mix
+carpet_area
+built_up_area
+proposed_height
+number_of_floors
+parking_requirements
+special_uses
+site_image_facts
+
+Additional project information may be supplied later.
+
+============================================================
+CORE TASK
+============================================================
+
+For the CURRENT project:
+
+1. Identify all regulatory categories that may constrain the design.
+
+2. Determine which regulations are actually applicable to this project.
+
+3. Determine which regulations are conditionally applicable.
+
+4. Determine which regulations cannot yet be evaluated because
+   required project information is missing.
+
+5. Identify the exact PostgreSQL rule IDs relevant to each constraint.
+
+6. Identify relevant PostgreSQL table IDs/names.
+
+7. Identify relevant PDF pages where available.
+
+8. Identify the inputs required to calculate each constraint.
+
+9. Do NOT calculate a value unless the supplied regulatory evidence
+   provides sufficient information to calculate it deterministically.
+
+10. Do NOT include regulations that clearly belong to another
+    building/use category.
+
+============================================================
+IMPORTANT APPLICABILITY RULE
+============================================================
+
+Do NOT select regulations merely because they appear in the supplied
+database tables or PDF context.
+
+First determine:
+
+    "Does this regulation apply to THIS project?"
+
+For example:
+
+If the project is a HOTEL:
+
+hotel-specific regulations may be applicable.
+
+If the project is a HOSPITAL:
+
+hospital-specific regulations may be applicable.
+
+If the project is a SCHOOL:
+
+school-specific regulations may be applicable.
+
+If the project is a RESTAURANT:
+
+restaurant-specific regulations may be applicable.
+
+If the project is a RESIDENTIAL APARTMENT:
+
+hotel, hospital, restaurant and school-specific regulations should
+normally NOT be selected unless the supplied UDCPR evidence explicitly
+makes them applicable.
+
+If the project is MIXED USE:
+
+evaluate each applicable use separately.
+
+For example:
+
+    Residential + Commercial
+
+may require both residential and commercial regulations.
+
+Do NOT assume that a regulation applies simply because the word
+"building" appears in its name.
+
+============================================================
+DO NOT OVER-FILTER
+============================================================
+
+The opposite error is also prohibited.
+
+Do NOT assume that a regulation is irrelevant merely because it is
+specific to a building type.
+
+For example:
+
+If the user requests a hotel plan and the database contains:
+
+    Table No.12-K - Hotel requirements
+
+then that table should be considered highly relevant.
+
+If the user requests a hospital plan and the database contains:
+
+    Table No.12-J - Hospital requirements
+
+then that table should be considered highly relevant.
+
+If the user requests a school plan and the database contains:
+
+    Table No.12-M - School requirements
+
+then that table should be considered highly relevant.
+
+The project type determines relevance.
+
+============================================================
+GENERAL CONSTRAINT CATEGORIES
+============================================================
+
+Consider all potentially relevant categories, including but not limited
+to:
+
+1. Land use / zoning
+2. Plot eligibility
+3. Plot area
+4. Plot dimensions
+5. Road width
+6. Road frontage
+7. Road widening
+8. Development Plan reservations
+9. Regional Plan reservations
+10. FSI
+11. Basic FSI
+12. Maximum permissible FSI
+13. Premium FSI
+14. TDR FSI
+15. Incentive FSI
+16. Additional FSI
+17. FSI exclusions
+18. FSI deductions
+19. Ground coverage
+20. Setbacks / margins
+21. Front setback
+22. Rear setback
+23. Side setbacks
+24. Building height
+25. Number of floors / storeys
+26. Floor height
+27. Building footprint
+28. Open spaces
+29. Recreational open space
+30. Amenity space
+31. Parking
+32. Car parking
+33. Two-wheeler parking
+34. Visitor parking
+35. Parking area
+36. Loading / unloading
+37. Fire access
+38. Fire safety
+39. Fire staircase
+40. Fire lift
+41. Emergency exits
+42. Exit width
+43. Staircases
+44. Staircase width
+45. Corridor width
+46. Lift requirements
+47. Accessibility
+48. Barrier-free access
+49. Ramp requirements
+50. Light and ventilation
+51. Natural lighting
+52. Natural ventilation
+53. Sanitation
+54. Water closets
+55. Urinals
+56. Bathrooms
+57. Service areas
+58. Refuge areas
+59. Special building requirements
+60. Building-use-specific requirements
+61. Mixed-use requirements
+62. Institutional requirements
+63. Commercial requirements
+64. Industrial requirements
+65. Hotel-specific requirements
+66. Hospital-specific requirements
+67. Restaurant-specific requirements
+68. Educational-building requirements
+69. Residential requirements
+70. Bungalow / villa requirements
+71. Any other constraint explicitly supported by the supplied
+    UDCPR evidence.
+
+This list is NOT exhaustive.
+
+If the supplied UDCPR evidence identifies another relevant constraint,
+include it.
+
+============================================================
+CONDITIONAL CONSTRAINTS
+============================================================
+
+Some constraints depend on values that may not yet be known.
+
+For example:
+
+    Fire safety
+    Lift requirement
+    Refuge area
+    Maximum height
+    Number of exits
+    Open space
+    Parking
+    Accessibility
+    Special occupancy requirements
+
+Do not discard these.
+
+Return them as:
+
+    "conditional"
+
+or:
+
+    "needs_information"
+
+and specify which input is required.
+
+Example:
+
+{
+    "name": "Fire Lift",
+    "applicability": "conditional",
+    "status": "needs_information",
+    "required_inputs": [
+        "proposed_building_height"
+    ]
+}
+
+============================================================
+SOURCE TRACEABILITY
+============================================================
+
+Every discovered constraint should contain source information whenever
+the supplied evidence allows it.
+
+Possible sources:
+
+    PostgreSQL rule ID
+    PostgreSQL table ID
+    PostgreSQL table name
+    PDF page
+    UDCPR regulation / clause
+
+Do not invent source IDs or page numbers.
+
+If the source cannot be identified:
+
+    "source": null
+
+============================================================
+OUTPUT FORMAT
+============================================================
+
+Return ONLY valid JSON.
+
+Use this structure:
+
+{
+  "status": "resolved",
+  "project": {
+    "building_type": "...",
+    "building_use": "...",
+    "occupancy": "..."
+  },
+  "constraints": [
+    {
+      "id": "unique_constraint_id",
+      "name": "Human readable constraint name",
+      "category": "Constraint category",
+
+      "applicability": "applicable",
+      "status": "needs_calculation",
+
+      "reason": "Why this constraint applies to this project",
+
+      "required_inputs": [
+        "plot_area",
+        "road_width"
+      ],
+
+      "source_rules": [
+        {
+          "rule_id": "...",
+          "rule_name": "..."
+        }
+      ],
+
+      "source_tables": [
+        {
+          "table_id": "...",
+          "table_name": "..."
+        }
+      ],
+
+      "source_pdf_pages": [
+        165
+      ],
+
+      "regulation_references": [
+        "..."
+      ],
+
+      "value": null,
+      "unit": null,
+      "calculation": null
+    }
+  ],
+
+  "excluded_constraints": [
+    {
+      "name": "...",
+      "reason": "Not applicable to the current project"
+    }
+  ],
+
+  "missing_information": [
+    {
+      "field": "...",
+      "reason": "..."
+    }
+  ]
+}
+
+============================================================
+STATUS VALUES
+============================================================
+
+Use only these values:
+
+applicable
+conditional
+not_applicable
+needs_information
+
+For calculation status use:
+
+resolved
+needs_calculation
+needs_verification
+
+============================================================
+CRITICAL RULE
+============================================================
+
+The output is a REGULATORY CONSTRAINT DISCOVERY result.
+
+It is NOT a generic list of building regulations.
+
+The same UDCPR database may contain regulations for:
+
+    Residential
+    Bungalow
+    Hotel
+    Hospital
+    Restaurant
+    School
+    College
+    Commercial
+    Industrial
+    Mixed Use
+    Institutional
+    Other uses
+
+Select the regulations based on the CURRENT PROJECT.
+
+============================================================
+FINAL CHECK BEFORE RETURNING JSON
+============================================================
+
+Before returning the answer:
+
+1. Identify the actual building use.
+2. Identify the actual building type.
+3. Identify mixed-use components if any.
+4. Check the supplied PostgreSQL rules.
+5. Check the supplied PostgreSQL tables.
+6. Check the supplied PDF evidence.
+7. Remove clearly unrelated building-use-specific regulations.
+8. Keep conditional regulations that could affect the design.
+9. Keep constraints whose applicability depends on missing information.
+10. Preserve source traceability.
+11. Never invent a regulatory number.
+12. Return valid JSON only.
+Now discover the complete constraint list.
+"""
+
+        return prompt
+
+    # ------------------------------------------------------------------
+    # JSON PARSER
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _parse_json(
+        raw: Any,
+    ) -> dict[str, Any] | None:
+
+        if raw is None:
+            return None
+
+        if isinstance(raw, dict):
+            return raw
+
+        text = str(raw).strip()
+
+        if not text:
+            return None
+
+        # --------------------------------------------------------------
+        # Qwen3 may return:
+        #
+        # <think>
+        # ...
+        # </think>
+        #
+        # {
+        #   "constraints": [...]
+        # }
+        #
+        # Remove thinking blocks first.
+        # --------------------------------------------------------------
+
+        text = re.sub(
+            r"<think>.*?</think>",
+            "",
+            text,
+            flags=re.IGNORECASE | re.DOTALL,
+        ).strip()
+
+        # Also remove possible Qwen reasoning markers.
+        text = re.sub(
+            r"<thinking>.*?</thinking>",
+            "",
+            text,
+            flags=re.IGNORECASE | re.DOTALL,
+        ).strip()
+
+        # --------------------------------------------------------------
+        # Remove markdown fences
+        # --------------------------------------------------------------
+
+        text = re.sub(
+            r"```json\s*",
+            "",
+            text,
+            flags=re.IGNORECASE,
+        )
+
+        text = re.sub(
+            r"```\s*",
+            "",
+            text,
+            flags=re.IGNORECASE,
+        )
+
+        text = text.strip()
+
+        # --------------------------------------------------------------
+        # Direct JSON
+        # --------------------------------------------------------------
+
+        try:
+            parsed = json.loads(text)
+
+            if isinstance(parsed, dict):
+                return parsed
+
+        except Exception:
+            pass
+
+        # --------------------------------------------------------------
+        # Extract balanced JSON object.
+        #
+        # Do NOT use simply first '{' to last '}' because Qwen reasoning
+        # can contain unrelated braces.
+        # --------------------------------------------------------------
+
+        start = text.find("{")
+
+        while start >= 0:
+
+            depth = 0
+            in_string = False
+            escaped = False
+
+            for index in range(
+                start,
+                len(text),
+            ):
+
+                char = text[index]
+
+                if escaped:
+                    escaped = False
+                    continue
+
+                if char == "\\" and in_string:
+                    escaped = True
+                    continue
+
+                if char == '"':
+                    in_string = not in_string
+                    continue
+
+                if in_string:
+                    continue
+
+                if char == "{":
+                    depth += 1
+
+                elif char == "}":
+
+                    depth -= 1
+
+                    if depth == 0:
+
+                        candidate = text[
+                            start:index + 1
+                        ]
+
+                        try:
+
+                            parsed = json.loads(
+                                candidate
+                            )
+
+                            if isinstance(
+                                parsed,
+                                dict,
+                            ):
+                                return parsed
+
+                        except Exception:
+                            pass
+
+                        break
+
+            start = text.find(
+                "{",
+                start + 1,
+            )
+
+        return None
+
+    # ------------------------------------------------------------------
+    # NORMALIZATION
+    # ------------------------------------------------------------------
+
+    def _normalize_result(
+        self,
+        parsed: dict[str, Any],
+        facts: dict[str, Any],
+        rules: list[Any],
+        tables: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+
+        constraints = parsed.get(
+            "constraints",
+            [],
+        )
+
+        unresolved = parsed.get(
+            "unresolved",
+            [],
+        )
+
+        if not isinstance(
+            constraints,
+            list,
+        ):
+            constraints = []
+
+        if not isinstance(
+            unresolved,
+            list,
+        ):
+            unresolved = []
+
+        normalized_constraints = []
+
+        for item in constraints:
+
+            if isinstance(
+                item,
+                str,
+            ):
+
+                normalized_constraints.append(
+                    {
+                        "name": item,
+                        "category": "Other",
+                        "status": "needs_calculation",
+                        "value": None,
+                        "unit": None,
+                        "source_rules": [],
+                        "source_tables": [],
+                        "required_inputs": [],
+                        "calculation": None,
+                        "reason": "",
+                    }
+                )
+
+                continue
+
+            if not isinstance(
+                item,
+                dict,
+            ):
+                continue
+
+            normalized = {
+                "name": str(
+                    item.get(
+                        "name",
+                        "",
+                    )
+                ),
+
+                "category": str(
+                    item.get(
+                        "category",
+                        "Other",
+                    )
+                ),
+
+                "status": str(
+                    item.get(
+                        "status",
+                        "needs_calculation",
+                    )
+                ),
+
+                "value":
+                    self._json_safe(
+                        item.get(
+                            "value"
+                        )
+                    ),
+
+                "unit":
+                    self._json_safe(
+                        item.get(
+                            "unit"
+                        )
+                    ),
+
+                "source_rules":
+                    self._list_or_empty(
+                        item.get(
+                            "source_rules"
+                        )
+                    ),
+
+                "source_tables":
+                    self._list_or_empty(
+                        item.get(
+                            "source_tables"
+                        )
+                    ),
+
+                "required_inputs":
+                    self._list_or_empty(
+                        item.get(
+                            "required_inputs"
+                        )
+                    ),
+
+                "calculation":
+                    self._json_safe(
+                        item.get(
+                            "calculation"
+                        )
+                    ),
+
+                "reason": str(
+                    item.get(
+                        "reason",
+                        "",
+                    )
+                    or ""
+                ),
+            }
+
+            normalized_constraints.append(
+                normalized
+            )
+
+        return {
+            "status": (
+                "calculated"
+                if normalized_constraints
+                else "unresolved"
+            ),
+
+            "model": self.model,
+
+            "constraints":
+                normalized_constraints,
+
+            "unresolved":
+                unresolved,
+
+            "facts":
+                facts,
+
+            "rule_count":
+                len(rules),
+
+            "table_count":
+                len(tables),
+        }
+
+    # ------------------------------------------------------------------
+    # LIST HELPER
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _list_or_empty(
+        value: Any,
+    ) -> list[Any]:
+
+        if value is None:
+            return []
+
+        if isinstance(
+            value,
+            list,
+        ):
+            return [
+                ConstraintDiscovery
+                ._json_safe(item)
+                for item in value
+            ]
+
+        return [
+            ConstraintDiscovery
+            ._json_safe(value)
+        ]
+
+    def _build_retry_prompt(
+        self,
+        facts: dict[str, Any],
+        rules: list[Any],
+        tables: list[dict[str, Any]],
+        ) -> str:
+
+        return f"""
+        You are a building planning constraint extractor.
+
+        Return ONLY JSON.
+
+        Do not explain anything.
+        Do not use markdown.
+        Do not use <think>.
+        Do not provide reasoning.
+
+        For this residential building, return the list of
+        constraints that must be checked before generating
+        a building plan.
+
+        SITE FACTS:
+
+        {json.dumps(
+            self._json_safe(facts),
+            ensure_ascii=False,
+            indent=2,
+        )}
+
+        Use these constraint categories:
+
+        FSI
+        TDR
+        Incentive FSI
+        Maximum FSI
+        Built-up Area
+        Ground Coverage
+        Setback
+        Front Setback
+        Rear Setback
+        Left Setback
+        Right Setback
+        Road Width
+        Road Widening
+        Height
+        Storeys
+        Parking
+        Car Parking
+        Two Wheeler Parking
+        Visitor Parking
+        Parking Area
+        Fire Safety
+        Fire Access
+        Fire Lift
+        Staircase
+        Staircase Width
+        Exit
+        Exit Width
+        Accessibility
+        Ramp
+        Light
+        Ventilation
+        Open Space
+        Recreational Open Space
+        Amenity Space
+        Lift
+        Corridor
+        Plot Area
+        Plot Dimensions
+        Plot Shape
+        Land Use
+        Zoning
+        Reservation
+        DP Road
+        Internal Road
+        Building Services
+        Special Restrictions
+
+        Return exactly this structure:
+
+        {{
+          "constraints": [
+            {{
+              "name": "FSI",
+              "category": "FSI",
+              "status": "needs_calculation",
+              "value": null,
+              "unit": null,
+              "source_rules": [],
+              "source_tables": [],
+              "required_inputs": [],
+              "calculation": null,
+              "reason": ""
+            }}
+          ],
+          "unresolved": []
+        }}
+
+        Rules and tables are supplied as regulatory evidence.
+        Do not invent numerical values.
+
+        The following database rules are available:
+
+        {json.dumps(
+            self._json_safe([
+                {
+                    "category": str(
+                        getattr(
+                            rule,
+                            "category",
+                            "",
+                        ) or ""
+                    ),
+                    "name": str(
+                        getattr(
+                            rule,
+                            "name",
+                            "",
+                        ) or ""
+                    ),
+                    "result": self._json_safe(
+                        getattr(
+                            rule,
+                            "result",
+                            {},
+                        )
+                    ),
+                }
+                for rule in rules
+            ]),
+            ensure_ascii=False,
+        )}
+
+        Relevant tables:
+
+        {json.dumps(
+            self._json_safe(tables),
+            ensure_ascii=False,
+        )}
+
+        Return JSON now.
+        """
+
+
+# ---------------------------------------------------------------------------
+# BACKWARD COMPATIBILITY
+# ---------------------------------------------------------------------------
+
+ConstraintDiscoveryService = ConstraintDiscovery

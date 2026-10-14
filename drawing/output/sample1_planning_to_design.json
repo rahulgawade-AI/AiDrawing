@@ -1,0 +1,222 @@
+{
+  "status": "OK",
+  "image": "sample1.png",
+  "planning_facts": {
+    "project_type": "Residential Apartment",
+    "development_type": "New Construction",
+    "survey_number": "78/5",
+    "city": "Pune",
+    "district": "Pune",
+    "state": "Maharashtra",
+    "plot_area": 745.6,
+    "plot_side_lengths": {
+      "dimension_1": 22.3,
+      "dimension_2": 17.8,
+      "dimension_3": 20.15,
+      "dimension_4": 6.25,
+      "dimension_5": 32.6
+    },
+    "boundary": "Irregular five-sided plot boundary with a curved road-facing southern edge and circular vertex markers.",
+    "north_direction": "North",
+    "road_width": 18.0,
+    "road_widths": [],
+    "road_frontage_count": 0,
+    "road_frontages": [],
+    "road_locations": [],
+    "road_types": [],
+    "road_name": "D.P. ROAD",
+    "road_names": [],
+    "road_classifications": [],
+    "planning_authority": "Pune Municipal Corporation",
+    "municipality": "Pune Municipal Corporation",
+    "municipal_corporation": "Pune Municipal Corporation",
+    "competent_authority": "Pune Municipal Corporation",
+    "zone": "Residential R-1",
+    "zone_type": "Residential",
+    "land_use_zone": "R-1",
+    "land_use_classification": "Residential",
+    "congested_area": false,
+    "group_housing": false,
+    "internal_road_lengths": [],
+    "internal_road_widths": [],
+    "building_type": "Residential Apartment",
+    "building_use": "residential",
+    "occupancy_type": "residential",
+    "mixed_use": false,
+    "group_housing_building": false,
+    "floor_heights": [],
+    "existing_building": false,
+    "redevelopment": false,
+    "requested_units": 12,
+    "requested_unit_mix": [
+      {
+        "type": "2BHK",
+        "count": 6,
+        "target_carpet_area": 750.0
+      },
+      {
+        "type": "3BHK",
+        "count": 6,
+        "target_carpet_area": 1050.0
+      }
+    ],
+    "tenement_carpet_areas": {},
+    "tenement_area_categories": [],
+    "parking_mode": "Maximum practical parking",
+    "floor_areas": [],
+    "floor_populations": {},
+    "proposed_floor_population": {},
+    "occupant_load": {},
+    "staircase_widths": [],
+    "room_areas": [],
+    "room_depths": [],
+    "room_opening_areas": {},
+    "room_ventilation_areas": {},
+    "maximize_fsi": true,
+    "maximize_parking": true,
+    "maximize_usable_area": true,
+    "optimize_daylight": true,
+    "optimize_ventilation": true,
+    "optimize_orientation": true,
+    "minimize_common_area": false,
+    "minimize_construction_area": false,
+    "maximize_open_space": false,
+    "maximize_green_area": false,
+    "minimize_building_height": false,
+    "values": {
+      "scale": "1:100"
+    },
+    "scale": "1:100"
+  },
+  "user_requirements": {
+    "requested_units": 12,
+    "requested_unit_mix": [
+      {
+        "type": "2BHK",
+        "count": 6,
+        "target_carpet_area": 750.0
+      },
+      {
+        "type": "3BHK",
+        "count": 6,
+        "target_carpet_area": 1050.0
+      }
+    ],
+    "requested_unit_area": {
+      "2BHK": 750.0,
+      "3BHK": 1050.0
+    },
+    "requested_floors": null,
+    "preferred_building_height": null,
+    "allow_stilt_parking": true,
+    "avoid_basement": false
+  },
+  "requirements_check": {
+    "status": "INCOMPLETE",
+    "missing": [
+      {
+        "field": "requested_unit_area",
+        "question": "What approximate carpet area do you want for each BHK type?",
+        "required": true
+      },
+      {
+        "field": "requested_floors",
+        "question": "How many floors do you want to propose, if you have a preference?",
+        "required": false
+      }
+    ]
+  },
+  "deterministic_constraints": {
+    "site": {
+      "plot_area_m2": 745.6,
+      "road_width_m": 18.0,
+      "road_name": "D.P. ROAD",
+      "north_direction": "North",
+      "survey_number": "78/5",
+      "plot_side_lengths_m": {
+        "dimension_1": 22.3,
+        "dimension_2": 17.8,
+        "dimension_3": 20.15,
+        "dimension_4": 6.25,
+        "dimension_5": 32.6
+      }
+    },
+    "fsi": {
+      "status": "RESOLVED",
+      "source_rule": "6.3",
+      "source_table": "6-G",
+      "authority_basis": "For all Municipal Corporations",
+      "road_width_m": 18.0,
+      "road_width_band_m": "15.0 <= road width < 24.0",
+      "basic_fsi": 1.1,
+      "premium_fsi": 0.5,
+      "maximum_tdr_loading_fsi": 0.9,
+      "maximum_building_potential_fsi": 2.5,
+      "basic_fsi_area_m2": 820.16,
+      "premium_fsi_area_m2": 372.8,
+      "maximum_tdr_area_m2": 671.04,
+      "maximum_building_potential_area_m2": 1864.0
+    },
+    "height": {
+      "status": "RESOLVED",
+      "source_rule": "6.10",
+      "authority_area": "Pune Municipal Corporation area",
+      "maximum_height_m_excluding_parking_floor": 70.0,
+      "fire_department_approval_required": true,
+      "note": "Maximum height is subject to approval from the Fire Department."
+    },
+    "setbacks": {
+      "status": "RESOLVED",
+      "source_rule": "6.2.1",
+      "source_table": "6-D",
+      "road_width_band_m": "18.0 <= road width < 30.0",
+      "minimum_plot_size_m2": 250.0,
+      "minimum_plot_width_m": 10.0,
+      "front_setback_m": 4.5,
+      "side_margin_m": 2.0,
+      "rear_margin_m": 2.0,
+      "height_scope_m": 10.0,
+      "height_scope_note": "Table 6-D row 3 specifies these margins for buildings up to 10.0 m height, excluding parking floor up to 6.0 m.",
+      "higher_height_rule": "6.2.3"
+    },
+    "parking": {
+      "source_rule_ids": [
+        "8.1",
+        "8.2.2",
+        "8.2.1"
+      ],
+      "status": "NOT_RESOLVED",
+      "required_car_spaces": null,
+      "visitor_parking_percent": 5.0,
+      "authority_multiplier": 1.0,
+      "parking_space_dimensions_m": {
+        "car_length": 5.0,
+        "car_width": 2.5
+      },
+      "drive_width_m": 3.0,
+      "reason": "Parking count is not deterministically resolved because the requested carpet-area unit is not explicitly supplied in user input. UDCPR Table 8-B thresholds are in sq.m."
+    },
+    "access_and_fire": {
+      "fire_protection_rule_present": true,
+      "source_rule": "9.32"
+    },
+    "source_rule_ids": [
+      "10.1",
+      "11.2.7",
+      "2.2.8",
+      "6.1.4",
+      "6.10",
+      "6.2.1",
+      "6.2.3",
+      "6.3",
+      "8.1",
+      "8.2.1",
+      "8.2.2",
+      "9.32"
+    ]
+  },
+  "derived_design_quantities": {
+    "requested_total_carpet_area_input_units": 10800.0,
+    "maximum_building_potential_area_m2": 1864.0
+  }
+}

@@ -1,0 +1,484 @@
+"""
+Regulation Ingestion Service.
+
+Coordinates the complete ingestion pipeline.
+
+Workflow
+
+PDF
+ ↓
+PDFReader
+ ↓
+PageWindowBuilder
+ ↓
+DocumentAnalyzer
+ ↓
+KnowledgeExtractor
+ ↓
+RuleExtractor
+"""
+
+from uuid import uuid4
+
+from townplanning.modules.regulations.domain import Regulation
+
+from townplanning.modules.regulations.ingestion.pdf_reader import PDFReader
+from townplanning.modules.regulations.ingestion.page_window import PageWindowBuilder
+from townplanning.modules.regulations.ingestion.document_analyzer import (
+    DocumentAnalyzer,
+)
+from townplanning.modules.regulations.ingestion.knowledge_extractor import (
+    KnowledgeExtractor,
+)
+from townplanning.modules.regulations.ingestion.rule_extractor import (
+    RuleExtractor,
+)
+
+from townplanning.modules.regulations.ingestion.table_extractor import (
+    TableExtractor,
+)
+from townplanning.modules.regulations.ingestion.page_filter import (
+    PageFilter,
+)
+from townplanning.infrastructure.database.session import (
+    SessionLocal,
+)
+
+from townplanning.modules.regulations.persistence import (
+    PersistenceService,
+)
+
+class IngestionService:
+
+    def __init__(self):
+
+        self.reader = PDFReader()
+
+        self.analyzer = DocumentAnalyzer()
+
+        self.knowledge_extractor = KnowledgeExtractor()
+
+        self.rule_extractor = RuleExtractor()
+
+        self.page_filter = PageFilter()
+
+    # -------------------------------------------------------------
+
+    def ingest(
+        self,
+        pdf_path: str,
+        page_number: int,
+    ):
+
+        self.reader.open(pdf_path)
+
+        builder = PageWindowBuilder(self.reader)
+
+        window = builder.build(page_number)
+        should_process, reason = self.page_filter.should_process(
+
+            page_number,
+
+            window.current_text,
+
+        )
+
+        if not should_process:
+
+            self.reader.close()
+
+            raise RuntimeError(reason)
+
+        table_extractor = TableExtractor()
+
+        tables = table_extractor.extract(
+        self.reader,
+        page_number,    
+        )
+
+        window.tables = tables
+
+        analysis = self.analyzer.analyze(window)
+        print(f"Page Type : {analysis.page_type}")
+
+        print(f"Chapter   : {analysis.chapter_number}")
+
+        print(f"Headings  : {len(analysis.regulations)}")
+
+        #if not analysis.regulations:
+
+        #    raise RuntimeError(
+        #        "No regulation detected on page."
+        #    )
+
+
+
+        SKIP_PAGE_TYPES = {
+
+        "cover",
+
+        "notification",
+
+        "preface",
+
+        "table_of_contents",
+
+        "index",
+
+        "definition",
+
+        "appendix",
+
+        "schedule",
+
+        "form",
+
+        "drawing",
+
+        "blank",
+
+        "other",
+
+    }   
+
+        page_type = analysis.page_type.lower().strip()
+
+        if page_type in SKIP_PAGE_TYPES:
+
+            self.reader.close()
+
+            raise RuntimeError(
+                f"Skipped ({page_type})"
+            )
+
+        if not analysis.regulations:
+
+            self.reader.close()
+
+            raise RuntimeError(
+            "No regulation detected on page."
+        )       
+
+
+
+        heading = analysis.regulations[0]
+
+        regulation = Regulation(
+
+            id=str(uuid4()),
+
+            number=heading.number,
+
+            chapter=analysis.chapter_number or "",
+
+            title=heading.title,
+
+            text=window.current_text,
+
+            page_start=page_number,
+
+            page_end=page_number,
+        )
+
+        knowledge = self.knowledge_extractor.extract(
+
+           analysis,
+
+            window,
+
+            regulation.id,
+             
+        )
+
+        rules = self.rule_extractor.extract(
+            knowledge
+        )
+
+        self.reader.close()
+
+        return {
+
+            "regulation": regulation,
+
+            "knowledge": knowledge,
+
+            "rules": rules,
+             "tables": tables,
+        }
+    
+    # -------------------------------------------------------------
+
+    def ingest_pdf(
+        self,
+        pdf_path: str,
+        start_page: int = 1,
+        end_page: int | None = None,
+    ):
+
+        self.reader.open(pdf_path)
+
+        total_pages = self.reader.page_count
+
+        self.reader.close()
+
+        if end_page is None:
+
+            end_page = total_pages
+
+        results = []
+        session = SessionLocal()
+
+        persistence = PersistenceService(
+            session
+        )
+
+        processed = 0
+
+        skipped = 0
+
+        failed = 0
+
+        print()
+        print("=" * 70)
+        print("Starting PDF Ingestion")
+        print("=" * 70)
+        print(f"Pages : {start_page} -> {end_page}")
+        print()
+        try:
+            for page_number in range(
+                start_page,
+                end_page + 1,
+            ):
+
+                import time
+
+                start = time.time()
+
+                print(f"\n{'='*80}")
+                print(f"START PAGE {page_number}")
+                print(f"{'='*80}")
+
+                try:
+
+                    result = self.ingest(
+
+                        pdf_path=pdf_path,
+
+                        page_number=page_number,
+                    )
+
+
+                    persistence.persist(
+
+                        regulation=result["regulation"],
+
+                        knowledge=result["knowledge"],
+
+                        rules=result["rules"],
+                        tables=result.get("tables", []),
+                    )
+
+                    elapsed = time.time() - start
+
+                    print(f"✓ Page {page_number} completed")
+                    print(f"Time : {elapsed:.1f} sec")
+                    print(f"Regulation : {result['regulation'].number}")
+                    print(f"Rules : {len(result['rules'])}")
+
+                    results.append(
+                        result
+                    )
+
+                    print("✓ Success")
+                    processed += 1
+                    print(
+                         f"✓ Regulation: {result['regulation'].number} - {result['regulation'].title}"
+                        )
+                    print(
+                        f"✓ Knowledge Card: {result['knowledge'].title}"
+                        )
+                    print(
+                            f"✓ Rules Extracted: {len(result['rules'])}"
+                        )
+
+                except Exception as exc:
+
+                    message = str(exc)
+
+                    if (
+
+                        message.startswith("Skipped (")
+
+                        or message in (
+                        
+                            "Blank page",
+
+                            "Table of Contents",
+
+                            "Too little text",
+
+                            "No regulation detected on page.",
+
+                        )
+
+                    ):
+
+                        skipped += 1
+
+                        print(f"⚠ Page {page_number} skipped")
+
+                        print(f"Reason : {exc}")
+
+                    else:
+
+                        failed += 1
+
+                        print()
+
+                        print("=" * 70)
+
+                        print(f"Page : {page_number}")
+
+                        print(f"Reason : {exc}")
+
+                        print("=" * 70)
+
+                    continue
+
+        
+
+            print()
+
+            print("=" * 70)
+
+            print("INGESTION SUMMARY")
+
+            print("=" * 70)
+
+            print(f"Processed : {processed}")
+
+            print(f"Skipped   : {skipped}")
+
+            print(f"Failed    : {failed}")
+
+            print("=" * 70)
+
+        finally:
+
+            persistence.close()
+        return results
+
+
+
+
+        # -------------------------------------------------------------
+    # Get existing tables or extract missing tables
+    # -------------------------------------------------------------
+
+    def get_or_ingest_tables(
+        self,
+        pdf_path: str,
+        page_number: int,
+        regulation_id: str,
+    ):
+
+        session = SessionLocal()
+
+        try:
+
+            persistence = PersistenceService(
+                session
+            )
+
+            # -----------------------------------------
+            # First check PostgreSQL
+            # -----------------------------------------
+
+            existing_tables = (
+                persistence.get_tables_by_page(
+                    page_number
+                )
+            )
+
+            if existing_tables:
+
+                print(
+                    f"Tables already exist for "
+                    f"page {page_number}: "
+                    f"{len(existing_tables)}"
+                )
+
+                return existing_tables
+
+            # -----------------------------------------
+            # Missing → extract from PDF
+            # -----------------------------------------
+
+            print(
+                f"No tables found for page "
+                f"{page_number}. "
+                f"Running TableExtractor..."
+            )
+
+            self.reader.open(
+                pdf_path
+            )
+
+            try:
+
+                table_extractor = (
+                    TableExtractor()
+                )
+
+                tables = (
+                    table_extractor.extract(
+                        self.reader,
+                        page_number,
+                    )
+                )
+
+            finally:
+
+                self.reader.close()
+
+            # -----------------------------------------
+            # Nothing extracted
+            # -----------------------------------------
+
+            if not tables:
+
+                print(
+                    f"No tables extracted "
+                    f"from page {page_number}"
+                )
+
+                return []
+
+            print(
+                f"Extracted {len(tables)} "
+                f"table(s) from page "
+                f"{page_number}"
+            )
+
+            # -----------------------------------------
+            # Persist into existing `tables`
+            # -----------------------------------------
+
+            persisted = (
+                persistence.persist_tables(
+                    tables,
+                    regulation_id,
+                )
+            )
+
+            print(
+                f"Persisted {len(persisted)} "
+                f"table(s) for page "
+                f"{page_number}"
+            )
+
+            return persisted
+
+        finally:
+
+            session.close()

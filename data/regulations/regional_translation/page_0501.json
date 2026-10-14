@@ -1,0 +1,32 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 501,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0501.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "शासन निदेश\n१. राज्यातील सर्व नियोजन प्राधिकरणांनी त्यांचे कार्यक्षेत्रामध्ये विकास प्रस्तावांना मंजूरी देतेवेळी केंद्र शासनाच्या गृहनिर्माण आणि शहरी व्यवहार मंत्रालयाने जारी केलेल्या Addendum to model building Bye-Laws 2016 या विनियमाची अंमलबजावणी ही सोबत जोडलेल्या परिशिष्टामधील तरतुदीनुसार करावी. तसेच सदर परिशिष्टामधील विकास नियंत्रण नियमावलीशी संबंधित तरतुदींचे परिपालन होईल याची दक्षता घ्यावी.  २. सदरचे निदेश हे तात्काळ अंमलात येत असून शासनाच्या सदर विनियमाची अंमलबजावणी राज्यातील सर्व नियोजन प्राधिकरणांनी तात्काळ सुरु करावी.\nमहाराष्ट्राचे राज्यपाल यांचे आदेशानुसार व नावाने.\n(डॉ.प्रतिभा भदाणे)\nसह सचिव, महाराष्ट्र शासन\nप्रत : - आवश्यक त्या कार्यवाहीसाठी\n१. आयुक्त, सर्व महानगरपालिका  २. मुख्याधिकारी, सर्व नगरपरिषदा / सर्व नगरपंचायती.  ३. मुख्य कार्यकारी अधिकारी सर्व जिल्हापरिषदा.  ४. महानगर-आयुक्त, सर्व महानगर प्रदेश विकास प्राधिकरणे.  ५. मुख्य कार्यकारी अधिकारी, कोल्हापूर नागरी क्षेत्र विकास प्राधिकरण, कोल्हापूर.\nप्रत -\n१. मा.मुख्यमंत्री महोदय यांचे अपर मुख्य सचिव, मंत्रालय, मुंबई.  २. मा.उप मुख्यमंत्री महोदय यांचे सचिव, मंत्रालय, मुंबई.  ३. मा.विरोधी पक्षनेता, विधानपरिषद / विधानसभा, महाराष्ट्र विधानमंडळ सचिवालय, मुंबई.  ४. मा.उपसभापती, महाराष्ट्र विधानपरिषद, महाराष्ट्र विधानमंडळ सचिवालय, मुंबई.  ५. मा.उपाध्यक्ष, महाराष्ट्र विधानसभा, महाराष्ट्र विधानमंडळ सचिवालय, मुंबई.  ६. मा.मुख्य सचिव, महाराष्ट्र राज्य, नगर विकास विभाग, मंत्रालय, मुंबई.  ७. प्रधान सचिव (नवि-१), नगर विकास विभाग, मंत्रालय, मुंबई.  ८. प्रधान सचिव, (नवि-२) नगर विकास विभाग, मंत्रालय, मुंबई.  ९. संचालक (नगर रचना) तथा सह सचिव, नगर विकास विभाग, मंत्रालय, मुंबई.\n485",
+  "translated_english_text": "Government Order\n1. All planning authorities in the state shall implement the Addendum to model building Bye-Laws 2016 issued by the Ministry of Housing and Urban Affairs, Central Government, as per the annexure, and ensure compliance with the provisions relating to the Development Control Regulations in the said annexure. 2. This directive shall come into effect immediately and all planning authorities in the state shall immediately commence the implementation of the said regulations of the Government.\nIn accordance with the orders of the Governor of Maharashtra, by name.\n(Dr. Pratibha Bhadane)\nSahayak Secretary, Maharashtra Government\nTo : - For necessary action\n1. Commissioner, All Municipal Corporations 2. Chief Officer, All Nagar Palikas / All Nagar Panchayats. 3. Chief Executive Officer, All District Councils. 4. Metropolitan Commissioner, All Metropolitan Region Development Authorities. 5. Chief Executive Officer, Kolhapur Nagarik Kshetra Vikas Pradhikaran, Kolhapur.\nTo -\n1. Chief Minister Mahoday's Deputy Chief Secretary, Ministry, Mumbai. 2. Deputy Chief Minister Mahoday's Secretary, Ministry, Mumbai. 3. Chief Opposition Leader, Legislative Council / Legislative Assembly, Maharashtra Legislative Council Secretariat, Mumbai. 4. Deputy Chairman, Maharashtra Legislative Council, Maharashtra Legislative Council Secretariat, Mumbai. 5. Deputy Speaker, Maharashtra Legislative Assembly, Maharashtra Legislative Council Secretariat, Mumbai. 6. Chief Secretary, Maharashtra State, Municipal Development Department, Ministry, Mumbai. 7. Principal Secretary (New-1), Municipal Development Department, Ministry, Mumbai. 8. Principal Secretary, (New-2) Municipal Development Department, Ministry, Mumbai. 9. Director (Municipal Planning) and Sahayak Secretary, Municipal Development Department, Ministry, Mumbai.\n485 /think",
+  "validation": {
+    "original_regulation_numbers": [],
+    "translated_regulation_numbers": [],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 1552,
+    "translated_characters": 1842,
+    "elapsed_seconds": 101.12
+  }
+}

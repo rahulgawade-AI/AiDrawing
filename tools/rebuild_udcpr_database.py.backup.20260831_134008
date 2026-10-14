@@ -1,0 +1,2185 @@
+#!/usr/bin/env python3
+
+"""
+UDCPR CANONICAL DATABASE REBUILDER
+
+Authoritative sources
+---------------------
+
+1. udcpr_canonical_manifest.json
+   - authoritative regulation number
+   - authoritative title
+   - authoritative printed start page
+   - authoritative manifest order
+   - generated from complete UDCPR INDEX pages 5-14
+
+2. udcpr_source_chunks.json
+   - authoritative extracted regulation text
+   - source PDF pages
+   - tables belonging to each regulation
+   - table markdown / rows / headers
+
+The PDF itself is NOT reparsed for regulation identity here.
+
+This is intentional.
+
+The pipeline is:
+
+    UDCPR.pdf
+        |
+        +--> build_udcpr_manifest.py
+        |       INDEX PDF pages 5-14
+        |       -> udcpr_canonical_manifest.json
+        |
+        +--> build_udcpr_source_chunks.py
+                manifest
+                + PDF
+                -> udcpr_source_chunks.json
+        |
+        +--> THIS SCRIPT
+                source chunks
+                -> PostgreSQL
+
+Important behavior
+------------------
+
+* All 329 canonical manifest entries are required.
+* INDEX pages 5-14 are represented by the manifest.
+* 2.2.5(a) and 2.2.5(b) are separate canonical regulations.
+* Duplicate numbers such as 10.14 are allowed when title/page occurrence
+  differs.
+* Multiple regulations on one PDF page are supported.
+* One regulation spanning many PDF pages is supported.
+* Sub-regulations that are not canonical manifest entries remain inside
+  their parent text.
+* Tables are persisted against the regulation owning the source chunk.
+* Table markdown remains available in the regulation text.
+* No ChromaDB modification is performed.
+* Dry-run is the default.
+* PostgreSQL is modified only with --apply.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import logging
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from townplanning.infrastructure.database.session import SessionLocal
+from townplanning.infrastructure.database.models.regulation_model import (
+    RegulationModel,
+)
+from townplanning.infrastructure.database.models.rule_model import (
+    RuleModel,
+)
+from townplanning.infrastructure.database.models.table import (
+    Table,
+)
+from townplanning.infrastructure.database.models.knowledge_card_model import (
+    KnowledgeCardModel,
+)
+
+
+# ============================================================
+# CONFIGURATION
+# ============================================================
+
+DEFAULT_MANIFEST = Path(
+    "data/regulations/udcpr_canonical_manifest.json"
+)
+
+DEFAULT_CHUNKS = Path(
+    "data/regulations/udcpr_source_chunks.json"
+)
+
+DEFAULT_REPORT = Path(
+    "data/regulations/udcpr_database_rebuild_report.json"
+)
+
+SOURCE_DOCUMENT = "UDCPR"
+VERSION = "2020"
+
+EXPECTED_MANIFEST_ENTRIES = 329
+
+LOG = logging.getLogger("udcpr-database-rebuild")
+
+
+# ============================================================
+# DATA STRUCTURES
+# ============================================================
+
+
+@dataclass
+class CanonicalEntry:
+    number: str
+    title: str
+    chapter: str
+    printed_page_start: int
+    printed_page_end: int | None
+    manifest_position: int
+    canonical_key: str
+
+
+@dataclass
+class RebuildRecord:
+    number: str
+    title: str
+    chapter: str
+    page_start: int
+    page_end: int
+    status: str
+    text_hash: str
+    source_pages: list[int]
+    table_count: int
+    existing_id: str | None = None
+    reason: str = ""
+
+
+# ============================================================
+# BASIC HELPERS
+# ============================================================
+
+
+def clean(value: Any) -> str:
+    if value is None:
+        return ""
+
+    text_value = str(value)
+
+    text_value = (
+        text_value
+        .replace("\u00a0", " ")
+        .replace("\r", "\n")
+        .replace("\u2013", "-")
+        .replace("\u2014", "-")
+    )
+
+    return text_value.strip()
+
+
+def normalize_number(value: Any) -> str:
+    value = clean(value)
+
+    value = value.replace(" ", "")
+
+    return value
+
+
+def normalize_title(value: Any) -> str:
+    value = clean(value)
+
+    return " ".join(
+        value.split()
+    )
+
+
+def normalize_compare(value: Any) -> str:
+    value = normalize_title(value).lower()
+
+    return (
+        value
+        .replace("–", "-")
+        .replace("—", "-")
+    )
+
+
+def text_hash(value: str) -> str:
+    return hashlib.sha256(
+        value.encode("utf-8")
+    ).hexdigest()
+
+
+def canonical_occurrence_key(
+    number: str,
+    title: str,
+    printed_page: int,
+) -> str:
+    return (
+        f"{normalize_number(number)}"
+        f"@{printed_page}"
+        f"|{normalize_compare(title)}"
+    )
+
+
+# ============================================================
+# JSON LOADING
+# ============================================================
+
+
+def load_json(
+    path: Path,
+) -> Any:
+
+    if not path.exists():
+        raise RuntimeError(
+            f"Required file does not exist: {path}"
+        )
+
+    with path.open(
+        "r",
+        encoding="utf-8",
+    ) as handle:
+        return json.load(handle)
+
+
+# ============================================================
+# MANIFEST
+# ============================================================
+
+
+def get_manifest_entries(
+    manifest: dict[str, Any],
+) -> list[dict[str, Any]]:
+
+    for key in (
+        "regulations",
+        "entries",
+        "items",
+    ):
+        value = manifest.get(key)
+
+        if isinstance(value, list):
+            return value
+
+    raise RuntimeError(
+        "Canonical manifest does not contain "
+        "'regulations', 'entries' or 'items'."
+    )
+
+
+def manifest_entry(
+    raw: dict[str, Any],
+    position: int,
+) -> CanonicalEntry:
+
+    number = normalize_number(
+        raw.get("number")
+        or raw.get("regulation_number")
+        or raw.get("regulation_no")
+    )
+
+    title = normalize_title(
+        raw.get("title")
+        or raw.get("particulars")
+        or raw.get("heading")
+        or raw.get("name")
+    )
+
+    chapter = clean(
+        raw.get("chapter")
+        or raw.get("chapter_number")
+        or ""
+    )
+
+    page_start = (
+        raw.get("printed_page_start")
+        if raw.get("printed_page_start") is not None
+        else raw.get("printed_page")
+    )
+
+    if page_start is None:
+        page_start = raw.get("page_start")
+
+    page_end = (
+        raw.get("printed_page_end")
+        if raw.get("printed_page_end") is not None
+        else raw.get("page_end")
+    )
+
+    if not number:
+        raise RuntimeError(
+            f"Manifest entry {position + 1} "
+            "has no regulation number."
+        )
+
+    if not title:
+        raise RuntimeError(
+            f"Manifest entry {position + 1} "
+            f"{number} has no title."
+        )
+
+    if page_start is None:
+        raise RuntimeError(
+            f"Manifest entry {position + 1} "
+            f"{number} has no printed start page."
+        )
+
+    try:
+        page_start = int(page_start)
+    except Exception as exc:
+        raise RuntimeError(
+            f"{number}: invalid printed page "
+            f"{page_start!r}"
+        ) from exc
+
+    if page_end is not None:
+        try:
+            page_end = int(page_end)
+        except Exception as exc:
+            raise RuntimeError(
+                f"{number}: invalid printed end page "
+                f"{page_end!r}"
+            ) from exc
+
+    # Preserve the canonical number exactly.
+    #
+    # This is important for:
+    #
+    #   2.2.5(a)
+    #   2.2.5(b)
+    #
+    # They are distinct manifest entries.
+    canonical_key = (
+        f"{number}@{page_start}#{position + 1}"
+    )
+
+    return CanonicalEntry(
+        number=number,
+        title=title,
+        chapter=chapter,
+        printed_page_start=page_start,
+        printed_page_end=page_end,
+        manifest_position=position,
+        canonical_key=canonical_key,
+    )
+
+
+def load_manifest(
+    path: Path,
+) -> tuple[
+    dict[str, Any],
+    list[CanonicalEntry],
+]:
+
+    manifest = load_json(path)
+
+    if not isinstance(manifest, dict):
+        raise RuntimeError(
+            "Canonical manifest must be a JSON object."
+        )
+
+    raw_entries = get_manifest_entries(
+        manifest
+    )
+
+    entries = [
+        manifest_entry(
+            raw,
+            position,
+        )
+        for position, raw in enumerate(
+            raw_entries
+        )
+    ]
+
+    return manifest, entries
+
+
+# ============================================================
+# MANIFEST VALIDATION
+# ============================================================
+
+
+def validate_manifest(
+    manifest: dict[str, Any],
+    entries: list[CanonicalEntry],
+) -> None:
+
+    errors: list[str] = []
+
+    if len(entries) != EXPECTED_MANIFEST_ENTRIES:
+        errors.append(
+            "Expected "
+            f"{EXPECTED_MANIFEST_ENTRIES} "
+            "canonical manifest entries, got "
+            f"{len(entries)}."
+        )
+
+    seen_occurrences: set[str] = set()
+
+    for entry in entries:
+
+        occurrence = canonical_occurrence_key(
+            entry.number,
+            entry.title,
+            entry.printed_page_start,
+        )
+
+        if occurrence in seen_occurrences:
+            errors.append(
+                "Duplicate canonical occurrence: "
+                f"{entry.number}@"
+                f"{entry.printed_page_start} "
+                f"{entry.title}"
+            )
+
+        seen_occurrences.add(
+            occurrence
+        )
+
+        if entry.printed_page_start <= 0:
+            errors.append(
+                f"{entry.number}: invalid start page"
+            )
+
+        if (
+            entry.printed_page_end is not None
+            and entry.printed_page_end
+            < entry.printed_page_start
+        ):
+            errors.append(
+                f"{entry.number}: invalid page range"
+            )
+
+    # Validate the document structure metadata
+    # when available.
+    structure = manifest.get(
+        "document_structure",
+        {},
+    )
+
+    index_pages = structure.get(
+        "index_pdf_pages"
+    )
+
+    if index_pages != [
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+    ]:
+        LOG.warning(
+            "Manifest index_pdf_pages=%r; "
+            "expected [5..14].",
+            index_pages,
+        )
+
+    if errors:
+        raise RuntimeError(
+            "CANONICAL MANIFEST VALIDATION FAILED:\n"
+            + "\n".join(errors)
+        )
+
+
+# ============================================================
+# SOURCE CHUNKS
+# ============================================================
+
+
+def get_chunks(
+    data: Any,
+) -> list[dict[str, Any]]:
+
+    if isinstance(data, dict):
+
+        for key in (
+            "chunks",
+            "regulations",
+            "entries",
+            "items",
+        ):
+
+            value = data.get(key)
+
+            if isinstance(value, list):
+                return value
+
+    if isinstance(data, list):
+        return data
+
+    raise RuntimeError(
+        "Source chunk JSON does not contain "
+        "a chunk list."
+    )
+
+
+def chunk_number(
+    chunk: dict[str, Any],
+) -> str:
+
+    return normalize_number(
+        chunk.get("number")
+        or chunk.get("regulation_number")
+        or chunk.get("regulation_no")
+    )
+
+
+def chunk_title(
+    chunk: dict[str, Any],
+) -> str:
+
+    return normalize_title(
+        chunk.get("title")
+        or chunk.get("heading")
+        or chunk.get("name")
+    )
+
+
+def chunk_text(
+    chunk: dict[str, Any],
+) -> str:
+
+    for key in (
+        "regulation_text",
+        "text",
+        "source_text",
+        "content",
+    ):
+
+        value = chunk.get(key)
+
+        if value:
+            return clean(value)
+
+    return ""
+
+
+def chunk_source_pages(
+    chunk: dict[str, Any],
+) -> list[int]:
+
+    pages = (
+        chunk.get("source_pages")
+        or chunk.get("pdf_pages")
+        or []
+    )
+
+    result: list[int] = []
+
+    if isinstance(pages, list):
+
+        for value in pages:
+
+            try:
+                result.append(
+                    int(value)
+                )
+            except Exception:
+                continue
+
+    return result
+
+
+def chunk_tables(
+    chunk: dict[str, Any],
+) -> list[dict[str, Any]]:
+
+    tables = chunk.get(
+        "tables"
+    )
+
+    if not isinstance(
+        tables,
+        list,
+    ):
+        return []
+
+    return [
+        x
+        for x in tables
+        if isinstance(x, dict)
+    ]
+
+
+def load_source_chunks(
+    path: Path,
+) -> list[dict[str, Any]]:
+
+    data = load_json(path)
+
+    chunks = get_chunks(data)
+
+    if not chunks:
+        raise RuntimeError(
+            "Source chunk file contains zero chunks."
+        )
+
+    return chunks
+
+
+# ============================================================
+# CHUNK MATCHING
+# ============================================================
+
+
+def build_chunk_indexes(
+    chunks: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+
+    by_number: dict[
+        str,
+        list[dict[str, Any]],
+    ] = {}
+
+    for chunk in chunks:
+
+        number = chunk_number(
+            chunk
+        )
+
+        if not number:
+            continue
+
+        by_number.setdefault(
+            number,
+            [],
+        ).append(
+            chunk
+        )
+
+    return by_number
+
+
+def match_chunk(
+    entry: CanonicalEntry,
+    candidates: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+
+    if not candidates:
+        return None
+
+    # First preference:
+    # exact title + printed start page.
+    for chunk in candidates:
+
+        title = chunk_title(
+            chunk
+        )
+
+        printed_start = chunk.get(
+            "printed_page_start"
+        )
+
+        try:
+            printed_start = int(
+                printed_start
+            )
+        except Exception:
+            printed_start = None
+
+        if (
+            normalize_compare(title)
+            == normalize_compare(entry.title)
+            and printed_start
+            == entry.printed_page_start
+        ):
+            return chunk
+
+    # Second preference:
+    # exact title.
+    title_matches = [
+        chunk
+        for chunk in candidates
+        if normalize_compare(
+            chunk_title(chunk)
+        )
+        == normalize_compare(
+            entry.title
+        )
+    ]
+
+    if len(title_matches) == 1:
+        return title_matches[0]
+
+    # Third preference:
+    # exact printed page.
+    page_matches = []
+
+    for chunk in candidates:
+
+        value = chunk.get(
+            "printed_page_start"
+        )
+
+        try:
+            value = int(value)
+        except Exception:
+            continue
+
+        if value == entry.printed_page_start:
+            page_matches.append(
+                chunk
+            )
+
+    if len(page_matches) == 1:
+        return page_matches[0]
+
+    # Never guess between duplicate occurrences.
+    if len(candidates) == 1:
+        return candidates[0]
+
+    return None
+
+
+# ============================================================
+# SOURCE CHUNK VALIDATION
+# ============================================================
+
+
+def validate_source_chunks(
+    entries: list[CanonicalEntry],
+    chunks: list[dict[str, Any]],
+) -> dict[str, Any]:
+
+    by_number = build_chunk_indexes(
+        chunks
+    )
+
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    matched = 0
+    empty = 0
+
+    for entry in entries:
+
+        chunk = match_chunk(
+            entry,
+            by_number.get(
+                entry.number,
+                [],
+            ),
+        )
+
+        if chunk is None:
+            errors.append(
+                f"{entry.number}@"
+                f"{entry.printed_page_start}: "
+                "source chunk not found."
+            )
+            continue
+
+        matched += 1
+
+        text_value = chunk_text(
+            chunk
+        )
+
+        if not text_value:
+            empty += 1
+            errors.append(
+                f"{entry.number}@"
+                f"{entry.printed_page_start}: "
+                "empty regulation text."
+            )
+
+        source_pages = (
+            chunk_source_pages(
+                chunk
+            )
+        )
+
+        if not source_pages:
+            warnings.append(
+                f"{entry.number}@"
+                f"{entry.printed_page_start}: "
+                "source_pages empty."
+            )
+
+    result = {
+        "manifest_entries": len(entries),
+        "source_chunks": len(chunks),
+        "matched": matched,
+        "empty_text": empty,
+        "errors": errors,
+        "warnings": warnings,
+        "valid": not errors,
+    }
+
+    if errors:
+        raise RuntimeError(
+            "SOURCE CHUNK VALIDATION FAILED:\n"
+            + "\n".join(errors[:100])
+        )
+
+    return result
+
+
+# ============================================================
+# TABLE HELPERS
+# ============================================================
+
+
+def table_page(
+    table: dict[str, Any],
+) -> int | None:
+
+    for key in (
+        "printed_page",
+        "page",
+        "page_number",
+    ):
+
+        value = table.get(key)
+
+        if value is None:
+            continue
+
+        try:
+            return int(value)
+        except Exception:
+            pass
+
+    return None
+
+
+def table_pdf_page(
+    table: dict[str, Any],
+) -> int | None:
+
+    value = table.get(
+        "pdf_page"
+    )
+
+    if value is None:
+        return None
+
+    try:
+        return int(value)
+    except Exception:
+        return None
+
+
+def table_index(
+    table: dict[str, Any],
+) -> int:
+
+    value = table.get(
+        "table_index",
+        1,
+    )
+
+    try:
+        return int(value)
+    except Exception:
+        return 1
+
+
+def table_headers(
+    table: dict[str, Any],
+) -> list:
+
+    value = table.get(
+        "headers",
+        [],
+    )
+
+    return (
+        value
+        if isinstance(value, list)
+        else []
+    )
+
+
+def table_rows(
+    table: dict[str, Any],
+) -> list:
+
+    value = table.get(
+        "rows",
+        [],
+    )
+
+    return (
+        value
+        if isinstance(value, list)
+        else []
+    )
+
+
+def table_markdown(
+    table: dict[str, Any],
+) -> str:
+
+    value = table.get(
+        "markdown",
+        "",
+    )
+
+    return clean(value)
+
+
+def table_title(
+    table: dict[str, Any],
+) -> str:
+
+    return clean(
+        table.get(
+            "title",
+            "",
+        )
+    )
+
+
+def make_table_id(
+    regulation_id: str,
+    table: dict[str, Any],
+    ordinal: int,
+) -> str:
+
+    pdf_page = (
+        table_pdf_page(table)
+        or 0
+    )
+
+    idx = table_index(
+        table
+    )
+
+    raw = (
+        f"{regulation_id}|"
+        f"{pdf_page}|"
+        f"{idx}|"
+        f"{ordinal}"
+    )
+
+    return hashlib.sha1(
+        raw.encode("utf-8")
+    ).hexdigest()
+
+
+# ============================================================
+# DATABASE DEPENDENCIES
+# ============================================================
+
+
+def delete_regulation_dependencies(
+    db: Session,
+    regulation_id: str,
+) -> None:
+
+    # Tables have ON DELETE CASCADE in the current
+    # schema, but explicitly deleting them keeps this
+    # rebuild safe against older schema versions.
+
+    db.query(
+        Table
+    ).filter(
+        Table.regulation_id
+        == regulation_id
+    ).delete(
+        synchronize_session=False
+    )
+
+    db.query(
+        RuleModel
+    ).filter(
+        RuleModel.regulation_id
+        == regulation_id
+    ).delete(
+        synchronize_session=False
+    )
+
+    db.query(
+        KnowledgeCardModel
+    ).filter(
+        KnowledgeCardModel.regulation_id
+        == regulation_id
+    ).delete(
+        synchronize_session=False
+    )
+
+
+# ============================================================
+# EXISTING REGULATION LOOKUP
+# ============================================================
+
+
+def find_existing_regulation(
+    db: Session,
+    entry: CanonicalEntry,
+) -> list[RegulationModel]:
+
+    return (
+        db.query(
+            RegulationModel
+        )
+        .filter(
+            RegulationModel.number
+            == entry.number
+        )
+        .filter(
+            RegulationModel.title
+            == entry.title
+        )
+        .all()
+    )
+
+
+# ============================================================
+# REBUILD PLAN
+# ============================================================
+
+
+def build_plan(
+    entries: list[CanonicalEntry],
+    chunks: list[dict[str, Any]],
+    db: Session | None = None,
+) -> list[RebuildRecord]:
+
+    by_number = build_chunk_indexes(
+        chunks
+    )
+
+    records: list[
+        RebuildRecord
+    ] = []
+
+    for entry in entries:
+
+        chunk = match_chunk(
+            entry,
+            by_number.get(
+                entry.number,
+                [],
+            ),
+        )
+
+        if chunk is None:
+            raise RuntimeError(
+                f"No source chunk for "
+                f"{entry.number}@"
+                f"{entry.printed_page_start}"
+            )
+
+        text_value = chunk_text(
+            chunk
+        )
+
+        source_pages = (
+            chunk_source_pages(
+                chunk
+            )
+        )
+
+        tables = chunk_tables(
+            chunk
+        )
+
+        page_end = (
+            entry.printed_page_end
+            or entry.printed_page_start
+        )
+
+        existing_id = None
+        status = "inserted"
+
+        if db is not None:
+
+            existing = find_existing_regulation(
+                db,
+                entry,
+            )
+
+            if len(existing) == 1:
+
+                existing_id = (
+                    existing[0].id
+                )
+
+                existing_text = clean(
+                    existing[0].text
+                )
+
+                if (
+                    existing_text
+                    == text_value
+                    and existing[0].page_start
+                    == entry.printed_page_start
+                    and existing[0].page_end
+                    == page_end
+                ):
+                    status = "unchanged"
+                else:
+                    status = "replaced"
+
+            elif len(existing) > 1:
+                status = "replaced"
+
+        records.append(
+            RebuildRecord(
+                number=entry.number,
+                title=entry.title,
+                chapter=entry.chapter,
+                page_start=(
+                    entry.printed_page_start
+                ),
+                page_end=page_end,
+                status=status,
+                text_hash=text_hash(
+                    text_value
+                ),
+                source_pages=source_pages,
+                table_count=len(
+                    tables
+                ),
+                existing_id=existing_id,
+            )
+        )
+
+    return records
+
+
+# ============================================================
+# INSERT / REPLACE REGULATION
+# ============================================================
+
+
+def create_regulation(
+    db: Session,
+    entry: CanonicalEntry,
+    text_value: str,
+) -> RegulationModel:
+
+    from uuid import uuid4
+
+    row = RegulationModel(
+        id=str(uuid4()),
+        number=entry.number,
+        chapter=entry.chapter or "",
+        title=entry.title,
+        text=text_value,
+        page_start=(
+            entry.printed_page_start
+        ),
+        page_end=(
+            entry.printed_page_end
+            or entry.printed_page_start
+        ),
+        source_document=SOURCE_DOCUMENT,
+        version=VERSION,
+        metadata_json={
+            "canonical_source": (
+                "udcpr_canonical_manifest.json"
+            ),
+            "canonical_index_pages": [
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12,
+                13,
+                14,
+            ],
+            "manifest_position": (
+                entry.manifest_position
+            ),
+            "canonical_key": (
+                entry.canonical_key
+            ),
+            "printed_page_range": [
+                entry.printed_page_start,
+                (
+                    entry.printed_page_end
+                    or entry.printed_page_start
+                ),
+            ],
+            "text_sha256": text_hash(
+                text_value
+            ),
+        },
+    )
+
+    db.add(row)
+
+    db.flush()
+
+    return row
+
+
+# ============================================================
+# TABLE INSERTION
+# ============================================================
+
+
+def insert_tables(
+    db: Session,
+    regulation_id: str,
+    tables: list[dict[str, Any]],
+    entry: CanonicalEntry,
+) -> int:
+
+    inserted = 0
+
+    used_keys: set[
+        tuple[int, int]
+    ] = set()
+
+    for ordinal, source_table in enumerate(
+        tables,
+        start=1,
+    ):
+
+        page = table_page(
+            source_table
+        )
+
+        pdf_page = table_pdf_page(
+            source_table
+        )
+
+        # Source chunks generated by the current
+        # builder normally contain pdf_page.
+        #
+        # PostgreSQL Table.page_number is used by
+        # the application as the UDCPR printed page.
+        #
+        # If printed page is unavailable, derive it
+        # from the verified +16 pagination offset.
+
+        if page is None and pdf_page is not None:
+            page = pdf_page - 16
+
+        if page is None:
+            # Do not invent a page.
+            #
+            # Fall back to the regulation's canonical
+            # printed start page.
+            page = entry.printed_page_start
+
+        idx = table_index(
+            source_table
+        )
+
+        key = (
+            page,
+            idx,
+        )
+
+        # Multiple physical table fragments can have
+        # the same table index. Preserve them by using
+        # a unique synthetic index when necessary.
+        if key in used_keys:
+
+            idx = (
+                max(
+                    x[1]
+                    for x in used_keys
+                    if x[0] == page
+                )
+                + 1
+            )
+
+            key = (
+                page,
+                idx,
+            )
+
+        used_keys.add(
+            key
+        )
+
+        row = Table(
+            id=make_table_id(
+                regulation_id,
+                {
+                    **source_table,
+                    "table_index": idx,
+                },
+                ordinal,
+            ),
+            regulation_id=regulation_id,
+            page_number=page,
+            table_index=idx,
+            title=table_title(
+                source_table
+            ),
+            headers=table_headers(
+                source_table
+            ),
+            rows=table_rows(
+                source_table
+            ),
+            markdown=table_markdown(
+                source_table
+            ),
+            extra_metadata={
+                "source": (
+                    "udcpr_source_chunks"
+                ),
+                "pdf_page": pdf_page,
+                "printed_page": page,
+                "original_table_index": (
+                    table_index(
+                        source_table
+                    )
+                ),
+                "ordinal": ordinal,
+                "canonical_regulation": (
+                    entry.number
+                ),
+                "canonical_title": (
+                    entry.title
+                ),
+            },
+        )
+
+        db.add(row)
+
+        inserted += 1
+
+    return inserted
+
+
+# ============================================================
+# APPLY ONE ENTRY
+# ============================================================
+
+
+def apply_entry(
+    db: Session,
+    entry: CanonicalEntry,
+    chunk: dict[str, Any],
+) -> RebuildRecord:
+
+    text_value = chunk_text(
+        chunk
+    )
+
+    if not text_value:
+        raise RuntimeError(
+            f"{entry.number}: empty text."
+        )
+
+    tables = chunk_tables(
+        chunk
+    )
+
+    existing = find_existing_regulation(
+        db,
+        entry,
+    )
+
+    existing_id = None
+
+    # --------------------------------------------------------
+    # Existing duplicate occurrences
+    # --------------------------------------------------------
+
+    if len(existing) > 1:
+
+        for row in existing:
+
+            delete_regulation_dependencies(
+                db,
+                row.id,
+            )
+
+            db.delete(
+                row
+            )
+
+        db.flush()
+
+        status = "replaced"
+
+    # --------------------------------------------------------
+    # Existing exact occurrence
+    # --------------------------------------------------------
+
+    elif len(existing) == 1:
+
+        row = existing[0]
+        existing_id = row.id
+
+        page_end = (
+            entry.printed_page_end
+            or entry.printed_page_start
+        )
+
+        if (
+            clean(row.text)
+            == text_value
+            and row.page_start
+            == entry.printed_page_start
+            and row.page_end
+            == page_end
+        ):
+
+            # Even when regulation text is unchanged,
+            # rebuild its tables so stale/wrong table
+            # ownership is corrected.
+            delete_regulation_dependencies(
+                db,
+                row.id,
+            )
+
+            insert_tables(
+                db,
+                row.id,
+                tables,
+                entry,
+            )
+
+            return RebuildRecord(
+                number=entry.number,
+                title=entry.title,
+                chapter=entry.chapter,
+                page_start=(
+                    entry.printed_page_start
+                ),
+                page_end=page_end,
+                status="unchanged",
+                text_hash=text_hash(
+                    text_value
+                ),
+                source_pages=(
+                    chunk_source_pages(
+                        chunk
+                    )
+                ),
+                table_count=len(
+                    tables
+                ),
+                existing_id=row.id,
+                reason=(
+                    "Canonical source matches "
+                    "existing regulation."
+                ),
+            )
+
+        delete_regulation_dependencies(
+            db,
+            row.id,
+        )
+
+        db.delete(
+            row
+        )
+
+        db.flush()
+
+        status = "replaced"
+
+    # --------------------------------------------------------
+    # New regulation
+    # --------------------------------------------------------
+
+    else:
+        status = "inserted"
+
+    row = create_regulation(
+        db,
+        entry,
+        text_value,
+    )
+
+    inserted_tables = insert_tables(
+        db,
+        row.id,
+        tables,
+        entry,
+    )
+
+    return RebuildRecord(
+        number=entry.number,
+        title=entry.title,
+        chapter=entry.chapter,
+        page_start=(
+            entry.printed_page_start
+        ),
+        page_end=(
+            entry.printed_page_end
+            or entry.printed_page_start
+        ),
+        status=status,
+        text_hash=text_hash(
+            text_value
+        ),
+        source_pages=(
+            chunk_source_pages(
+                chunk
+            )
+        ),
+        table_count=inserted_tables,
+        existing_id=row.id,
+        reason=(
+            "Canonical UDCPR source "
+            "rebuilt."
+        ),
+    )
+
+
+# ============================================================
+# APPLY REBUILD
+# ============================================================
+
+
+def apply_rebuild(
+    entries: list[CanonicalEntry],
+    chunks: list[dict[str, Any]],
+) -> list[RebuildRecord]:
+
+    by_number = build_chunk_indexes(
+        chunks
+    )
+
+    db = SessionLocal()
+
+    records: list[
+        RebuildRecord
+    ] = []
+
+    try:
+
+        # ----------------------------------------------------
+        # IMPORTANT:
+        #
+        # We process in canonical manifest order.
+        #
+        # This is NOT sorted alphabetically.
+        # ----------------------------------------------------
+
+        for index, entry in enumerate(
+            entries,
+            start=1,
+        ):
+
+            chunk = match_chunk(
+                entry,
+                by_number.get(
+                    entry.number,
+                    [],
+                ),
+            )
+
+            if chunk is None:
+                raise RuntimeError(
+                    f"Source chunk missing for "
+                    f"{entry.number}@"
+                    f"{entry.printed_page_start}"
+                )
+
+            record = apply_entry(
+                db,
+                entry,
+                chunk,
+            )
+
+            records.append(
+                record
+            )
+
+            if index % 25 == 0:
+                LOG.info(
+                    "Processed %s/%s "
+                    "canonical regulations",
+                    index,
+                    len(entries),
+                )
+
+        db.commit()
+
+        return records
+
+    except Exception:
+
+        db.rollback()
+
+        raise
+
+    finally:
+
+        db.close()
+
+
+# ============================================================
+# REPORT
+# ============================================================
+
+
+def records_to_dict(
+    records: list[RebuildRecord],
+) -> list[dict[str, Any]]:
+
+    return [
+        {
+            "number": x.number,
+            "title": x.title,
+            "chapter": x.chapter,
+            "page_start": x.page_start,
+            "page_end": x.page_end,
+            "status": x.status,
+            "text_hash": x.text_hash,
+            "source_pages": x.source_pages,
+            "table_count": x.table_count,
+            "existing_id": x.existing_id,
+            "reason": x.reason,
+        }
+        for x in records
+    ]
+
+
+def build_report(
+    *,
+    pdf: Path,
+    manifest_path: Path,
+    chunks_path: Path,
+    manifest: dict[str, Any],
+    entries: list[CanonicalEntry],
+    chunks: list[dict[str, Any]],
+    records: list[RebuildRecord],
+    applied: bool,
+) -> dict[str, Any]:
+
+    return {
+        "format": (
+            "udcpr-database-rebuild-v1"
+        ),
+        "source_document": {
+            "name": SOURCE_DOCUMENT,
+            "version": VERSION,
+            "pdf": str(pdf),
+        },
+        "canonical_manifest": {
+            "path": str(
+                manifest_path
+            ),
+            "entry_count": len(
+                entries
+            ),
+            "index_pdf_pages": (
+                manifest.get(
+                    "document_structure",
+                    {},
+                ).get(
+                    "index_pdf_pages"
+                )
+            ),
+        },
+        "source_chunks": {
+            "path": str(
+                chunks_path
+            ),
+            "chunk_count": len(
+                chunks
+            ),
+        },
+        "database": {
+            "applied": applied,
+            "postgresql_modified": applied,
+            "chromadb_modified": False,
+        },
+        "statistics": {
+            "inserted": sum(
+                1
+                for x in records
+                if x.status
+                == "inserted"
+            ),
+            "replaced": sum(
+                1
+                for x in records
+                if x.status
+                == "replaced"
+            ),
+            "unchanged": sum(
+                1
+                for x in records
+                if x.status
+                == "unchanged"
+            ),
+            "tables": sum(
+                x.table_count
+                for x in records
+            ),
+        },
+        "records": records_to_dict(
+            records
+        ),
+    }
+
+
+def save_report(
+    report: dict[str, Any],
+    path: Path,
+) -> None:
+
+    path.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    with path.open(
+        "w",
+        encoding="utf-8",
+    ) as handle:
+
+        json.dump(
+            report,
+            handle,
+            indent=2,
+            ensure_ascii=False,
+        )
+
+
+# ============================================================
+# PRINT HELPERS
+# ============================================================
+
+
+def print_index(
+    entries: list[CanonicalEntry],
+) -> None:
+
+    print()
+    print("=" * 100)
+    print(
+        "CANONICAL UDCPR INDEX"
+    )
+    print("=" * 100)
+
+    # Do not print all 329 by default.
+    # Print enough to verify the beginning and
+    # the critical 2.2.5 variant entries.
+
+    selected: list[
+        CanonicalEntry
+    ] = []
+
+    selected.extend(
+        entries[:31]
+    )
+
+    selected_numbers = {
+        "2.2.5(a)",
+        "2.2.5(b)",
+    }
+
+    for entry in entries:
+
+        if (
+            entry.number
+            in selected_numbers
+        ):
+            if entry not in selected:
+                selected.append(
+                    entry
+                )
+
+    selected.sort(
+        key=lambda x:
+        x.manifest_position
+    )
+
+    for entry in selected:
+
+        print(
+            f"{entry.number:16} | "
+            f"{entry.title[:80]:80} | "
+            f"PAGE {entry.printed_page_start}"
+        )
+
+    print()
+    print(
+        f"INDEX ENTRIES: {len(entries)}"
+    )
+
+
+def print_plan(
+    records: list[RebuildRecord],
+) -> None:
+
+    print()
+    print("=" * 100)
+    print(
+        "UDCPR DATABASE REBUILD PLAN"
+    )
+    print("=" * 100)
+
+    print(
+        f"{'STATUS':10} "
+        f"{'NUMBER':16} "
+        f"{'PAGES':12} "
+        f"{'TABLES':8} "
+        f"TITLE"
+    )
+
+    print("-" * 100)
+
+    for record in records:
+
+        print(
+            f"{record.status:10} "
+            f"{record.number:16} "
+            f"{record.page_start:4}-"
+            f"{record.page_end:<6} "
+            f"{record.table_count:<8} "
+            f"{record.title}"
+        )
+
+    print("-" * 100)
+
+    print(
+        "INSERTED :",
+        sum(
+            x.status == "inserted"
+            for x in records
+        ),
+    )
+
+    print(
+        "REPLACED :",
+        sum(
+            x.status == "replaced"
+            for x in records
+        ),
+    )
+
+    print(
+        "UNCHANGED:",
+        sum(
+            x.status == "unchanged"
+            for x in records
+        ),
+    )
+
+    print(
+        "TABLES   :",
+        sum(
+            x.table_count
+            for x in records
+        ),
+    )
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+
+def main() -> None:
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Rebuild PostgreSQL UDCPR "
+            "regulations from the canonical "
+            "manifest and validated source chunks."
+        )
+    )
+
+    parser.add_argument(
+        "--pdf",
+        required=True,
+        help="Authoritative UDCPR PDF.",
+    )
+
+    parser.add_argument(
+        "--manifest",
+        default=str(
+            DEFAULT_MANIFEST
+        ),
+        help=(
+            "Canonical UDCPR manifest "
+            "generated from INDEX pages 5-14."
+        ),
+    )
+
+    parser.add_argument(
+        "--chunks",
+        default=str(
+            DEFAULT_CHUNKS
+        ),
+        help=(
+            "Validated UDCPR source chunks."
+        ),
+    )
+
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help=(
+            "Actually modify PostgreSQL. "
+            "Without this flag the operation "
+            "is a dry-run."
+        ),
+    )
+
+    parser.add_argument(
+        "--report",
+        default=str(
+            DEFAULT_REPORT
+        ),
+        help="JSON rebuild report.",
+    )
+
+    args = parser.parse_args()
+
+    pdf_path = Path(
+        args.pdf
+    )
+
+    manifest_path = Path(
+        args.manifest
+    )
+
+    chunks_path = Path(
+        args.chunks
+    )
+
+    report_path = Path(
+        args.report
+    )
+
+    print(
+        "=" * 100
+    )
+
+    print(
+        "UDCPR DATABASE REBUILD"
+    )
+
+    print(
+        "=" * 100
+    )
+
+    print(
+        "PDF     :",
+        pdf_path,
+    )
+
+    print(
+        "MANIFEST:",
+        manifest_path,
+    )
+
+    print(
+        "CHUNKS  :",
+        chunks_path,
+    )
+
+    print(
+        "MODE    :",
+        "APPLY"
+        if args.apply
+        else "DRY-RUN",
+    )
+
+    print(
+        "=" * 100
+    )
+
+    if not pdf_path.exists():
+        raise RuntimeError(
+            f"PDF does not exist: "
+            f"{pdf_path}"
+        )
+
+    manifest, entries = (
+        load_manifest(
+            manifest_path
+        )
+    )
+
+    validate_manifest(
+        manifest,
+        entries,
+    )
+
+    chunks = load_source_chunks(
+        chunks_path
+    )
+
+    chunk_validation = (
+        validate_source_chunks(
+            entries,
+            chunks,
+        )
+    )
+
+    print_index(
+        entries
+    )
+
+    print()
+    print(
+        "SOURCE CHUNK VALIDATION"
+    )
+    print(
+        "-" * 100
+    )
+
+    print(
+        "Manifest entries :",
+        len(entries),
+    )
+
+    print(
+        "Source chunks    :",
+        len(chunks),
+    )
+
+    print(
+        "Matched          :",
+        chunk_validation[
+            "matched"
+        ],
+    )
+
+    print(
+        "Empty text       :",
+        chunk_validation[
+            "empty_text"
+        ],
+    )
+
+    print(
+        "Validation       :",
+        "PASS"
+        if chunk_validation[
+            "valid"
+        ]
+        else "FAIL",
+    )
+
+    # --------------------------------------------------------
+    # DRY-RUN
+    #
+    # Do not open PostgreSQL unnecessarily.
+    # --------------------------------------------------------
+
+    if not args.apply:
+
+        records = build_plan(
+            entries,
+            chunks,
+            db=None,
+        )
+
+        print_plan(
+            records
+        )
+
+        report = build_report(
+            pdf=pdf_path,
+            manifest_path=manifest_path,
+            chunks_path=chunks_path,
+            manifest=manifest,
+            entries=entries,
+            chunks=chunks,
+            records=records,
+            applied=False,
+        )
+
+        report[
+            "source_chunk_validation"
+        ] = chunk_validation
+
+        save_report(
+            report,
+            report_path,
+        )
+
+        print()
+        print(
+            "=" * 100
+        )
+
+        print(
+            "DRY-RUN COMPLETE"
+        )
+
+        print(
+            "=" * 100
+        )
+
+        print(
+            "No PostgreSQL records were modified."
+        )
+
+        print(
+            "Report:",
+            report_path,
+        )
+
+        print()
+        print(
+            "Run with --apply only after "
+            "reviewing the plan."
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # APPLY
+    # --------------------------------------------------------
+
+    LOG.info(
+        "Applying canonical UDCPR rebuild."
+    )
+
+    records = apply_rebuild(
+        entries,
+        chunks,
+    )
+
+    report = build_report(
+        pdf=pdf_path,
+        manifest_path=manifest_path,
+        chunks_path=chunks_path,
+        manifest=manifest,
+        entries=entries,
+        chunks=chunks,
+        records=records,
+        applied=True,
+    )
+
+    report[
+        "source_chunk_validation"
+    ] = chunk_validation
+
+    save_report(
+        report,
+        report_path,
+    )
+
+    print_plan(
+        records
+    )
+
+    print()
+    print(
+        "=" * 100
+    )
+
+    print(
+        "POSTGRESQL REBUILD COMPLETE"
+    )
+
+    print(
+        "=" * 100
+    )
+
+    print(
+        "PostgreSQL modified : YES"
+    )
+
+    print(
+        "ChromaDB modified   : NO"
+    )
+
+    print(
+        "Report              :",
+        report_path,
+    )
+
+
+if __name__ == "__main__":
+    main()

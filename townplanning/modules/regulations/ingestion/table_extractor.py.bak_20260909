@@ -1,0 +1,342 @@
+"""
+Generic PDF table extraction.
+
+This module extracts source data only.
+
+It does NOT:
+    - calculate FSI
+    - calculate setbacks
+    - calculate height
+    - calculate floors
+    - calculate parking
+    - interpret regulatory applicability
+    - select a regulatory row
+    - infer missing values
+
+The output is intentionally generic so it can support every type of
+UDCPR constraint.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from townplanning.modules.regulations.ingestion.table import (
+    ExtractedTable,
+)
+
+
+class TableExtractor:
+    """
+    Extract structured tables from PDF pages using PyMuPDF.
+
+    The extractor preserves as much source structure as PyMuPDF exposes.
+    """
+
+    def extract(
+        self,
+        reader,
+        page_number: int,
+    ) -> list[ExtractedTable]:
+
+        document = reader._document
+
+        page = document.load_page(
+            page_number - 1
+        )
+
+        finder = page.find_tables()
+
+        tables = getattr(
+            finder,
+            "tables",
+            [],
+        )
+
+        output: list[ExtractedTable] = []
+
+        for index, table in enumerate(
+            tables,
+            start=1,
+        ):
+            extracted = self._extract_table(
+                table=table,
+                page_number=page_number,
+                index=index,
+            )
+
+            if extracted is not None:
+                output.append(extracted)
+
+        return output
+
+    # ============================================================
+    # TABLE EXTRACTION
+    # ============================================================
+
+    def _extract_table(
+        self,
+        table: Any,
+        page_number: int,
+        index: int,
+    ) -> ExtractedTable | None:
+
+        try:
+            data = table.extract()
+        except Exception:
+            return None
+
+        if not data:
+            return None
+
+        normalized = self._normalize_matrix(
+            data
+        )
+
+        if not normalized:
+            return None
+
+        # --------------------------------------------------------
+        # Markdown
+        # --------------------------------------------------------
+
+        markdown = ""
+
+        try:
+            if hasattr(table, "to_markdown"):
+                markdown = (
+                    table.to_markdown()
+                    or ""
+                )
+        except Exception:
+            markdown = ""
+
+        # --------------------------------------------------------
+        # Header rows
+        #
+        # PyMuPDF generally exposes only the first row as the
+        # header in this extraction path. Preserve it, but also
+        # retain all source rows so later processing can determine
+        # whether subsequent rows are actually subheaders.
+        # --------------------------------------------------------
+
+        headers = list(
+            normalized[0]
+        )
+
+        header_rows = [
+            headers
+        ]
+
+        rows = [
+            list(row)
+            for row in normalized[1:]
+        ]
+
+        # --------------------------------------------------------
+        # Bounding box
+        # --------------------------------------------------------
+
+        bbox = self._extract_bbox(
+            table
+        )
+
+        # --------------------------------------------------------
+        # Generic metadata
+        # --------------------------------------------------------
+
+        metadata = {
+            "extractor": (
+                "pymupdf_table_extractor"
+            ),
+            "source_page": page_number,
+            "source_table_index": index,
+            "row_count": len(rows),
+            "column_count": len(headers),
+            "has_markdown": bool(markdown),
+            "has_bbox": bbox is not None,
+
+            # Important:
+            # We explicitly record that the first row is the
+            # extractor's initial header candidate, not that it
+            # has been semantically verified as a header.
+            "header_detection": {
+                "method": "first_row",
+                "semantic_validation": False,
+            },
+        }
+
+        return ExtractedTable(
+            page=page_number,
+            index=index,
+            title="",
+            headers=headers,
+            header_rows=header_rows,
+            rows=rows,
+            markdown=markdown,
+            bbox=bbox,
+            metadata=metadata,
+        )
+
+    # ============================================================
+    # NORMALIZATION
+    # ============================================================
+
+    def _normalize_matrix(
+        self,
+        data: Any,
+    ) -> list[list[str]]:
+
+        if not isinstance(
+            data,
+            (list, tuple),
+        ):
+            return []
+
+        output: list[list[str]] = []
+
+        for row in data:
+            if not isinstance(
+                row,
+                (list, tuple),
+            ):
+                row = [row]
+
+            output.append(
+                [
+                    self._normalize_cell(
+                        value
+                    )
+                    for value in row
+                ]
+            )
+
+        # Remove completely empty rows.
+        output = [
+            row
+            for row in output
+            if any(
+                value != ""
+                for value in row
+            )
+        ]
+
+        if not output:
+            return []
+
+        width = max(
+            len(row)
+            for row in output
+        )
+
+        normalized: list[list[str]] = []
+
+        for row in output:
+            values = list(row)
+
+            if len(values) < width:
+                values.extend(
+                    [""] * (
+                        width - len(values)
+                    )
+                )
+
+            elif len(values) > width:
+                values = values[:width]
+
+            normalized.append(values)
+
+        return normalized
+
+    @staticmethod
+    def _normalize_cell(
+        value: Any,
+    ) -> str:
+
+        if value is None:
+            return ""
+
+        text = str(value)
+
+        # Preserve meaningful source text while removing
+        # accidental surrounding whitespace.
+        text = text.replace(
+            "\r\n",
+            "\n",
+        )
+        text = text.replace(
+            "\r",
+            "\n",
+        )
+
+        lines = [
+            line.strip()
+            for line in text.split("\n")
+        ]
+
+        return "\n".join(
+            line
+            for line in lines
+            if line
+        ).strip()
+
+    # ============================================================
+    # BBOX
+    # ============================================================
+
+    @staticmethod
+    def _extract_bbox(
+        table: Any,
+    ) -> tuple[
+        float,
+        float,
+        float,
+        float,
+    ] | None:
+
+        bbox = getattr(
+            table,
+            "bbox",
+            None,
+        )
+
+        if bbox is None:
+            bbox = getattr(
+                table,
+                "rect",
+                None,
+            )
+
+        if bbox is None:
+            return None
+
+        try:
+            if hasattr(
+                bbox,
+                "x0",
+            ):
+                return (
+                    float(bbox.x0),
+                    float(bbox.y0),
+                    float(bbox.x1),
+                    float(bbox.y1),
+                )
+
+            if isinstance(
+                bbox,
+                (list, tuple),
+            ) and len(bbox) >= 4:
+                return (
+                    float(bbox[0]),
+                    float(bbox[1]),
+                    float(bbox[2]),
+                    float(bbox[3]),
+                )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+            return None
+
+        return None

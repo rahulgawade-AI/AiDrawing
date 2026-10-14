@@ -1,0 +1,42 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 511,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0511.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\nतरतुदीमध्ये विसंगती आहे. त्यामुळे सदरची विसंगती दूर करणे आवश्यक असल्याने, विनियम क्र.३.१.३ नुसार नदी किनारा ते निळी पुरेषा यामध्ये अनुज्ञेय असलेले खुले क्षेत्र (Open Space) तसेच विनियम क्र. ४.१२.१(ii) मध्ये नमुद Recreational open space हे River Protection Belt / Green Belt या वापर विभागामध्ये विकास परवानगीवेळी उपरोक्त नमुद अंतरे विचारात न घेता नदी/नाल्या लगत प्रस्तावित करता येवु शकतील. तथापि, असे प्रस्तावित खुले क्षेत्र हे नियमावलीमधील तरतुदीनुसार योग्य आकारमानाचे असणे आवश्यक राहील तसेच अशा प्रस्तावित Open Space, Recreations open spaces क्षेत्रामध्ये नदीपासून १५.०० मी. व नाल्यापासून ९.०० मी. अंतरे सोडून तसेच विनियम क्र.३.१.३ मधील तरतुदीनुसार पुरेषा विचारात येवुन सदरच्या प्रस्तावित खुल्या क्षेत्रामध्ये UDCPR मधील तरतुदीनुसार विकास अनुज्ञेय राहील.\"\nआपला,\n(निर्मलकुमार चौधरी) उपसचिव महाराष्ट्र शासन,\nप्रत माहितीस्तव व आवश्यक त्या कार्यवाहीस्तव :-\nसंचालक, नगर रचना, महाराष्ट्र राज्य, पुणे. \n सर्व विभागीय आयुक्त. \n सर्व विभागीय सहसंचालक, नगर रचना. \n सर्व आयुक्त, महानगरपालिका. \n सर्व महानगर आयुक्त, महानगर प्रदेश विकास प्राधिकरण / विशेष नियोजन प्राधिकरण. \n मुख्य-कार्यकारी अधिकारी, कोल्हापूर नागरी क्षेत्र विकास प्राधिकरण, कोल्हापूर. \n सर्व महानगर आयुक्त, नवनगर प्रदेश विकास प्राधिकरण. \n मुख्य कार्यकारी अधिकारी, सर्व जिल्हापरिषद. \n मुख्याधिकारी सर्व नगरपरिषदा / नगरपंचायती. \n सर्व जिल्हाधिकारी. \n सहायक संचालक, नगर रचना / नगर रचनाकार, नगर रचना व मूल्यनिर्धारण विभाग, सर्व शाखा कार्यालये. \n अवर सचिव, नवि-१३/नवि-३०, कक्ष अधिकारी, नवि-९, नगर विकास विभाग, मंत्रालय, मुंबई.\n495",
+  "translated_english_text": "UDCPR-2020\nThere is inconsistency in the provisions. Therefore, it is necessary to remove such inconsistency, and in accordance with Regulation No. 3.1.3, open spaces (Open Space) permitted from river bank to green belt, as well as Recreational open space mentioned in Regulation No. 4.12.1(ii), may be proposed for development permission without considering the above-mentioned areas, and such proposed open spaces may be proposed adjacent to river/streams. However, such proposed open spaces must be of appropriate size as per the provisions of the regulations, and such proposed Open Space, Recreational open spaces must maintain a distance of 15.00 meters from river and 9.00 meters from stream, as well as the provisions of Regulation No. 3.1.3 regarding green belt, and the proposed open spaces shall be development permitted as per the provisions of UDCPR.\nYours,\n(Nirmal Kumar Chaudhary) Under Secretary, Maharashtra Government,\nFor information and necessary action:\nDirector, Urban Planning, Maharashtra State, Pune.\nAll Divisional Commissioners.\nAll Divisional Joint Directors, Urban Planning.\nAll Commissioners, Municipal Corporations.\nAll Metropolitan Commissioners, Metropolitan Region Development Authority / Special Planning Authority.\nChief Executive Officer, Kolhapur Nagarik Kshetra Vikas Pradhikaran, Kolhapur.\nAll Metropolitan Commissioners, New City Region Development Authority.\nChief Executive Officer, All District Panchayats.\nChief Executive Officer, All Municipal Corporations / Municipal Councils.\nAll District Collectors.\nJoint Director, Urban Planning / Urban Planner, Urban Planning and Valuation Department, All Branch Offices.\nUnder Secretary, Newi-13/Newi-30, Department Head, Newi-9, Urban Development Department, Ministry, Mumbai.\n495",
+  "validation": {
+    "original_regulation_numbers": [
+      "3.1.3",
+      "4.12.1(ii)",
+      "15.00",
+      "9.00"
+    ],
+    "translated_regulation_numbers": [
+      "3.1.3",
+      "4.12.1(ii)",
+      "15.00",
+      "9.00"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 1491,
+    "translated_characters": 1769,
+    "elapsed_seconds": 235.97
+  }
+}

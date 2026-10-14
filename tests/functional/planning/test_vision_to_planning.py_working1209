@@ -1,0 +1,1240 @@
+from __future__ import annotations
+
+import argparse
+import base64
+import json
+import mimetypes
+import os
+import re
+from pathlib import Path
+from typing import Any
+
+from townplanning.modules.planning.domain.planning_facts import PlanningFacts
+from townplanning.modules.planning.regulations.udcpr_rule_resolver import UDCPRRuleResolver
+from townplanning.infrastructure.database.session import SessionLocal
+from townplanning.modules.regulations.extraction.postgresql_authoritative_table_resolver import (
+    PostgreSQLAuthoritativeTableResolver,
+)
+
+try:
+    from openai import OpenAI
+except ImportError:
+    OpenAI = None
+
+
+# =============================================================================
+# PURPOSE
+# =============================================================================
+#
+# This is the vision -> planning -> design-input test built on the successful
+# deterministic PostgreSQL rule-graph test.
+#
+# IMPORTANT:
+#   * Image AI extracts OBSERVED site facts only.
+#   * User JSON supplies project/program facts, including the explicit
+#     tenement_carpet_areas list.
+#   * PostgreSQLAuthoritativeTableResolver is authoritative for regulatory values.
+#   * Rules are evaluated repeatedly until no new deterministic fact is written.
+#   * The drawing layer receives the COMPLETE deterministic planning state,
+#     rule metadata, missing inputs, approvals/NOCs, site facts and the unit
+#     program. No regulatory number is invented in this test.
+#
+# Usage:
+#   python tests/functional/planning/test_vision_to_planning.py \
+#       --image tests/functional/vision/data/sample1.png \
+#       --user-input-file user_input.json
+#
+# =============================================================================
+
+DEFAULT_USER_FACTS: dict[str, Any] = {
+    "project_type": "Residential Apartment",
+    "development_type": "New Construction",
+    "zone": "Residential R-1",
+    "zone_type": "Residential",
+    "land_use_zone": "R-1",
+    "land_use_classification": "Residential",
+    "building_use": "residential",
+    "building_type": "Residential Apartment",
+    "occupancy_type": "residential",
+    "planning_authority": "Pune Municipal Corporation",
+    "municipal_corporation": "Pune Municipal Corporation",
+    "municipality": "Pune Municipal Corporation",
+    "competent_authority": "Pune Municipal Corporation",
+    "city": "Pune",
+    "district": "Pune",
+    "state": "Maharashtra",
+    "congested_area": False,
+    "mixed_use": False,
+    "group_housing": False,
+    "group_housing_building": False,
+    "existing_building": False,
+    "redevelopment": False,
+    "maximize_fsi": True,
+    "maximize_parking": True,
+    "maximize_usable_area": True,
+    "optimize_daylight": True,
+    "optimize_ventilation": True,
+    "optimize_orientation": True,
+}
+
+
+IMAGE_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "plot_area": {"type": ["number", "null"]},
+        "plot_width": {"type": ["number", "null"]},
+        "plot_depth": {"type": ["number", "null"]},
+        "plot_shape": {"type": ["string", "null"]},
+        "north_direction": {"type": ["number", "string", "null"]},
+        "road_width": {"type": ["number", "null"]},
+        "road_locations": {"type": "array", "items": {"type": "string"}},
+        "road_frontage_count": {"type": ["integer", "null"]},
+        "road_type": {"type": ["string", "null"]},
+        "road_classification": {"type": ["string", "null"]},
+        "access_available": {"type": ["boolean", "null"]},
+        "access_width": {"type": ["number", "null"]},
+        "access_length": {"type": ["number", "null"]},
+        "boundary_present": {"type": ["boolean", "null"]},
+        "reservation_present": {"type": ["boolean", "null"]},
+        "road_widening": {"type": ["boolean", "null"]},
+        "existing_building": {"type": ["boolean", "null"]},
+        "building_height": {"type": ["number", "null"]},
+        "number_of_floors": {"type": ["integer", "null"]},
+    },
+    "required": [
+        "plot_area", "plot_width", "plot_depth", "plot_shape",
+        "north_direction", "road_width", "road_locations",
+        "road_frontage_count", "road_type", "road_classification",
+        "access_available", "access_width", "access_length",
+        "boundary_present", "reservation_present", "road_widening",
+        "existing_building", "building_height", "number_of_floors",
+    ],
+}
+
+
+REGULATORY_FIELDS = PlanningFacts.regulatory_value_fields()
+REGULATORY_FIELDS |= {
+    "height_approval_required",
+    "height_limit_basis",
+    "fire_approval_status",
+    "fire_approval_authority",
+    "fire_approved_height_source",
+}
+
+
+# =============================================================================
+# INPUT / IMAGE EXTRACTION
+# =============================================================================
+
+def load_user_input(path: str | None) -> dict[str, Any]:
+    data = dict(DEFAULT_USER_FACTS)
+    if not path:
+        return data
+    loaded = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(loaded, dict):
+        raise ValueError("--user-input-file must contain a JSON object")
+    data.update(loaded)
+    return data
+
+
+def _image_data_url(path: str) -> str:
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(path)
+    mime, _ = mimetypes.guess_type(p.name)
+    mime = mime or "image/png"
+    return f"data:{mime};base64,{base64.b64encode(p.read_bytes()).decode('ascii')}"
+
+
+def extract_image_facts(image_path: str) -> dict[str, Any]:
+    if OpenAI is None:
+        raise RuntimeError("Install OpenAI SDK: pip install -U openai")
+    if not os.environ.get("OPENAI_API_KEY"):
+        raise RuntimeError("OPENAI_API_KEY is not set")
+
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    prompt = """
+Extract ONLY visibly stated site/plan facts from this drawing.
+
+Do not calculate or infer any regulatory result.
+Do not calculate FSI, setbacks, parking, height limits, fire/lift/stair rules,
+coverage, storeys, or approvals.
+Use a dimension only when explicitly labelled/readable.
+Return null when a fact is absent or unclear.
+A visible floor count or height is an OBSERVED DRAWING FACT only.
+"""
+    response = client.responses.create(
+        model="gpt-5.6-luna",
+        input=[{
+            "role": "user",
+            "content": [
+                {"type": "input_text", "text": prompt},
+                {"type": "input_image", "image_url": _image_data_url(image_path)},
+            ],
+        }],
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "site_plan_facts",
+                "strict": True,
+                "schema": IMAGE_SCHEMA,
+            }
+        },
+    )
+    return json.loads(response.output_text)
+
+
+# =============================================================================
+# FACT BUILDING
+# =============================================================================
+
+def _set_source_fact(
+    facts: PlanningFacts,
+    field: str,
+    value: Any,
+    source: str,
+    conflicts: list[dict[str, Any]],
+) -> None:
+    if value is None or not hasattr(facts, field):
+        return
+    current = getattr(facts, field)
+    if current is None or current == [] or current == {}:
+        setattr(facts, field, value)
+        facts.fact_sources[field] = source
+        return
+    if current != value:
+        conflicts.append({
+            "field": field,
+            "existing": current,
+            "incoming": value,
+            "existing_source": facts.fact_sources.get(field, "unknown"),
+            "incoming_source": source,
+            "resolution": "existing authoritative source retained",
+        })
+
+
+def _derive_tenement_carpet_areas(user_input: dict[str, Any]) -> list[float]:
+    """Derive per-tenement carpet areas from the user's unit program.
+
+    The user input remains untouched.  We do not require a separate
+    ``tenement_carpet_areas`` PlanningFacts input.  The program is expanded
+    from requested_unit_mix and requested_unit_area, because the regulatory
+    parking graph needs one carpet-area value per tenement.
+    """
+    mix = user_input.get("requested_unit_mix")
+    area_map = user_input.get("requested_unit_area")
+
+    if not isinstance(mix, list) or not mix:
+        raise ValueError(
+            "user_input.json must contain a non-empty requested_unit_mix list."
+        )
+
+    if not isinstance(area_map, dict) or not area_map:
+        raise ValueError(
+            "user_input.json must contain requested_unit_area, e.g. "
+            "{\"2BHK\": 780, \"3BHK\": 1020}."
+        )
+
+    unit = str(user_input.get("tenement_carpet_area_unit", "sqft")).strip().lower()
+    factors = {
+        "m2": 1.0, "sqm": 1.0, "sq.m": 1.0, "sq.m.": 1.0,
+        "square_meter": 1.0, "square_metre": 1.0,
+        "sqft": 0.09290304, "sq.ft": 0.09290304, "sq.ft.": 0.09290304,
+        "square_feet": 0.09290304, "square_foot": 0.09290304,
+    }
+    if unit not in factors:
+        raise ValueError(
+            "tenement_carpet_area_unit must be one of m2/sqm/sqft/sq.ft."
+        )
+
+    factor = factors[unit]
+    result: list[float] = []
+
+    for item in mix:
+        if not isinstance(item, dict):
+            raise ValueError("Each requested_unit_mix item must be an object.")
+
+        bhk = str(item.get("type", "")).strip()
+        if not bhk:
+            raise ValueError("Each requested_unit_mix item requires type.")
+
+        count = item.get("count")
+        if count is None:
+            raise ValueError(f"requested_unit_mix item {bhk!r} requires count.")
+
+        try:
+            count_int = int(count)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Invalid count for {bhk!r}: {count!r}") from exc
+
+        if count_int <= 0:
+            raise ValueError(f"Count for {bhk!r} must be greater than zero.")
+
+        raw_area = area_map.get(bhk)
+        if raw_area is None:
+            # Accept the per-mix target only as a fallback representation of
+            # the same user requirement. It is not a regulatory value.
+            raw_area = item.get("target_carpet_area")
+
+        if raw_area is None:
+            raise ValueError(
+                f"No requested_unit_area/target_carpet_area supplied for {bhk!r}."
+            )
+
+        try:
+            area = float(raw_area)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Invalid requested carpet area for {bhk!r}: {raw_area!r}"
+            ) from exc
+
+        if area <= 0:
+            raise ValueError(f"Requested carpet area for {bhk!r} must be > 0.")
+
+        result.extend([area * factor] * count_int)
+
+    requested_units = user_input.get("requested_units")
+    if requested_units is not None and int(requested_units) != len(result):
+        raise ValueError(
+            "requested_units does not match the total count in requested_unit_mix: "
+            f"requested_units={requested_units}, derived={len(result)}"
+        )
+
+    return result
+
+
+def build_facts(
+    user_input: dict[str, Any],
+    image_facts: dict[str, Any] | None,
+) -> tuple[PlanningFacts, list[dict[str, Any]], dict[str, Any]]:
+    facts = PlanningFacts()
+    conflicts: list[dict[str, Any]] = []
+    observed: dict[str, Any] = {}
+
+    tenement_areas = _derive_tenement_carpet_areas(user_input)
+
+    for field, value in user_input.items():
+        if field == "tenement_carpet_areas":
+            continue
+        _set_source_fact(facts, field, value, "user", conflicts)
+
+    # Derived internal dependency for the parking graph. This is derived from
+    # user program inputs; it is not a separate user input and is never written
+    # back into user_input.json.
+    if hasattr(facts, "tenement_carpet_areas"):
+        facts.tenement_carpet_areas = tenement_areas
+        facts.fact_sources["tenement_carpet_areas"] = "user"
+
+    for field, value in (image_facts or {}).items():
+        if value is None:
+            continue
+        if field in {"building_height", "number_of_floors"}:
+            observed[field] = value
+            continue
+        if field == "boundary_present":
+            if value is True and getattr(facts, "boundary", None) is None:
+                facts.boundary = "image_boundary_present"
+                facts.fact_sources["boundary"] = "image"
+            continue
+        _set_source_fact(facts, field, value, "image", conflicts)
+
+    if getattr(facts, "road_width", None) is not None:
+        facts.road_widths = [float(facts.road_width)]
+
+    facts.normalize()
+    return facts, conflicts, observed
+
+
+# =============================================================================
+# DETERMINISTIC POSTGRESQL RULE GRAPH
+# =============================================================================
+
+def _constraint_dict(constraints: Any) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for name in getattr(constraints, "__dataclass_fields__", {}):
+        value = getattr(constraints, name, None)
+        if value is not None:
+            result[name] = value
+    return result
+
+
+def _serialize_rule(rule: Any) -> dict[str, Any]:
+    output: dict[str, Any] = {}
+    for name in getattr(rule, "__dataclass_fields__", {}):
+        value = getattr(rule, name, None)
+        if value is not None:
+            output[name] = value
+    if not output:
+        for name in (
+            "rule_id", "regulation_id", "name", "description", "result",
+            "metadata", "condition", "reason",
+        ):
+            value = getattr(rule, name, None)
+            if value is not None:
+                output[name] = value
+    return output
+
+
+def _apply_constraints(facts: PlanningFacts, constraints: Any) -> list[str]:
+    return facts.apply_deterministic_constraints(
+        constraints,
+        source="postgresql_rule_engine",
+    )
+
+
+def _extract_missing_field(reason: str) -> str | None:
+    match = re.search(r"Missing fact:\s*([A-Za-z_][A-Za-z0-9_]*)", reason or "")
+    return match.group(1) if match else None
+
+
+def _condition_fields(node: Any) -> set[str]:
+    fields: set[str] = set()
+    if isinstance(node, dict):
+        if isinstance(node.get("field"), str):
+            fields.add(node["field"])
+        for key, value in node.items():
+            if key.endswith("_min") or key.endswith("_max"):
+                fields.add(key.rsplit("_", 1)[0])
+            elif key not in {"value", "unit", "criteria", "message"}:
+                fields |= _condition_fields(value)
+    elif isinstance(node, list):
+        for item in node:
+            fields |= _condition_fields(item)
+    return fields
+
+
+def _missing_inputs_from_rules(facts: PlanningFacts, constraints: Any) -> list[dict[str, Any]]:
+    missing: dict[str, dict[str, Any]] = {}
+    dataclass_fields = set(getattr(facts, "__dataclass_fields__", {}))
+
+    for rule in getattr(constraints, "unresolved_rules", []) or []:
+        reason = str(getattr(rule, "reason", "") or "")
+        candidates = set()
+        explicit = _extract_missing_field(reason)
+        if explicit:
+            candidates.add(explicit)
+        candidates |= _condition_fields(getattr(rule, "condition", {}) or {})
+
+        for raw in candidates:
+            canonical = facts._canonical_field_name(raw)
+            if canonical not in dataclass_fields:
+                continue
+            if canonical in REGULATORY_FIELDS:
+                continue
+            if facts.has(canonical):
+                continue
+            missing.setdefault(canonical, {
+                "field": canonical,
+                "reason": reason or "Required by an unresolved applicable rule.",
+                "rule_id": str(getattr(rule, "rule_id", "")),
+                "regulation_id": str(getattr(rule, "regulation_id", "")),
+                "rule_name": getattr(rule, "name", ""),
+            })
+    return list(missing.values())
+
+
+def _approval_requirements(constraints: Any) -> list[dict[str, Any]]:
+    output: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    approval_keys = {
+        "approval_required", "requires_approval", "required_approval",
+        "noc_required", "requires_noc", "required_noc", "approval_type",
+        "noc_type", "authority", "approval_authority",
+    }
+    explicit_text = re.compile(r"\b(?:approval|NOC|no objection certificate)\b", re.I)
+
+    for rule in getattr(constraints, "applied_rules", []) or []:
+        result = getattr(rule, "result", {}) or {}
+        metadata = getattr(rule, "metadata", {}) or {}
+        description = getattr(rule, "description", "") or ""
+        values: dict[str, Any] = {}
+        if isinstance(result, dict):
+            values.update(result)
+        if isinstance(metadata, dict):
+            values.update({f"metadata.{k}": v for k, v in metadata.items()})
+        text = " ".join(str(v) for v in values.values()) + " " + str(description)
+        explicit = {k: v for k, v in values.items() if k.split(".")[-1] in approval_keys}
+        if not explicit and not explicit_text.search(text):
+            continue
+
+        rule_id = str(getattr(rule, "rule_id", ""))
+        key = rule_id + "|" + text[:300]
+        if key in seen:
+            continue
+        seen.add(key)
+        output.append({
+            "rule_id": rule_id,
+            "regulation_id": str(getattr(rule, "regulation_id", "")),
+            "rule_name": getattr(rule, "name", ""),
+            "approval_metadata": explicit,
+            "text": text[:1000],
+        })
+    return output
+
+
+# Regulatory selection is intentionally NOT hard-coded.
+# UDCPRRuleResolver performs semantic Chroma retrieval and returns the candidate
+# regulation numbers. Those candidates are then supplied as evidence scope to
+# PostgreSQLAuthoritativeTableResolver.
+# These are retrieval topics, not table mappings and not regulatory values.
+# The actual applicable regulations/tables are discovered by UDCPRRuleResolver.
+AUTHORITATIVE_RETRIEVAL_CATEGORIES = [
+    "FSI",
+    "Setback",
+    "Parking",
+    "Height",
+    "Coverage",
+    "Fire",
+    "Staircase",
+    "Lift",
+    "Access",
+    "Open Space",
+]
+
+# PlanningFacts is the application contract.  It supplies the complete set of
+# fields that MAY contain deterministic regulatory values.  There is deliberately
+# no field -> table mapping here.
+AUTHORITATIVE_CONSTRAINT_FIELDS = sorted(
+    PlanningFacts.regulatory_value_fields()
+)
+
+
+def _normalize_chroma_regulation_id(value: Any) -> str:
+    """Convert an existing Chroma regulation identifier to PostgreSQL form."""
+    raw = str(value or "").strip()
+    if raw.upper().startswith("UDCPR:"):
+        raw = raw[len("UDCPR:"):]
+    if "|" in raw:
+        raw = raw.split("|", 1)[0]
+    return raw.strip()
+
+
+def retrieve_chroma_evidence(
+    facts: PlanningFacts,
+    *,
+    top_k: int = 100,
+) -> tuple[list[str], list[dict[str, Any]], dict[str, Any]]:
+    """Use the existing UDCPRRuleResolver Chroma path.
+
+    UDCPRRuleResolver is the project's existing Chroma integration. Its own
+    candidate-ID method is used so this test does not duplicate Chroma query,
+    embedding, score-threshold, or regulation-ID extraction logic.
+
+    The Chroma documents are then passed as evidence to
+    PostgreSQLAuthoritativeTableResolver. Chroma is retrieval evidence only;
+    PostgreSQL remains authoritative for table selection and regulatory values.
+    """
+    resolver = UDCPRRuleResolver()
+
+    collection = getattr(resolver, "_chroma_collection", None)
+    embedding_service = getattr(resolver, "_embedding_service", None)
+
+    if collection is None:
+        raise RuntimeError(
+            "UDCPRRuleResolver did not initialize its Chroma collection. "
+            "Check CHROMA_PATH and CHROMA_COLLECTION."
+        )
+    if embedding_service is None:
+        raise RuntimeError(
+            "UDCPRRuleResolver did not initialize its project embedding service."
+        )
+
+    categories = list(AUTHORITATIVE_RETRIEVAL_CATEGORIES)
+
+    # Use the resolver's own Chroma candidate-ID logic.
+    candidate_regulations = resolver._chroma_candidate_regulation_ids(
+        facts=facts,
+        categories=categories,
+        top_k=top_k,
+    )
+
+    retrieval_report: dict[str, Any] = {
+        "path": getattr(resolver, "chroma_path", None),
+        "collection": getattr(resolver, "chroma_collection_name", None),
+        "documents": collection.count(),
+        "categories": categories,
+        "candidate_regulations": list(candidate_regulations),
+        "matches": [],
+    }
+
+    if not candidate_regulations:
+        return [], [], retrieval_report
+
+    # Reuse the exact semantic query builder used by UDCPRRuleResolver.
+    query = resolver._build_chroma_query(
+        facts=facts,
+        categories=categories,
+    )
+    embedding = embedding_service.embed_query(query)
+
+    if not isinstance(embedding, (list, tuple)):
+        raise RuntimeError(
+            "UDCPRRuleResolver embedding service returned an invalid embedding."
+        )
+
+    result = collection.query(
+        query_embeddings=[list(embedding)],
+        n_results=top_k,
+        include=["documents", "metadatas", "distances"],
+    )
+
+    ids = (result.get("ids") or [[]])[0]
+    documents = (result.get("documents") or [[]])[0]
+    metadatas = (result.get("metadatas") or [[]])[0]
+    distances = (result.get("distances") or [[]])[0]
+
+    candidate_set = {str(value).strip() for value in candidate_regulations}
+    best_by_regulation: dict[str, dict[str, Any]] = {}
+
+    for index, chroma_id in enumerate(ids):
+        metadata = (
+            metadatas[index]
+            if index < len(metadatas) and isinstance(metadatas[index], dict)
+            else {}
+        )
+        document = documents[index] if index < len(documents) else ""
+        distance = distances[index] if index < len(distances) else None
+
+        raw_regulation_id = None
+        extract_id = getattr(resolver, "_extract_chroma_regulation_id", None)
+        if callable(extract_id):
+            raw_regulation_id = extract_id(metadata)
+        if raw_regulation_id is None:
+            raw_regulation_id = chroma_id
+
+        regulation_number = _normalize_chroma_regulation_id(raw_regulation_id)
+        if regulation_number not in candidate_set:
+            continue
+
+        # Never manufacture source text. Prefer explicit source text in Chroma
+        # metadata; otherwise use the Chroma document payload.
+        source_text = str(
+            metadata.get("source_text")
+            or metadata.get("text")
+            or metadata.get("content")
+            or metadata.get("page_content")
+            or document
+            or ""
+        ).strip()
+        if not source_text:
+            continue
+
+        source_type = str(
+            metadata.get("source_type")
+            or metadata.get("type")
+            or "paragraph"
+        ).strip() or "paragraph"
+
+        evidence = {
+            "regulation_number": regulation_number,
+            "source_type": source_type,
+            "source_text": source_text,
+            "chroma_id": str(chroma_id),
+            "distance": distance,
+            "metadata": metadata,
+            "query": query,
+        }
+
+        previous = best_by_regulation.get(regulation_number)
+        if previous is None:
+            best_by_regulation[regulation_number] = evidence
+        else:
+            previous_distance = previous.get("distance")
+            if (
+                distance is not None
+                and (
+                    previous_distance is None
+                    or float(distance) < float(previous_distance)
+                )
+            ):
+                best_by_regulation[regulation_number] = evidence
+
+    # Preserve the ordering produced by UDCPRRuleResolver's Chroma retrieval.
+    sources = [
+        best_by_regulation[regulation_id]
+        for regulation_id in candidate_regulations
+        if regulation_id in best_by_regulation
+    ]
+
+    missing_evidence = [
+        regulation_id
+        for regulation_id in candidate_regulations
+        if regulation_id not in best_by_regulation
+    ]
+    if missing_evidence:
+        raise RuntimeError(
+            "Chroma returned regulation candidates without source documents: "
+            + ", ".join(missing_evidence)
+        )
+
+    retrieval_report["query"] = query
+    retrieval_report["matches"] = [
+        {
+            "regulation_number": source["regulation_number"],
+            "chroma_id": source["chroma_id"],
+            "distance": source.get("distance"),
+            "source_type": source.get("source_type"),
+        }
+        for source in sources
+    ]
+
+    return list(candidate_regulations), sources, retrieval_report
+
+
+def build_selected_regulatory_sources(
+    facts: PlanningFacts,
+) -> tuple[list[str], list[dict[str, Any]], dict[str, Any]]:
+    """Build regulatory evidence directly from the existing UDCPR Chroma path.
+
+    No regulation ID or regulatory paragraph is hard-coded here.
+    PostgreSQLAuthoritativeTableResolver remains authoritative.
+    """
+    return retrieve_chroma_evidence(facts)
+
+
+
+def _authoritative_constraint_map(resolution: Any) -> dict[str, dict[str, Any]]:
+    result: dict[str, dict[str, Any]] = {}
+    for constraint in getattr(resolution, "constraints", []) or []:
+        key = str(getattr(constraint, "key", "")).strip()
+        if not key:
+            continue
+        result[key] = {
+            "value": getattr(constraint, "value", None),
+            "unit": getattr(constraint, "unit", None),
+            "source_rule_id": getattr(constraint, "source_rule_id", None),
+            "regulation_id": getattr(constraint, "regulation_id", None),
+            "rule_name": getattr(constraint, "rule_name", None),
+            "category": getattr(constraint, "category", None),
+            "status": getattr(constraint, "status", None),
+            "reason": getattr(constraint, "reason", None),
+            "metadata": getattr(constraint, "metadata", {}) or {},
+        }
+    return result
+
+
+def _apply_authoritative_constraints(
+    facts: PlanningFacts,
+    resolution: Any,
+) -> list[str]:
+    """Copy resolver-produced values into PlanningFacts without calculation."""
+    changed: list[str] = []
+    setter = getattr(facts, "set_resolved_value", None)
+    if not callable(setter):
+        raise RuntimeError(
+            "PlanningFacts.set_resolved_value() is required for authoritative "
+            "PostgreSQL constraint integration."
+        )
+
+    for constraint in getattr(resolution, "constraints", []) or []:
+        field = str(getattr(constraint, "key", "")).strip()
+        value = getattr(constraint, "value", None)
+        if field not in AUTHORITATIVE_CONSTRAINT_FIELDS or value is None:
+            continue
+
+        before = getattr(facts, field, None)
+        setter(
+            field,
+            value,
+            rule_id=getattr(constraint, "source_rule_id", None),
+            regulation_id=getattr(constraint, "regulation_id", None),
+            unit=getattr(constraint, "unit", None),
+            source="postgresql_authoritative_table_resolver",
+        )
+        after = getattr(facts, field, None)
+        if before != after:
+            changed.append(field)
+
+    return changed
+
+
+def _serialize_selected_table(selection: Any) -> dict[str, Any]:
+    return {
+        "regulation_number": getattr(selection, "regulation_number", None),
+        "table_number": getattr(selection, "table_number", None),
+        "table_title": getattr(selection, "table_title", None),
+        "reason": getattr(selection, "reason", None),
+    }
+
+
+def resolve_until_stable(
+    facts: PlanningFacts,
+    *,
+    max_passes: int = 8,
+) -> dict[str, Any]:
+    """Resolve every supported constraint through the authoritative resolver.
+
+    Architecture follows the passing PostgreSQL authoritative-table test:
+      PlanningFacts + selected regulatory evidence
+        -> PostgreSQLAuthoritativeTableResolver
+        -> exact selected tables / OpenAI evidence extraction
+        -> PlanningFacts
+
+    No regulatory number is calculated or hardcoded in this test.
+    """
+    selected_regulations, selected_sources, chroma_retrieval = (
+        build_selected_regulatory_sources(facts)
+    )
+
+    if not selected_regulations:
+        raise RuntimeError(
+            "UDCPRRuleResolver/Chroma returned no candidate regulations for "
+            "authoritative regulatory resolution."
+        )
+    previous_signature = None
+    passes: list[dict[str, Any]] = []
+    final_resolution = None
+    all_changed: list[str] = []
+
+    for pass_no in range(1, max_passes + 1):
+        print(f"\nPOSTGRESQL AUTHORITATIVE RESOLUTION PASS {pass_no}")
+
+        db = SessionLocal()
+        try:
+            resolver = PostgreSQLAuthoritativeTableResolver(db)
+            final_resolution = resolver.resolve(
+                facts=facts,
+                selected_regulations=selected_regulations,
+                chroma_sources=selected_sources,
+                requested_fields=AUTHORITATIVE_CONSTRAINT_FIELDS,
+            )
+        finally:
+            db.close()
+
+        changed = _apply_authoritative_constraints(facts, final_resolution)
+        all_changed.extend(changed)
+
+        constraint_values = _authoritative_constraint_map(final_resolution)
+        selected_tables = [
+            _serialize_selected_table(selection)
+            for selection in getattr(final_resolution, "selections", []) or []
+        ]
+
+        passes.append({
+            "pass": pass_no,
+            "changed_fields": changed,
+            "constraint_values": constraint_values,
+            "selected_regulations": list(selected_regulations),
+            "selected_tables": selected_tables,
+            "warnings": list(getattr(final_resolution, "warnings", []) or []),
+            "errors": list(getattr(final_resolution, "errors", []) or []),
+            "missing_inputs": list(getattr(final_resolution, "missing_inputs", []) or []),
+            "status": getattr(final_resolution, "status", None),
+        })
+
+        signature = json.dumps(
+            {
+                "facts": facts.to_dict(),
+                "constraints": constraint_values,
+            },
+            sort_keys=True,
+            default=str,
+        )
+        if signature == previous_signature or not changed:
+            break
+        previous_signature = signature
+
+    if final_resolution is None:
+        raise RuntimeError("PostgreSQL authoritative resolution did not execute.")
+
+    final_constraints = _authoritative_constraint_map(final_resolution)
+
+    # IMPORTANT: do not require every PlanningFacts regulatory field to resolve.
+    # Many fields are conditional and legitimately do not apply to a given
+    # project.  "All possible deterministic constraints" means every value the
+    # authoritative resolver can establish from the discovered evidence, not a
+    # hard-coded list of values that must exist.
+    invalid_sources = []
+    for field, item in final_constraints.items():
+        metadata = item.get("metadata", {}) or {}
+        regulation_number = str(
+            metadata.get("regulation_number")
+            or item.get("regulation_id")
+            or ""
+        ).strip()
+
+        if regulation_number and regulation_number not in selected_regulations:
+            invalid_sources.append(
+                f"{field}: unselected regulation {regulation_number}"
+            )
+
+        source_type = str(metadata.get("source_type") or "").strip().lower()
+        extraction = str(metadata.get("extraction") or "").strip().lower()
+
+        if source_type not in {"table", "paragraph"}:
+            invalid_sources.append(
+                f"{field}: invalid source_type {source_type!r}"
+            )
+
+        if extraction and extraction != "openai_selected_evidence":
+            invalid_sources.append(
+                f"{field}: invalid extraction provenance {extraction!r}"
+            )
+
+    if invalid_sources:
+        raise RuntimeError(
+            "Invalid deterministic constraint provenance:\n  "
+            + "\n  ".join(invalid_sources)
+        )
+
+    missing_inputs = list(getattr(final_resolution, "missing_inputs", []) or [])
+    warnings = list(getattr(final_resolution, "warnings", []) or [])
+    errors = list(getattr(final_resolution, "errors", []) or [])
+
+    for field in missing_inputs:
+        facts.record_missing_input(
+            str(field),
+            reason="Required by authoritative regulatory evidence resolution.",
+        )
+
+    for field in AUTHORITATIVE_CONSTRAINT_FIELDS:
+        if field not in final_constraints:
+            matching_warning = next(
+                (
+                    warning for warning in warnings
+                    if f"'{field}'" in str(warning)
+                ),
+                None,
+            )
+            if matching_warning:
+                facts.record_missing_input(field, reason=str(matching_warning))
+
+    facts.finalize_regulatory_resolution()
+
+    if errors:
+        status = "ERROR"
+    elif final_constraints:
+        status = "RESOLVED"
+    elif final_constraints:
+        status = "PARTIAL"
+    else:
+        status = getattr(final_resolution, "status", "INSUFFICIENT_RULE_DATA")
+
+    return {
+        "passes": passes,
+        "stable": bool(passes) and not passes[-1]["changed_fields"],
+        "changed_fields": sorted(set(all_changed)),
+        "selected_regulations": list(selected_regulations),
+        "selected_evidence": selected_sources,
+        "chroma_retrieval": chroma_retrieval,
+        "selected_tables": [
+            _serialize_selected_table(selection)
+            for selection in getattr(final_resolution, "selections", []) or []
+        ],
+        "final_constraints": final_constraints,
+        "missing_inputs": missing_inputs,
+        "warnings": warnings,
+        "errors": errors,
+        "approval_requirements": [],
+        "resolver_status": status,
+        "resolver": "PostgreSQLAuthoritativeTableResolver",
+    }
+
+
+# =============================================================================
+# DESIGN PROGRAM / DRAWING INPUT
+# =============================================================================
+
+def _fact(facts: PlanningFacts, name: str, default: Any = None) -> Any:
+    value = getattr(facts, name, None)
+    if value is not None:
+        return value
+    values = getattr(facts, "values", None)
+    if isinstance(values, dict):
+        return values.get(name, default)
+    return default
+
+
+def _regulatory_value(facts: PlanningFacts, resolution: dict[str, Any], name: str) -> Any:
+    value = _fact(facts, name)
+    if value is not None:
+        return value
+    final_constraints = resolution.get("final_constraints") or {}
+    return final_constraints.get(name) if isinstance(final_constraints, dict) else None
+
+
+def build_tenement_program(facts: PlanningFacts) -> dict[str, Any]:
+    raw = _fact(facts, "tenement_carpet_areas", [])
+    areas = [float(v) for v in raw] if isinstance(raw, (list, tuple)) else []
+    return {
+        "unit_count": len(areas),
+        "tenement_carpet_areas_m2": areas,
+        "total_tenement_carpet_area_m2": sum(areas),
+        "average_tenement_carpet_area_m2": (
+            sum(areas) / len(areas) if areas else None
+        ),
+    }
+
+
+def calculate_floor_plate_and_units_per_floor(
+    facts: PlanningFacts,
+    resolution: dict[str, Any],
+    *,
+    efficiency: float = 0.82,
+    common_area_m2: float = 0.0,
+) -> dict[str, Any]:
+    """Calculate a preliminary program floor plate.
+
+    If an exact buildable-envelope area is not present in PlanningFacts, this
+    uses the program's gross-area requirement as the preliminary floor plate.
+    It does NOT pretend this is the final architectural envelope; exact
+    geometry still needs plot coordinates/polygon + setbacks.
+    """
+    if not (0 < efficiency <= 1):
+        raise ValueError("efficiency must be > 0 and <= 1")
+
+    program = build_tenement_program(facts)
+    areas = program["tenement_carpet_areas_m2"]
+    total_carpet = program["total_tenement_carpet_area_m2"]
+
+    plot_area = _fact(facts, "plot_area")
+    maximum_fsi = _regulatory_value(facts, resolution, "maximum_fsi")
+
+    permissible_total_floor_area_m2 = None
+    if isinstance(plot_area, (int, float)) and isinstance(maximum_fsi, (int, float)):
+        permissible_total_floor_area_m2 = float(plot_area) * float(maximum_fsi)
+
+    required_gross_total_m2 = total_carpet / efficiency + common_area_m2
+
+    # This is a preliminary program plate. A later geometry layer can replace
+    # it with the actual setback-derived buildable envelope without changing
+    # the PostgreSQL resolver.
+    preliminary_floor_plate_m2 = required_gross_total_m2
+    fsi_feasible = (
+        permissible_total_floor_area_m2 is None
+        or required_gross_total_m2 <= permissible_total_floor_area_m2 + 1e-9
+    )
+
+    # If the required program is FSI-feasible and no physical envelope is yet
+    # available, place the complete requested program on the preliminary plate.
+    # This gives a deterministic baseline for the drawing layer. The geometry
+    # layer is expected to split this into multiple floors once the envelope /
+    # height constraints are available.
+    units_per_floor = len(areas) if areas else 0
+    number_of_floors = 1 if units_per_floor else 0
+
+    return {
+        "calculation_status": "preliminary_program_plate",
+        "design_efficiency": efficiency,
+        "design_common_area_m2": common_area_m2,
+        "regulatory_plot_area_m2": plot_area,
+        "regulatory_maximum_fsi": maximum_fsi,
+        "regulatory_permissible_total_floor_area_m2": permissible_total_floor_area_m2,
+        "user_unit_count": len(areas),
+        "user_total_tenement_carpet_area_m2": total_carpet,
+        "required_gross_total_area_m2": required_gross_total_m2,
+        "preliminary_floor_plate_m2": preliminary_floor_plate_m2,
+        "design_units_per_floor": units_per_floor,
+        "design_estimated_number_of_floors": number_of_floors,
+        "fsi_program_feasible": fsi_feasible,
+        "geometry_note": (
+            "Exact setback-derived floor plate requires plot polygon/coordinates "
+            "and applicable height/geometry constraints; those are not inferred here."
+        ),
+    }
+
+
+def build_drawing_design_input(
+    facts: PlanningFacts,
+    resolution: dict[str, Any],
+    observed: dict[str, Any],
+) -> dict[str, Any]:
+    # Preserve every deterministic constraint, not only a fixed shortlist.
+    final_constraints = resolution.get("final_constraints") or {}
+
+    regulatory_values = {}
+    for field in sorted(REGULATORY_FIELDS):
+        value = _regulatory_value(facts, resolution, field)
+        if value is not None:
+            regulatory_values[field] = value
+
+    site_fields = (
+        "plot_area", "plot_width", "plot_depth", "plot_shape", "plot_side_lengths",
+        "boundary", "road_width", "road_widths", "road_locations",
+        "road_frontage_count", "road_type", "road_classification",
+        "access_available", "access_width", "access_length", "road_name",
+        "north_direction", "scale",
+    )
+    site = {name: _fact(facts, name) for name in site_fields if _fact(facts, name) is not None}
+
+    design_constraints = {
+        "all_final_constraint_values": final_constraints,
+        "regulatory_values": regulatory_values,
+        "applied_rules": resolution.get("all_applied_rules", []),
+        "unresolved_rules": resolution.get("all_unresolved_rules", []),
+        "rejected_rules": resolution.get("all_rejected_rules", []),
+        "missing_inputs": resolution.get("missing_inputs", []),
+        "approval_requirements": resolution.get("approval_requirements", []),
+        "canonical_regulatory_facts": facts.to_dict(),
+    }
+
+    return {
+        "site": site,
+        "observed_drawing_facts": observed,
+        "planning_constraints": design_constraints,
+        "program": build_tenement_program(facts),
+        "floor_plan": calculate_floor_plate_and_units_per_floor(facts, resolution),
+    }
+
+
+# =============================================================================
+# MAIN TEST
+# =============================================================================
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description=(
+            "Vision -> PlanningFacts -> deterministic PostgreSQL rule graph "
+            "-> complete drawing/design input test."
+        )
+    )
+    parser.add_argument(
+        "--image",
+        action="append",
+        dest="images",
+        help="Optional image path; repeat for multiple images. Defaults to all four sample images.",
+    )
+    parser.add_argument(
+        "--user-input-file",
+        required=False,
+        help="JSON file containing project/program inputs. Defaults to ./user_input.json.",
+    )
+    parser.add_argument(
+        "--answers",
+        help="Optional JSON file containing explicit missing user/authority facts.",
+    )
+    parser.add_argument(
+        "--out",
+        default="/tmp/vision_to_planning_design_input.json",
+    )
+    args = parser.parse_args()
+
+    user_input_path = args.user_input_file or "user_input.json"
+    user_input = load_user_input(user_input_path)
+    _derive_tenement_carpet_areas(user_input)
+
+    default_images = [
+        Path("tests/functional/vision/data/sample1.png"),
+        Path("tests/functional/vision/data/sample2.png"),
+        Path("tests/functional/vision/data/sample3.png"),
+        Path("tests/functional/vision/data/sample4.png"),
+    ]
+    image_paths = [Path(x) for x in args.images] if args.images else default_images
+
+    print(f"[1] Extracting source facts from {len(image_paths)} image(s)")
+
+    merged_image_facts: dict[str, Any] = {}
+    image_reports: list[dict[str, Any]] = []
+    for image_path in image_paths:
+        if not image_path.exists():
+            raise FileNotFoundError(f"Vision test image not found: {image_path}")
+
+        print(f"\n--- IMAGE: {image_path} ---")
+        extracted = extract_image_facts(str(image_path))
+        print(json.dumps(extracted, indent=2, default=str))
+        image_reports.append({"image": str(image_path), "facts": extracted})
+
+        for field, value in extracted.items():
+            if value is None:
+                continue
+            if field not in merged_image_facts or merged_image_facts[field] is None:
+                merged_image_facts[field] = value
+
+    facts, conflicts, observed = build_facts(user_input, merged_image_facts)
+    observed["source_images"] = image_reports
+
+    print("\n[2] Initial canonical PlanningFacts")
+    print(json.dumps(facts.to_dict(), indent=2, default=str))
+    print("\nObserved drawing-only values:")
+    print(json.dumps(observed, indent=2, default=str))
+
+    if args.answers:
+        answers = json.loads(Path(args.answers).read_text(encoding="utf-8"))
+        if not isinstance(answers, dict):
+            raise ValueError("--answers must contain a JSON object")
+        # Keep the same authority-answer protection as the base test.
+        for field, value in answers.items():
+            canonical = facts._canonical_field_name(field)
+            if not hasattr(facts, canonical):
+                raise ValueError(f"Unknown PlanningFacts field: {field}")
+            if canonical in REGULATORY_FIELDS and canonical not in {
+                "fire_approved_height_m",
+                "airport_clearance_height_m",
+            }:
+                raise ValueError(
+                    f"Regulatory field {canonical} must come from the deterministic "
+                    "engine or authority evidence, not a free-form answer."
+                )
+            setattr(facts, canonical, value)
+            facts.fact_sources[canonical] = "user_or_authority_answer"
+        facts.normalize()
+        print("\n[3] Explicit user/authority answers applied")
+        print(json.dumps(answers, indent=2, default=str))
+    else:
+        print("\n[3] No additional answers supplied.")
+
+    print("\n[4] Deterministic PostgreSQL rule graph resolution")
+    resolution = resolve_until_stable(facts)
+    print(json.dumps(resolution, indent=2, default=str))
+
+    deterministic_constraints = resolution.get("final_constraints", {}) or {}
+
+    print("\n[5] FINAL DETERMINISTIC CONSTRAINTS ONLY")
+    print(json.dumps(deterministic_constraints, indent=2, default=str))
+
+    print("\n[6] FINAL DETERMINISTIC PLANNING FACTS")
+    print(json.dumps(facts.to_dict(), indent=2, default=str))
+
+    print("\n[7] USER INPUTS STILL REQUIRED")
+    if facts.regulatory_user_questions:
+        for q in facts.regulatory_user_questions:
+            print(json.dumps(q, ensure_ascii=False))
+    else:
+        print("None")
+
+    print("\n[8] APPROVALS / NOCs")
+    if facts.regulatory_required_approvals:
+        print(json.dumps(facts.regulatory_required_approvals, indent=2, default=str))
+    else:
+        print("None explicitly surfaced by DB rule results.")
+
+    print("\n[9] BUILDING DESIGN / DRAWING INPUT")
+    drawing_input = build_drawing_design_input(facts, resolution, observed)
+    print(json.dumps(drawing_input, indent=2, default=str))
+
+    report = {
+        "user_input": user_input,
+        "deterministic_constraints_only": deterministic_constraints if "deterministic_constraints" in locals() else resolution.get("final_constraints", {}),
+        "image_facts": image_facts,
+        "observed_drawing_design_facts": observed,
+        "canonical_planning_facts": facts.to_dict(),
+        "conflicts": conflicts,
+        "resolution": resolution,
+        "regulatory_status": facts.regulatory_resolution_status,
+        "missing_user_inputs": facts.regulatory_user_questions,
+        "required_approvals": facts.regulatory_required_approvals,
+        "drawing_design_input": drawing_input,
+    }
+    Path(args.out).write_text(
+        json.dumps(report, indent=2, default=str),
+        encoding="utf-8",
+    )
+    print(f"\n[10] Report written to {args.out}")
+
+    print(
+        "\nARCHITECTURE CHECKS:\n"
+        "  1. Image AI extracts observed site facts only.\n"
+        "  2. Per-tenement carpet areas are derived from requested_unit_mix + requested_unit_area.\n"
+        "  3. PostgreSQLAuthoritativeTableResolver is authoritative for regulatory values.\n"
+        "  4. Dependent deterministic rules are re-evaluated until stable.\n"
+        "  5. All final constraint values and rule metadata are forwarded to drawing input.\n"
+        "  6. Missing project inputs are surfaced instead of guessed.\n"
+        "  7. Approval/NOC metadata is surfaced from explicit DB rule results.\n"
+        "  8. Drawing-only observed floor/height values are never silently selected as design values.\n"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

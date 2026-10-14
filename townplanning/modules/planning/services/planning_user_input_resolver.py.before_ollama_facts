@@ -1,0 +1,895 @@
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+class PlanningUserInputResolver:
+    """
+    Converts explicit user answers into PlanningFacts.
+
+    Rules:
+
+    1. Only fields identified as missing by PlanningInputGate
+       may be modified.
+
+    2. Existing Vision-derived facts are never overwritten
+       unless that field was explicitly identified as missing.
+
+    3. No regulatory value is inferred.
+
+    4. No LLM is called.
+
+    5. Unrecognized user input is ignored.
+
+    6. Derived fields such as road_widths,
+       road_frontage_count and road_locations are updated
+       from the canonical user input.
+    """
+
+    FIELD_ALIASES = {
+        "road_width": "road_width",
+        "road_frontage": "road_frontage",
+        "access_available": "access_available",
+
+        "zone": "zone",
+        "zoning": "zone",
+        "land_use_zone": "zone",
+
+        "reservation_present": "reservation_present",
+
+        "airport_restriction": "airport_restriction",
+        "heritage_zone": "heritage_zone",
+        "crz_zone": "crz_zone",
+        "eco_sensitive_zone": "eco_sensitive_zone",
+    }
+
+    # ==========================================================
+    # PUBLIC API
+    # ==========================================================
+
+    def apply(
+        self,
+        facts: Any,
+        missing_information: list[Any],
+        user_input: str | dict[str, Any],
+    ) -> Any:
+        """
+        Apply user answers only to fields currently marked
+        as missing.
+
+        Examples:
+
+            {
+                "road_width": 18,
+                "road_frontage": "south",
+                "access_available": True,
+                "zone": "Residential",
+                "reservation_present": False,
+            }
+
+        Or:
+
+            "18 m road, south side, access available,
+             residential zone, no reservation"
+
+        Existing facts are preserved unless the corresponding
+        field was explicitly identified as missing.
+        """
+
+        allowed_fields = self._missing_fields(
+            missing_information
+        )
+
+        if not allowed_fields:
+            return facts
+
+        # ------------------------------------------------------
+        # Structured user input
+        # ------------------------------------------------------
+
+        if isinstance(
+            user_input,
+            dict,
+        ):
+
+            values = dict(
+                user_input
+            )
+
+        # ------------------------------------------------------
+        # Natural-language user input
+        # ------------------------------------------------------
+
+        else:
+
+            values = self._parse_text(
+                user_input,
+                allowed_fields,
+            )
+
+        # ------------------------------------------------------
+        # Apply only fields allowed by the gate
+        # ------------------------------------------------------
+
+        for field_name, value in values.items():
+
+            field_name = self.FIELD_ALIASES.get(
+                field_name,
+                field_name,
+            )
+
+            if field_name not in allowed_fields:
+                continue
+
+            if value is None:
+                continue
+
+            self._set_fact(
+                facts,
+                field_name,
+                value,
+            )
+
+        return facts
+
+    # ==========================================================
+    # MISSING FIELDS
+    # ==========================================================
+
+    @classmethod
+    def _missing_fields(
+        cls,
+        missing_information: list[Any],
+    ) -> set[str]:
+
+        result: set[str] = set()
+
+        for item in missing_information:
+
+            if isinstance(
+                item,
+                dict,
+            ):
+
+                field = item.get(
+                    "field"
+                )
+
+            else:
+
+                field = getattr(
+                    item,
+                    "field",
+                    None,
+                )
+
+            if not field:
+                continue
+
+            field = cls.FIELD_ALIASES.get(
+                field,
+                field,
+            )
+
+            result.add(
+                field
+            )
+
+        return result
+
+    # ==========================================================
+    # TEXT PARSER
+    # ==========================================================
+
+    @classmethod
+    def _parse_text(
+        cls,
+        text: str,
+        allowed_fields: set[str],
+    ) -> dict[str, Any]:
+        """
+        Parse explicit user answers.
+
+        This parser does NOT infer planning or regulatory
+        information. It only recognizes explicit statements.
+        """
+
+        text = str(
+            text
+        ).strip()
+
+        result: dict[str, Any] = {}
+
+        # ======================================================
+        # ROAD WIDTH
+        # ======================================================
+
+        if "road_width" in allowed_fields:
+
+            patterns = (
+                # road width is 18 m
+                r"\broad\s*(?:width)?\s*"
+                r"(?:is|:|=)?\s*"
+                r"(\d+(?:\.\d+)?)\s*"
+                r"(?:m|meter|meters|metre|metres)\b",
+
+                # 18 m wide road
+                r"\b(\d+(?:\.\d+)?)\s*"
+                r"(?:m|meter|meters|metre|metres)"
+                r"\s*(?:wide\s*)?road\b",
+
+                # 18m road
+                r"\b(\d+(?:\.\d+)?)\s*"
+                r"(?:m|meter|meters|metre|metres)"
+                r"\s+road\b",
+
+                # road is 18
+                r"\broad\s+is\s+"
+                r"(\d+(?:\.\d+)?)\b",
+            )
+
+            for pattern in patterns:
+
+                match = re.search(
+                    pattern,
+                    text,
+                    re.IGNORECASE,
+                )
+
+                if not match:
+                    continue
+
+                try:
+
+                    result["road_width"] = float(
+                        match.group(1)
+                    )
+
+                    break
+
+                except (
+                    TypeError,
+                    ValueError,
+                ):
+
+                    pass
+
+        # ======================================================
+        # ROAD FRONTAGE
+        # ======================================================
+
+        if "road_frontage" in allowed_fields:
+
+            sides = (
+                "north-east",
+                "north-west",
+                "south-east",
+                "south-west",
+                "north",
+                "south",
+                "east",
+                "west",
+            )
+
+            found_sides: list[str] = []
+
+            for side in sides:
+
+                if re.search(
+                    rf"\b{re.escape(side)}\b",
+                    text,
+                    re.IGNORECASE,
+                ):
+
+                    found_sides.append(
+                        side
+                    )
+
+            if found_sides:
+
+                result["road_frontage"] = (
+                    found_sides
+                )
+
+        # ======================================================
+        # ACCESS
+        # ======================================================
+
+        if "access_available" in allowed_fields:
+
+            negative_patterns = (
+                r"\bno\s+(?:vehicular\s+)?access\b",
+                r"\bno\s+vehicle\s+access\b",
+                r"\bwithout\s+(?:vehicular\s+)?access\b",
+                r"\bnot\s+accessible\b",
+                r"\baccess\s+(?:is\s+)?not\s+available\b",
+                r"\bno\s+access\b",
+                r"\baccess\s+unavailable\b",
+            )
+
+            positive_patterns = (
+                r"\byes\b",
+                r"\bavailable\b",
+                r"\bhas\s+(?:vehicular\s+)?access\b",
+                r"\bvehicle\s+access\b",
+                r"\bvehicular\s+access\b",
+                r"\baccessible\b",
+                r"\baccess\s+(?:is\s+)?available\b",
+                r"\baccess\s+exists\b",
+            )
+
+            if any(
+                re.search(
+                    pattern,
+                    text,
+                    re.IGNORECASE,
+                )
+                for pattern in negative_patterns
+            ):
+
+                result[
+                    "access_available"
+                ] = False
+
+            elif any(
+                re.search(
+                    pattern,
+                    text,
+                    re.IGNORECASE,
+                )
+                for pattern in positive_patterns
+            ):
+
+                result[
+                    "access_available"
+                ] = True
+
+        # ======================================================
+        # ZONE / ZONING
+        # ======================================================
+
+        if "zone" in allowed_fields:
+
+            zone_patterns = (
+                r"(?:zone|zoning|land[- ]use)"
+                r"\s*(?:is|:|=)?\s*"
+                r"([A-Za-z][A-Za-z0-9 /_-]*)"
+            )
+
+            match = re.search(
+                zone_patterns,
+                text,
+                re.IGNORECASE,
+            )
+
+            if match:
+
+                zone = match.group(
+                    1
+                ).strip(
+                    " .,;"
+                )
+
+                if zone:
+
+                    result["zone"] = zone
+
+            # --------------------------------------------------
+            # Common explicit form:
+            #
+            # Residential zone
+            # Commercial zone
+            # Industrial zone
+            # --------------------------------------------------
+
+            if "zone" not in result:
+
+                common_zones = (
+                    "residential",
+                    "commercial",
+                    "industrial",
+                    "mixed-use",
+                    "mixed use",
+                    "agricultural",
+                    "institutional",
+                )
+
+                for zone in common_zones:
+
+                    if re.search(
+                        rf"\b{re.escape(zone)}\s+zone\b",
+                        text,
+                        re.IGNORECASE,
+                    ):
+
+                        result["zone"] = zone
+
+                        break
+
+        # ======================================================
+        # RESERVATION
+        # ======================================================
+
+        if "reservation_present" in allowed_fields:
+
+            negative_patterns = (
+                r"\bno\s+reservation\b",
+                r"\bno\s+reservations\b",
+                r"\bwithout\s+reservation\b",
+                r"\bnot\s+reserved\b",
+                r"\bno\s+public\s+reservation\b",
+                r"\bno\s+reservation\s+on\s+the\s+plot\b",
+            )
+
+            positive_patterns = (
+                r"\breservation\b",
+                r"\breserved\b",
+                r"\bpublic\s+purpose\b",
+                r"\bpublic\s+reservation\b",
+                r"\bplot\s+is\s+reserved\b",
+            )
+
+            if any(
+                re.search(
+                    pattern,
+                    text,
+                    re.IGNORECASE,
+                )
+                for pattern in negative_patterns
+            ):
+
+                result[
+                    "reservation_present"
+                ] = False
+
+            elif any(
+                re.search(
+                    pattern,
+                    text,
+                    re.IGNORECASE,
+                )
+                for pattern in positive_patterns
+            ):
+
+                result[
+                    "reservation_present"
+                ] = True
+
+        # ======================================================
+        # AIRPORT RESTRICTION
+        # ======================================================
+
+        if "airport_restriction" in allowed_fields:
+
+            if re.search(
+                r"\bno\s+airport\s+restriction\b",
+                text,
+                re.IGNORECASE,
+            ):
+
+                result[
+                    "airport_restriction"
+                ] = False
+
+            elif re.search(
+                r"\bairport\s+restriction\b"
+                r"|\bairport\s+restricted\b",
+                text,
+                re.IGNORECASE,
+            ):
+
+                result[
+                    "airport_restriction"
+                ] = True
+
+        # ======================================================
+        # HERITAGE ZONE
+        # ======================================================
+
+        if "heritage_zone" in allowed_fields:
+
+            if re.search(
+                r"\bno\s+heritage\b"
+                r"|\bnot\s+heritage\b"
+                r"|\bno\s+heritage\s+zone\b",
+                text,
+                re.IGNORECASE,
+            ):
+
+                result[
+                    "heritage_zone"
+                ] = False
+
+            elif re.search(
+                r"\bheritage\s+(?:zone|area)\b"
+                r"|\bheritage\b",
+                text,
+                re.IGNORECASE,
+            ):
+
+                result[
+                    "heritage_zone"
+                ] = True
+
+        # ======================================================
+        # CRZ ZONE
+        # ======================================================
+
+        if "crz_zone" in allowed_fields:
+
+            if re.search(
+                r"\bno\s+crz\b"
+                r"|\bnot\s+crz\b",
+                text,
+                re.IGNORECASE,
+            ):
+
+                result[
+                    "crz_zone"
+                ] = False
+
+            elif re.search(
+                r"\bcrz\b"
+                r"|\bcoastal\s+regulation\s+zone\b",
+                text,
+                re.IGNORECASE,
+            ):
+
+                result[
+                    "crz_zone"
+                ] = True
+
+        # ======================================================
+        # ECO-SENSITIVE ZONE
+        # ======================================================
+
+        if "eco_sensitive_zone" in allowed_fields:
+
+            if re.search(
+                r"\bno\s+eco[- ]sensitive\b"
+                r"|\bnot\s+eco[- ]sensitive\b",
+                text,
+                re.IGNORECASE,
+            ):
+
+                result[
+                    "eco_sensitive_zone"
+                ] = False
+
+            elif re.search(
+                r"\beco[- ]sensitive\s+zone\b"
+                r"|\beco[- ]sensitive\b",
+                text,
+                re.IGNORECASE,
+            ):
+
+                result[
+                    "eco_sensitive_zone"
+                ] = True
+
+        return result
+
+    # ==========================================================
+    # FACT UPDATE
+    # ==========================================================
+
+    @classmethod
+    def _set_fact(
+        cls,
+        facts: Any,
+        field_name: str,
+        value: Any,
+    ) -> None:
+
+        field_name = cls.FIELD_ALIASES.get(
+            field_name,
+            field_name,
+        )
+
+        # ======================================================
+        # ROAD WIDTH
+        # ======================================================
+
+        if field_name == "road_width":
+
+            try:
+
+                width = float(
+                    value
+                )
+
+            except (
+                TypeError,
+                ValueError,
+            ):
+
+                return
+
+            if isinstance(
+                facts,
+                dict,
+            ):
+
+                facts[
+                    "road_width"
+                ] = width
+
+                widths = facts.get(
+                    "road_widths",
+                    [],
+                )
+
+                if not isinstance(
+                    widths,
+                    list,
+                ):
+
+                    widths = []
+
+                if width not in widths:
+
+                    widths.append(
+                        width
+                    )
+
+                facts[
+                    "road_widths"
+                ] = widths
+
+            else:
+
+                if not hasattr(
+                    facts,
+                    "road_width",
+                ):
+
+                    return
+
+                facts.road_width = width
+
+                if not hasattr(
+                    facts,
+                    "road_widths",
+                ):
+
+                    return
+
+                if not facts.road_widths:
+
+                    facts.road_widths = [
+                        width
+                    ]
+
+            return
+
+        # ======================================================
+        # ROAD FRONTAGE
+        # ======================================================
+
+        if field_name == "road_frontage":
+
+            # --------------------------------------------------
+            # Normalize input to a list of sides.
+            # --------------------------------------------------
+
+            if isinstance(
+                value,
+                str,
+            ):
+
+                frontage = [
+                    value.strip().lower()
+                ]
+
+            elif isinstance(
+                value,
+                (list, tuple, set),
+            ):
+
+                frontage = [
+                    str(item).strip().lower()
+                    for item in value
+                    if str(item).strip()
+                ]
+
+            else:
+
+                frontage = [
+                    str(value).strip().lower()
+                ]
+
+            # --------------------------------------------------
+            # Remove duplicates while preserving order.
+            # --------------------------------------------------
+
+            frontage = list(
+                dict.fromkeys(
+                    frontage
+                )
+            )
+
+            # --------------------------------------------------
+            # Dictionary facts
+            # --------------------------------------------------
+
+            if isinstance(
+                facts,
+                dict,
+            ):
+
+                facts[
+                    "road_frontage"
+                ] = frontage
+
+                facts[
+                    "road_locations"
+                ] = frontage
+
+                facts[
+                    "road_frontage_count"
+                ] = len(
+                    frontage
+                )
+
+            # --------------------------------------------------
+            # PlanningFacts object
+            # --------------------------------------------------
+
+            else:
+
+                if hasattr(
+                    facts,
+                    "road_locations",
+                ):
+
+                    facts.road_locations = (
+                        frontage
+                    )
+
+                if hasattr(
+                    facts,
+                    "road_frontage_count",
+                ):
+
+                    facts.road_frontage_count = (
+                        len(frontage)
+                    )
+
+            return
+
+        # ======================================================
+        # ACCESS
+        # ======================================================
+
+        if field_name == "access_available":
+
+            if isinstance(
+                value,
+                str,
+            ):
+
+                normalized = (
+                    value
+                    .strip()
+                    .lower()
+                )
+
+                if normalized in (
+                    "true",
+                    "yes",
+                    "y",
+                    "available",
+                    "accessible",
+                ):
+
+                    value = True
+
+                elif normalized in (
+                    "false",
+                    "no",
+                    "n",
+                    "not available",
+                    "unavailable",
+                    "not accessible",
+                ):
+
+                    value = False
+
+                else:
+
+                    return
+
+            elif not isinstance(
+                value,
+                bool,
+            ):
+
+                return
+
+        # ======================================================
+        # BOOLEAN PLANNING FLAGS
+        # ======================================================
+
+        if field_name in (
+            "reservation_present",
+            "airport_restriction",
+            "heritage_zone",
+            "crz_zone",
+            "eco_sensitive_zone",
+        ):
+
+            if isinstance(
+                value,
+                str,
+            ):
+
+                normalized = (
+                    value
+                    .strip()
+                    .lower()
+                )
+
+                if normalized in (
+                    "true",
+                    "yes",
+                    "y",
+                    "present",
+                    "applicable",
+                    "restricted",
+                    "reserved",
+                ):
+
+                    value = True
+
+                elif normalized in (
+                    "false",
+                    "no",
+                    "n",
+                    "none",
+                    "not present",
+                    "not applicable",
+                    "not restricted",
+                    "not reserved",
+                ):
+
+                    value = False
+
+                else:
+
+                    return
+
+            elif not isinstance(
+                value,
+                bool,
+            ):
+
+                return
+
+        # ======================================================
+        # NORMAL FIELD
+        # ======================================================
+
+        if isinstance(
+            facts,
+            dict,
+        ):
+
+            facts[
+                field_name
+            ] = value
+
+            return
+
+        if not hasattr(
+            facts,
+            field_name,
+        ):
+
+            return
+
+        setattr(
+            facts,
+            field_name,
+            value
+        )

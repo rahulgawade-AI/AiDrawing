@@ -1,0 +1,32 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 452,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0452.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\n436",
+  "translated_english_text": "UDCPR-2020\n436 /think",
+  "validation": {
+    "original_regulation_numbers": [],
+    "translated_regulation_numbers": [],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 14,
+    "translated_characters": 21,
+    "elapsed_seconds": 58.23
+  }
+}

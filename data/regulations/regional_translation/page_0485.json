@@ -1,0 +1,32 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 485,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0485.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\n३. मा.अध्यक्ष, महाराष्ट्र विधानसभा, महाराष्ट्र विधानमंडल सचिवालय, मुंबई. \n ४. मा.सभापती, महाराष्ट्र विधानपरिषद, महाराष्ट्र विधानमंडल सचिवालय, मुंबई. \n ५. मा.विरोधी पक्षनेता, विधानसभा, महाराष्ट्र विधानमंडल सचिवालय, मुंबई. \n ६. मा.विरोधी पक्षनेता, विधानपरिषद, महाराष्ट्र विधानमंडल सचिवालय, मुंबई. \n ७. मा.मुख्य सचिव, महाराष्ट्र शासन, मंत्रालय, मुंबई. \n ८. अपर मुख्य सचिव (नवि-१), नगर विकास विभाग, मंत्रालय, मुंबई. \n ९. संचालक (नगर रचना) तथा सह सचिव, नगर विकास विभाग, मंत्रालय, मुंबई. \n १०. सह सचिव तथा सह संचालक (नगर रचना), नगर विकास विभाग, मंत्रालय, मुंबई.\nप्रति -:\n१) संचालक, नगर रचना, महाराष्ट्र राज्य, पुणे. \n २) सर्व विभागीय आयुक्त. \n ३) सर्व विभागीय सहसंचालक, नगर रचना. \n ४) सर्व आयुक्त, महानगरपालिका. \n ५) सर्व महानगर आयुक्त, महानगर प्रदेश विकास प्राधिकरण / विशेष नियोजन प्राधिकरण. \n ६) मुख्य कार्यकारी अधिकारी, कोल्हापूर नागरी क्षेत्र विकास प्राधिकरण, कोल्हापूर. \n ७) सर्व महानगर आयुक्त, नवनगर प्रदेश विकास प्राधिकरण. \n ८) मुख्य कार्यकारी अधिकारी, सर्व जिल्हापरिषद. \n ९) मुख्याधिकारी सर्व नगरपरिषदा / नगरपंचायती. \n १०) सर्व जिल्हाधिकारी. \n ११) सहायक संचालक, नगर रचना / नगर रचनाकार, नगर रचना व मूल्यनिर्धारण विभाग, सर्व शाखा कार्यालये. \n १२) अवर सचिव, नवि-११ / नवि-१२ / नवि-३०, कक्ष अधिकारी, नवि-९, नगर विकास विभाग, मंत्रालय, मुंबई. \n १३) कक्ष अधिकारी (नवि-२९), नगर विकास विभाग, मंत्रालय, मुंबई. /- सोबतचे निदेश या विभागाच्या संकेतस्थळावर प्रसिध्द करावेत. \n १४) कक्ष अधिकारी, माहिती व तंत्रज्ञान विभाग, मंत्रालय, मुंबई. /- सदरचे निदेश शासनाच्या संकेतस्थळावर प्रसिध्द करावेत. \n १५) निवड नस्ती, कार्यासन (नवि-१३).\n469",
+  "translated_english_text": "UDCPR-2020  \n3. Chairperson, Maharashtra Legislative Assembly, Maharashtra Legislative Assembly Secretariat, Mumbai.  \n4. Speaker, Maharashtra Legislative Council, Maharashtra Legislative Assembly Secretariat, Mumbai.  \n5. Leader of the Opposition, Legislative Assembly, Maharashtra Legislative Assembly Secretariat, Mumbai.  \n6. Leader of the Opposition, Legislative Council, Maharashtra Legislative Assembly Secretariat, Mumbai.  \n7. Chief Secretary, Maharashtra Government, Ministry, Mumbai.  \n8. Additional Chief Secretary (New-1), Urban Development Department, Ministry, Mumbai.  \n9. Director (Urban Planning) and Joint Secretary, Urban Development Department, Ministry, Mumbai.  \n10. Joint Secretary and Joint Director (Urban Planning), Urban Development Department, Ministry, Mumbai.  \nTo -:  \n1) Director, Urban Planning, Maharashtra State, Pune.  \n2) All Divisional Commissioners.  \n3) All Divisional Joint Directors, Urban Planning.  \n4) All Commissioners, Municipal Corporation.  \n5) All Municipal Commissioners, Metropolitan Region Development Authority / Special Planning Authority.  \n6) Chief Executive Officer, Kolhapur Nagarik Kshetra Vikas Pradhikaran, Kolhapur.  \n7) All Municipal Commissioners, New Nagar Region Development Authority.  \n8) Chief Executive Officer, All District Boards.  \n9) Chief Officer, All Municipal Corporations / Municipal Councils.  \n10) All District Collectors.  \n11) Deputy Director, Urban Planning / Urban Planner, Urban Planning and Valuation Department, All Branch Offices.  \n12) Deputy Secretary, New-11 / New-12 / New-30, Department Officer, New-9, Urban Development Department, Ministry, Mumbai.  \n13) Department Officer (New-29), Urban Development Department, Ministry, Mumbai. /- The instructions should be published on the department's website.  \n14) Department Officer, Information and Technology Department, Ministry, Mumbai. /- The instructions should be published on the government's website.  \n15) Election Notice, Seating (New-13).  \n469",
+  "validation": {
+    "original_regulation_numbers": [],
+    "translated_regulation_numbers": [],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 1531,
+    "translated_characters": 1996,
+    "elapsed_seconds": 128.05
+  }
+}

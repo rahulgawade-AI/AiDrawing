@@ -1,0 +1,61 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 510,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0510.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\nमहाराष्ट्र शासन नगर विकास विभाग\nमादाम कामा मार्ग, हुतात्मा राजगुरु चौक, मंत्रालय, मुंबई - ४०० ०३२.\nEmail ID : soudd12-mh@mah.gov.in\nक्रमांक-:टिपीएस-१२२३/१४८०/प्र.क्र.१२२/२३/नवि-१२ दिनांक -: २६ ऑक्टोबर, २०२३\nप्रति, मुख्य नियोजनकार, महाराष्ट्र राज्य रस्ते विकास महामंडळ, नेपियन्सी रोड, प्रियदर्शनी पार्कच्या बाजुस, मुंबई - ४०००३६.\nसर्व कामादनी अधिकारी नोन प्रति\nविषय -: Regarding the Recreational Open Space within Green Belt Zone and River Protection Belt as per Regulation No.3.4.5 and 4.12 of UDCPR.\nसंदर्भ -: आपलेकडील क्र.MSRDC/SPA/२०२३/१६५८, दि.०३/१०/२०२३ रोजीचे शासनास पत्र\nमहोदय,\nवरील विषयांकित प्रकरणी आपण संदर्भाधिन पत्रान्वये एकत्रिकृत विकास नियंत्रण व प्रोत्साहन नियमावलीमधील विनियम क्र.३.४.५ व विनियम क्र.४.१२ च्या अनुषंगाने Green Belt/River Protection Belt यामध्ये खुले क्षेत्र प्रस्तावित करता येवू शकेल अशी धारणा व्यक्त करून ती कायम करण्यास शासनास विनंती केली आहे. त्याअनुषंगाने आपणास खालील प्रमाणे कळविण्याच्या मला सुचना आहेत.\n“एकत्रिकृत विकास नियंत्रण व प्रोत्साहन नियमावलीमधील (UDCPR) विनियम क्र.३.१.३(i)(a) नुसार नदी किनारा ते निळी पुरेषा यामधील क्षेत्र Prohibited Zone क्षेत्र असताना सदरच्या क्षेत्रामध्ये खुल्या स्वरूपाचे वापर जसे Open Space, Garden, Lawns इत्यादी वापर अनुज्ञेय आहेत, तर Green Belt किंवा River Protection Belt हे वापर विभाग देखील नदी/नालाच्या किना-या लगत प्रस्तावित असताना, त्यामध्ये विनियम क्र. ४.१२.१(ii) नुसार खुले स्वरूपाचे वापर सदरचे १५ मी. व ९.० मी. अंतरे विचारात न घेता अनुज्ञेय आहेत तर विनियम क्र. ४.१२(v) व ४.१२(vii) नुसार सदरच्या वापर विभागामध्ये नदीपासून १५ मी. व नाल्यापासून ९.०० मी. अंतर सोडून Recreational Open Space सोडणेबाबत तरतुद असून, सदर दोन्ही विनियमामध्ये नमुद क्षेत्र हे नदी/नाला या लगत असताना, त्यामध्ये विकास परवानगीच्या अनुषंगाने प्रस्तावित करावयाच्या Recreational Space / Open Space च्या स्थानांच्या अनुषंगाने दोन्ही\n494",
+  "translated_english_text": "UDCPR-2020\nMaharashtra Government Urban Development Department\nMadam Kama Marg, Hutatma Rajguru Chowk, Ministry, Mumbai - 400 032.\nEmail ID : soudd12-mh@mah.gov.in\nSerial No.: TPS-1223/1480/Pr. No. 122/23/Navi-12 Date: 26 October, 2023\nTo, Chief Planner, Maharashtra State Road Development Corporation, Napeansi Road, Priyadarshini Park Side, Mumbai - 400036.\nAll concerned non-technical officers\nSubject: Regarding the Recreational Open Space within Green Belt Zone and River Protection Belt as per Regulation No.3.4.5 and 4.12 of UDCPR.\nReference: Your No. MSRDC/SPA/2023/1658, dated 03/10/2023, to the Government\nSir,\nIn the above subject matter case, you are requested to keep the said Regulation No.3.4.5 and Regulation No.4.12 of UDCPR as per the reference letter, and to express the opinion that the open space can be proposed within Green Belt/River Protection Belt. You are advised to inform the following:\n\"Under Regulation No.3.1.3(i)(a) of the Unified Development Control and Promotion Regulations (UDCPR), the area from river bank to green belt is prohibited zone. However, the use of open space, garden, lawns etc. in the said area is allowed. If Green Belt or River Protection Belt is proposed as use zone adjacent to river/kanal bank, then under Regulation No.4.12.1(ii) of UDCPR, the use of open space is allowed without considering the distance of 15 m. and 9.0 m. from river/kanal. Also, under Regulation No.4.12(v) and 4.12(vii) of UDCPR, there are provisions to leave 15 m. from river and 9.00 m. from kanal while proposing Recreational Open Space in the said use zone. Since the said two regulations mention the area adjacent to river/kanal, therefore, in the context of development permit, the proposed locations of Recreational Space / Open Space should be considered in relation to both\n494",
+  "validation": {
+    "original_regulation_numbers": [
+      "3.4.5",
+      "4.12",
+      "3.1.3(i)",
+      "4.12.1(ii)",
+      "9.0",
+      "4.12(v)",
+      "4.12(vii)",
+      "9.00"
+    ],
+    "translated_regulation_numbers": [
+      "3.4.5",
+      "4.12",
+      "3.1.3(i)",
+      "4.12.1(ii)",
+      "9.0",
+      "4.12(v)",
+      "4.12(vii)",
+      "9.00"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [
+      "03/10/2023"
+    ],
+    "translated_dates": [
+      "03/10/2023"
+    ],
+    "missing_dates": [],
+    "original_emails": [
+      "soudd12-mh@mah.gov.in"
+    ],
+    "translated_emails": [
+      "soudd12-mh@mah.gov.in"
+    ],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [
+      "TPS-1223/1480/Pr. No. 122/23/Navi-12 Date: 26 October",
+      "TPS-1223/1480/Pr. No. 122/23/Navi-12 Date"
+    ],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 1792,
+    "translated_characters": 1815,
+    "elapsed_seconds": 293.97
+  }
+}

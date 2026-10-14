@@ -1,0 +1,323 @@
+diff --git a/townplanning/modules/regulations/persistence/persistence_service.py b/townplanning/modules/regulations/persistence/persistence_service.py
+--- a/townplanning/modules/regulations/persistence/persistence_service.py
++++ b/townplanning/modules/regulations/persistence/persistence_service.py
+@@ -4,9 +4,10 @@
+
+ from sqlalchemy.orm import Session
+
+ from townplanning.infrastructure.database.repositories import (
+     SQLAlchemyKnowledgeRepository,
+     SQLAlchemyRegulationRepository,
+     SQLAlchemyRuleRepository,
++    SQLAlchemyTableRepository,
+ )
+@@ -25,6 +26,9 @@ class PersistenceService:
+         self.rule_repository = (
+             SQLAlchemyRuleRepository(session)
+         )
++        self.table_repository = (
++            SQLAlchemyTableRepository(session)
++        )
+
+     # ---------------------------------------------------------
++    def persist_tables(
++        self,
++        tables,
++        regulation_id: str,
++    ):
++        """
++        Persist extracted tables into the existing `tables` table.
++
++        This does not create schema. It reuses the existing
++        SQLAlchemyTableRepository.
++        """
++        if not tables:
++            return []
++
++        try:
++            self.table_repository.save_many(
++                tables,
++                regulation_id,
++            )
++            self.session.commit()
++            return tables
++        except Exception:
++            self.session.rollback()
++            raise
++
++    # ---------------------------------------------------------
+     def persist(
+         self,
+         regulation,
+         knowledge,
+         rules,
+diff --git a/townplanning/modules/regulations/ingestion/ingestion_service.py b/townplanning/modules/regulations/ingestion/ingestion_service.py
+--- a/townplanning/modules/regulations/ingestion/ingestion_service.py
++++ b/townplanning/modules/regulations/ingestion/ingestion_service.py
+@@ -443,6 +443,27 @@ class IngestionService:
+         self.page_filter = PageFilter()
+
++    def extract_tables(
++        self,
++        pdf_path: str,
++        page_number: int,
++    ):
++        """
++        Extract only structured PDF tables.
++
++        This reuses the existing PDFReader and TableExtractor.
++        It does not create a Regulation, KnowledgeCard, or Rule.
++        """
++        reader = PDFReader()
++        reader.open(pdf_path)
++
++        try:
++            table_extractor = TableExtractor()
++            return table_extractor.extract(
++                reader,
++                page_number,
++            )
++        finally:
++            reader.close()
++
+     # -------------------------------------------------------------
+
+     def ingest(
+@@ -580,6 +601,7 @@ class IngestionService:
+         return {
+             "regulation": regulation,
+             "knowledge": knowledge,
+             "rules": rules,
++            "tables": tables,
+         }
+diff --git a/townplanning/infrastructure/database/repositories/table_repository.py b/townplanning/infrastructure/database/repositories/table_repository.py
+--- a/townplanning/infrastructure/database/repositories/table_repository.py
++++ b/townplanning/infrastructure/database/repositories/table_repository.py
+@@ -150,6 +150,47 @@ class SQLAlchemyTableRepository:
+             for model in self.session.scalars(
+                 stmt
+             )
+         ]
+
++    # ---------------------------------------------------------
++    def find_by_page_and_title(
++        self,
++        page: int,
++        title_contains: str | None = None,
++    ):
++        """
++        Find an existing structured table.
++
++        The repository only reads PostgreSQL. It never invokes
++        PDF extraction.
++        """
++        stmt = (
++            select(TableModel)
++            .where(
++                TableModel.page_number == page
++            )
++            .order_by(
++                TableModel.table_index
++            )
++        )
++
++        models = list(
++            self.session.scalars(stmt)
++        )
++
++        if not title_contains:
++            return (
++                TableMapper.to_domain(models[0])
++                if models
++                else None
++            )
++
++        needle = title_contains.lower()
++
++        for model in models:
++            title = str(
++                model.title or ""
++            ).lower()
++
++            headers = " ".join(
++                str(value)
++                for value in (model.headers or [])
++                if value is not None
++            ).lower()
++
++            if (
++                needle in title
++                or needle in headers
++            ):
++                return TableMapper.to_domain(model)
++
++        return None
++
+     # ---------------------------------------------------------
+     def delete(
+         self,
+         table_id: str,
+diff --git a/townplanning/modules/planning/regulations/udcpr_rule_resolver.py b/townplanning/modules/planning/regulations/udcpr_rule_resolver.py
+--- a/townplanning/modules/planning/regulations/udcpr_rule_resolver.py
++++ b/townplanning/modules/planning/regulations/udcpr_rule_resolver.py
+@@ -1,6 +1,7 @@
+ from __future__ import annotations
+
++import os
+ from typing import Any
+
+ from townplanning.infrastructure.database.models.rule_model import (
+     RuleModel,
+ )
+@@ -10,6 +11,18 @@ from townplanning.infrastructure.database.session import (
+     SessionLocal,
+ )
+
++from townplanning.infrastructure.database.models import (
++    RegulationModel,
++)
++
++from townplanning.infrastructure.database.repositories import (
++    SQLAlchemyTableRepository,
++)
++
++from townplanning.modules.regulations.ingestion.ingestion_service import (
++    IngestionService,
++)
++
++from townplanning.modules.regulations.persistence import (
++    PersistenceService,
++)
++
+ from townplanning.modules.planning.domain.applicable_rule import (
+     ApplicableRule,
+ )
+@@ -49,6 +62,9 @@ class UDCPRRuleResolver:
+         self.condition_engine = (
+              RuleConditionEngine()
+         )
+
++        self.ingestion_service = IngestionService()
++
+     # --------------------------------------------------
+     # Resolve rules
+     # --------------------------------------------------
+@@ -66,6 +82,95 @@ class UDCPRRuleResolver:
+         finally:
+             session.close()
+
++    # --------------------------------------------------
++    # Structured UDCPR table resolution
++    # --------------------------------------------------
++    def get_or_ingest_table(
++        self,
++        page_number: int,
++        title_contains: str | None = None,
++        pdf_path: str | None = None,
++    ):
++        """
++        Return an existing structured UDCPR table.
++
++        If the table is missing from PostgreSQL, reuse the existing
++        TableExtractor through IngestionService, persist the result
++        into the existing `tables` table, and return it.
++
++        No new database table is created.
++        """
++        session = self.session_factory()
++
++        try:
++            repository = SQLAlchemyTableRepository(
++                session
++            )
++
++            existing = (
++                repository.find_by_page_and_title(
++                    page_number,
++                    title_contains,
++                )
++            )
++
++            if existing is not None:
++                return existing
++
++            source = (
++                pdf_path
++                or os.getenv("UDCPR_PDF_PATH")
++                or "/home/ubuntu/llmproject/udcpr_ai/app/services/UDCPR.pdf"
++            )
++
++            if not os.path.isfile(source):
++                raise FileNotFoundError(
++                    "UDCPR PDF not found. Set UDCPR_PDF_PATH. "
++                    f"Path: {source}"
++                )
++
++            tables = (
++                self.ingestion_service.extract_tables(
++                    source,
++                    page_number,
++                )
++            )
++
++            if not tables:
++                return None
++
++            selected = None
++
++            if title_contains:
++                needle = title_contains.lower()
++
++                for table in tables:
++                    header_text = " ".join(
++                        str(value)
++                        for value in (table.headers or [])
++                        if value is not None
++                    ).lower()
++
++                    if needle in header_text:
++                        selected = table
++                        break
++
++            if selected is None:
++                selected = tables[0]
++
++            # Find the already-ingested Regulation that owns this
++            # PDF page. We do NOT create a new Regulation merely
++            # because a structured table is missing.
++            regulation = (
++                session.query(RegulationModel)
++                .filter(
++                    RegulationModel.page_start <= page_number,
++                    RegulationModel.page_end >= page_number,
++                )
++                .order_by(
++                    RegulationModel.page_start.desc()
++                )
++                .first()
++            )
++
++            if regulation is None:
++                raise RuntimeError(
++                    "Cannot persist extracted table: no existing "
++                    f"Regulation covers PDF page {page_number}."
++                )
++
++            persistence = PersistenceService(
++                session
++            )
++
++            persistence.persist_tables(
++                [selected],
++                regulation.id,
++            )
++
++            # Read it back from PostgreSQL so the caller always gets
++            # the canonical persisted representation.
++            return repository.find_by_page_and_title(
++                page_number,
++                title_contains,
++            )
++
++        finally:
++            session.close()

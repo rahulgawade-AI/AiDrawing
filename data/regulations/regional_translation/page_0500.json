@@ -1,0 +1,46 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 500,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0500.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "नगर रचना आणि मूल्यनिर्धारण विभाग मु.का., पुणे-१. आवक क्र. .... टिपीव्ही -१/२/३/४/५/६/७ २१ SEP 2023 प्रशा -१/१/३/२/लेखा/अर्थ संकल्प कार्यासन मु.प्र.अ./उ सं न र./सं / १/१.\nमहाराष्ट्र प्रादेशिक नियोजन व नगर रचना अधिनियम, १९६६ चे कलम १५४ अन्वये निदेश. (केंद्र शासनाच्या गृहनिर्माण व शहरी मंत्रालय विभागाने जारी केलेल्या addendum to model building Bye- Laws 2016 या विनियमांचा अंतर्भाव राज्यातील सर्व नियोजन प्राधिकरणांच्या मंजूर विकास नियंत्रण नियमावलीमध्ये करणेबाबत.)\nमहाराष्ट्र शासन\nनगर विकास विभाग,\nशासन निर्णय क्र. टिपीएस-१८२२/१८१८/प्र.क्र.१७९/२०२२/नवि-१३, मादाम कामा मार्ग, हुतात्मा राजगुरु चौक, चौथा मजला, मंत्रालय, मुंबई ४०० ०३२.\nदिनांक : २५.०८.२०२३\nआदेश\nमहाराष्ट्र प्रादेशिक नियोजन व नगर रचना अधिनियम, १९६६ प्रस्तावना -\nकेंद्र शासनाच्या गृहनिर्माण आणि शहरी व्यवहार मंत्रालयाने जारी केलेल्या Addendum to model building Bye-Laws 2016 या विनियमाचा अंतर्भाव तातडीने अंतर्भाव राज्यातील सर्व नियोजन प्राधिकरणांच्या मंजूर विकास नियंत्रण नियमावलीमध्ये करण्याचा आहे.\nAddendum to model building Bye-Laws २०१६ या विनियमामधील बाबी या इमारतींच्या अंतर्गत संरक्षणासंबंधी असल्यामुळे सदर विषयी नवि-१ मार्फत कार्यवाही होणे आवश्यक असल्याने सार्वजनिक हिताच्या दृष्टीने तसेच केंद्र शासनाचे मार्गदर्शक सूचनांची अंमलबजावणी व्हावी या दृष्टीकोनातून सदरची मार्गदर्शक तत्वे व विनियम लगोलग संपूर्ण राज्यात लागू करण्यासाठी सदर प्रकरणी महाराष्ट्र प्रादेशिक नियोजन व नगर रचना अधिनियम १९६६ चे कलम १५४ अन्वयेचे निदेश राज्यातील सर्व नियोजन प्राधिकरणांना देण्याची बाब शासनाच्या विचाराधीन होती.\nत्यास अनुसरून विषयांकित प्रकरणी सार्वजनिक हिताच्या दृष्टीकोनातून केंद्र शासनाच्या गृहनिर्माण आणि शहरी व्यवहार मंत्रालयाने जारी केलेल्या Addendum to model building Bye-Laws 2016 या विनियमाचा अंतर्भाव तातडीने राज्यातील सर्व नियोजन प्राधिकरणांच्या मंजूर विकास नियंत्रण नियमावलीमध्ये करण्यासाठी राज्यातील सर्व नियोजन प्राधिकरणांना उक्त अधिनियमाचे कलम १५४ अन्वये प्राप्त अधिकारात शासन खालीलप्रमाणे निदेश देत आहे.\nनगर रचना आणि मूल्यनिर्धारण विभाग उपसंचालक, नगर रचना (ना.सं.व.) आ.क्र. १९६६ दिनांक- ०५.१०.२०२३ संवादित अधि./कर्म. W.M. नं. २ २१० २२ व.सं.नं. १\n484",
+  "translated_english_text": "Department of Town Planning and Valuation, Mumbai, Pune-1. Receipt No. .... TIPV-1/2/3/4/5/6/7 21 SEP 2023 Prasha-1/1/3/2/Account/Finance Budget Meeting, Mumbai. Pr. P. A./U. S. A./S. A./1/1.\nMaharashtra Regional Planning and Urban Development Act, 1966, Section 154, in accordance with the notification (the Addendum to model building Bye-Laws 2016 issued by the Central Government's Ministry of Housing and Urban Affairs, which shall be incorporated in the approved development control regulations of all planning authorities in the state.)\nMaharashtra Government\nDepartment of Town Development,\nGovernment Resolution No. TIPS-1822/1818/Pr. No. 179/2022/New-13, Madam Kama Marg, Hutatma Rajguru Chowk, Fourth Floor, Ministry, Mumbai 400 032.\nDate: 25.08.2023\nOrder\nMaharashtra Regional Planning and Urban Development Act, 1966, preamble -\nThe Addendum to model building Bye-Laws 2016 issued by the Central Government's Ministry of Housing and Urban Affairs shall be incorporated immediately in the approved development control regulations of all planning authorities in the state.\nThe provisions of the Addendum to model building Bye-Laws 2016 are related to protection of buildings, therefore, necessary action under New-1 is required, hence, for the public interest, the implementation of the Central Government's guiding instructions shall be ensured from this perspective, and for the purpose of applying the guiding principles and regulations of the Addendum to model building Bye-Laws 2016 throughout the state, the Government is considering issuing the directive under Section 154 of the Maharashtra Regional Planning and Urban Development Act, 1966 to all planning authorities in the state.\nFollowing this, for the public interest, the Government is issuing the directive under Section 154 of the Maharashtra Regional Planning and Urban Development Act, 1966 to all planning authorities in the state to immediately incorporate the Addendum to model building Bye-Laws 2016 issued by the Central Government's Ministry of Housing and Urban Affairs in the approved development control regulations of all planning authorities in the state.\nDepartment of Town Planning and Valuation, Deputy Commissioner, Town Planning (N.S.A.V.) A. No. 1966, Date- 05.10.2023, Correspondence No. W.M. No. 2 210 22 V.S. No. 1\n484",
+  "validation": {
+    "original_regulation_numbers": [
+      "25.08.2023",
+      "05.10.2023"
+    ],
+    "translated_regulation_numbers": [
+      "25.08.2023",
+      "05.10.2023"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [
+      "25.08.2023",
+      "05.10.2023"
+    ],
+    "translated_dates": [
+      "25.08.2023",
+      "05.10.2023"
+    ],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [
+      "TIPS-1822/1818/Pr. No. 179/2022/New-13"
+    ],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 2017,
+    "translated_characters": 2316,
+    "elapsed_seconds": 157.22
+  }
+}

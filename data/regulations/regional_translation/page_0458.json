@@ -1,0 +1,32 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 458,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0458.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\n४) सहसंचालक, नगर रचना तथा सहसंचिव, नगर विकास विभाग, मंत्रालय, मुंबई-३२  ५) सहसंचालक, नगर रचना, अं.क., पुणे यांना माहिती व आवश्यक त्या कार्यवाहीसाठी.  ६) सहसंचालक, नगर रचना, पुणे / कोकण / नाशिक / औरंगाबाद / नागपूर / अमरावती. त्यांनी सदरचे आदेश सर्व शाखा कार्यालयाना अवगत करावेत.\nप्रत माहिती व योग्य त्या कार्यवाहीसाठी-\n१) उपसंचालक, नगर रचना, मुख्य कार्यालय, पुणे / नागरी संशोधन घटक, पुणे / बृहन्मुंबई.  २) कार्यासन अधिकारी, कार्यासन क्र. १ / २ / ३ / ४ / ५ / ६ / ७.  ३) श्री. पालकर, स्वि.स. / श्रीमती हुपरे / श्री. चंद्रस (उच्चश्रेणी लघुलेखक)  ४) परिपत्रक नस्ती.\n442",
+  "translated_english_text": "UDCPR-2020\n4) Additional Director, Municipal Planning and Additional Secretary, Municipal Development Department, Ministry, Mumbai-32  5) Additional Director, Municipal Planning, A.K., Pune to be informed and necessary action.  6) Additional Director, Municipal Planning, Pune / Konkan / Nashik / Aurangabad / Nagpur / Amaravati. They should inform all branch offices of the orders.\nCopy Information and appropriate action-\n1) Deputy Director, Municipal Planning, Head Office, Pune / Rural Research Unit, Pune / Brihanmumbai.  2) Designation Officer, Designation No. 1 / 2 / 3 / 4 / 5 / 6 / 7.  3) Shri. Palakar, Swi. S. / Shrimati Hupare / Shri. Chandras (High-level Sub-editor)  4) Circular not available.\n442 /think",
+  "validation": {
+    "original_regulation_numbers": [],
+    "translated_regulation_numbers": [],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 575,
+    "translated_characters": 718,
+    "elapsed_seconds": 98.25
+  }
+}

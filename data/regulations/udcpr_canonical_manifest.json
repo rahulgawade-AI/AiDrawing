@@ -1,0 +1,5635 @@
+{
+  "source_document": {
+    "filename": "UDCPR.pdf",
+    "path": "/home/ubuntu/llmproject/ai-town-planning/data/regulations/UDCPR.pdf",
+    "version": "UDCPR-2020"
+  },
+  "document_structure": {
+    "pdf_pages": 511,
+    "front_matter_pdf_pages": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16
+    ],
+    "index_pdf_pages": [
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14
+    ],
+    "main_printed_pages": [
+      1,
+      423
+    ],
+    "main_pdf_pages": [
+      17,
+      439
+    ],
+    "regional_material_pdf_start": 440
+  },
+  "pagination": {
+    "verified": true,
+    "offset": 16,
+    "formula": "pdf_page = printed_page + 16"
+  },
+  "statistics": {
+    "regulation_count": 329,
+    "appendix_count": 0,
+    "duplicate_number_count": 1,
+    "validation_error_count": 0,
+    "main_printed_page_start": 1,
+    "main_printed_page_end": 423,
+    "main_pdf_page_start": 17,
+    "main_pdf_page_end": 439
+  },
+  "validation_errors": [],
+  "duplicates": [
+    {
+      "number": "10.14",
+      "count": 2,
+      "entries": [
+        {
+          "key": "10.14@203#1",
+          "title": "CIDCO Area Excluding NAINA Area",
+          "printed_page_start": 203,
+          "chapter": "10"
+        },
+        {
+          "key": "10.14@205#2",
+          "title": "A CIDCO Area within Panvel Municipal Corporation",
+          "printed_page_start": 205,
+          "chapter": "10"
+        }
+      ]
+    }
+  ],
+  "regulations": [
+    {
+      "number": "1.0",
+      "chapter": "1",
+      "title": "Short Title, Extent and Commencement",
+      "printed_page_start": 1,
+      "index_pdf_page": 5,
+      "sequence": 1,
+      "occurrence": 1,
+      "key": "1.0@1#1",
+      "pdf_page_start": 17,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "1.1",
+      "chapter": "1",
+      "title": "Extent and Jurisdiction",
+      "printed_page_start": 1,
+      "index_pdf_page": 5,
+      "sequence": 2,
+      "occurrence": 1,
+      "key": "1.1@1#1",
+      "pdf_page_start": 17,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "1.2",
+      "chapter": "1",
+      "title": "Commencement of Regulations",
+      "printed_page_start": 1,
+      "index_pdf_page": 5,
+      "sequence": 3,
+      "occurrence": 1,
+      "key": "1.2@1#1",
+      "pdf_page_start": 17,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "1.3",
+      "chapter": "1",
+      "title": "Definitions",
+      "printed_page_start": 1,
+      "index_pdf_page": 5,
+      "sequence": 4,
+      "occurrence": 1,
+      "key": "1.3@1#1",
+      "pdf_page_start": 17,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "1.4",
+      "chapter": "1",
+      "title": "Applicability of Regulations",
+      "printed_page_start": 16,
+      "index_pdf_page": 5,
+      "sequence": 5,
+      "occurrence": 1,
+      "key": "1.4@16#1",
+      "pdf_page_start": 32,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "1.5",
+      "chapter": "1",
+      "title": "Saving",
+      "printed_page_start": 17,
+      "index_pdf_page": 5,
+      "sequence": 6,
+      "occurrence": 1,
+      "key": "1.5@17#1",
+      "pdf_page_start": 33,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "1.6",
+      "chapter": "1",
+      "title": "Applicability of Other Regulations",
+      "printed_page_start": 18,
+      "index_pdf_page": 5,
+      "sequence": 7,
+      "occurrence": 1,
+      "key": "1.6@18#1",
+      "pdf_page_start": 34,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "1.7",
+      "chapter": "1",
+      "title": "Power to Prescribe the Proformas",
+      "printed_page_start": 19,
+      "index_pdf_page": 5,
+      "sequence": 8,
+      "occurrence": 1,
+      "key": "1.7@19#1",
+      "pdf_page_start": 35,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "1.8",
+      "chapter": "1",
+      "title": "Power to Decide Charges",
+      "printed_page_start": 19,
+      "index_pdf_page": 5,
+      "sequence": 9,
+      "occurrence": 1,
+      "key": "1.8@19#1",
+      "pdf_page_start": 35,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "1.9",
+      "chapter": "1",
+      "title": "Meanings as in Acts, Rules & Interpretations",
+      "printed_page_start": 19,
+      "index_pdf_page": 5,
+      "sequence": 10,
+      "occurrence": 1,
+      "key": "1.9@19#1",
+      "pdf_page_start": 35,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "1.10",
+      "chapter": "1",
+      "title": "Removal of Difficulties",
+      "printed_page_start": 20,
+      "index_pdf_page": 5,
+      "sequence": 11,
+      "occurrence": 1,
+      "key": "1.10@20#1",
+      "pdf_page_start": 36,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.1",
+      "chapter": "2",
+      "title": "Permission from the Planning Authority is Mandatory",
+      "printed_page_start": 21,
+      "index_pdf_page": 5,
+      "sequence": 12,
+      "occurrence": 1,
+      "key": "2.1@21#1",
+      "pdf_page_start": 37,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.1.1",
+      "chapter": "2",
+      "title": "Necessity of Obtaining Permission",
+      "printed_page_start": 21,
+      "index_pdf_page": 5,
+      "sequence": 13,
+      "occurrence": 1,
+      "key": "2.1.1@21#1",
+      "pdf_page_start": 37,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.1.2",
+      "chapter": "2",
+      "title": "Permission Not Necessary",
+      "printed_page_start": 21,
+      "index_pdf_page": 5,
+      "sequence": 14,
+      "occurrence": 1,
+      "key": "2.1.2@21#1",
+      "pdf_page_start": 37,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.1.3",
+      "chapter": "2",
+      "title": "Development Undertaken on Behalf of Government",
+      "printed_page_start": 22,
+      "index_pdf_page": 5,
+      "sequence": 15,
+      "occurrence": 1,
+      "key": "2.1.3@22#1",
+      "pdf_page_start": 38,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.1.4",
+      "chapter": "2",
+      "title": "Operational Constructions",
+      "printed_page_start": 22,
+      "index_pdf_page": 5,
+      "sequence": 16,
+      "occurrence": 1,
+      "key": "2.1.4@22#1",
+      "pdf_page_start": 38,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.1.5",
+      "chapter": "2",
+      "title": "Constructions not Covered Under the Operational Constructions",
+      "printed_page_start": 23,
+      "index_pdf_page": 5,
+      "sequence": 17,
+      "occurrence": 1,
+      "key": "2.1.5@23#1",
+      "pdf_page_start": 39,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.1.6",
+      "chapter": "2",
+      "title": "Temporary Constructions",
+      "printed_page_start": 23,
+      "index_pdf_page": 5,
+      "sequence": 18,
+      "occurrence": 1,
+      "key": "2.1.6@23#1",
+      "pdf_page_start": 39,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.1.7",
+      "chapter": "2",
+      "title": "Repairs to Building",
+      "printed_page_start": 24,
+      "index_pdf_page": 5,
+      "sequence": 19,
+      "occurrence": 1,
+      "key": "2.1.7@24#1",
+      "pdf_page_start": 40,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2",
+      "chapter": "2",
+      "title": "Procedure for Obtaining Development Permission / Building Permission / Commencement Certificate",
+      "printed_page_start": 24,
+      "index_pdf_page": 5,
+      "sequence": 20,
+      "occurrence": 1,
+      "key": "2.2@24#1",
+      "pdf_page_start": 40,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.1",
+      "chapter": "2",
+      "title": "Notice / Application",
+      "printed_page_start": 24,
+      "index_pdf_page": 5,
+      "sequence": 21,
+      "occurrence": 1,
+      "key": "2.2.1@24#1",
+      "pdf_page_start": 40,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.2",
+      "chapter": "2",
+      "title": "Information Accompanying Notice / Application",
+      "printed_page_start": 24,
+      "index_pdf_page": 5,
+      "sequence": 22,
+      "occurrence": 1,
+      "key": "2.2.2@24#1",
+      "pdf_page_start": 40,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.3",
+      "chapter": "2",
+      "title": "Ownership Title and Area",
+      "printed_page_start": 24,
+      "index_pdf_page": 5,
+      "sequence": 23,
+      "occurrence": 1,
+      "key": "2.2.3@24#1",
+      "pdf_page_start": 40,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.4",
+      "chapter": "2",
+      "title": "Key Plan or Location Plan",
+      "printed_page_start": 25,
+      "index_pdf_page": 5,
+      "sequence": 24,
+      "occurrence": 1,
+      "key": "2.2.4@25#1",
+      "pdf_page_start": 41,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.5(a)",
+      "chapter": "2",
+      "title": "Sub-division Layout Plan",
+      "printed_page_start": 25,
+      "index_pdf_page": 5,
+      "sequence": 25,
+      "occurrence": 1,
+      "key": "2.2.5(a)@25#1",
+      "pdf_page_start": 41,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.5(b)",
+      "chapter": "2",
+      "title": "Amalgamation Plan",
+      "printed_page_start": 25,
+      "index_pdf_page": 5,
+      "sequence": 26,
+      "occurrence": 1,
+      "key": "2.2.5(b)@25#1",
+      "pdf_page_start": 41,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.6",
+      "chapter": "2",
+      "title": "Site Plan",
+      "printed_page_start": 26,
+      "index_pdf_page": 5,
+      "sequence": 27,
+      "occurrence": 1,
+      "key": "2.2.6@26#1",
+      "pdf_page_start": 42,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.7",
+      "chapter": "2",
+      "title": "Building Plan",
+      "printed_page_start": 26,
+      "index_pdf_page": 5,
+      "sequence": 28,
+      "occurrence": 1,
+      "key": "2.2.7@26#1",
+      "pdf_page_start": 42,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.8",
+      "chapter": "2",
+      "title": "Building Plans for Special Buildings",
+      "printed_page_start": 27,
+      "index_pdf_page": 5,
+      "sequence": 29,
+      "occurrence": 1,
+      "key": "2.2.8@27#1",
+      "pdf_page_start": 43,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.9",
+      "chapter": "2",
+      "title": "Service Plan",
+      "printed_page_start": 28,
+      "index_pdf_page": 5,
+      "sequence": 30,
+      "occurrence": 1,
+      "key": "2.2.9@28#1",
+      "pdf_page_start": 44,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.10",
+      "chapter": "2",
+      "title": "Supervision",
+      "printed_page_start": 28,
+      "index_pdf_page": 5,
+      "sequence": 31,
+      "occurrence": 1,
+      "key": "2.2.10@28#1",
+      "pdf_page_start": 44,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.11",
+      "chapter": "2",
+      "title": "Clearance From Other Departments",
+      "printed_page_start": 28,
+      "index_pdf_page": 6,
+      "sequence": 32,
+      "occurrence": 1,
+      "key": "2.2.11@28#1",
+      "pdf_page_start": 44,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.12",
+      "chapter": "2",
+      "title": "Building / Layout Permission Scrutiny Fee",
+      "printed_page_start": 29,
+      "index_pdf_page": 6,
+      "sequence": 33,
+      "occurrence": 1,
+      "key": "2.2.12@29#1",
+      "pdf_page_start": 45,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.13",
+      "chapter": "2",
+      "title": "Development Charges",
+      "printed_page_start": 29,
+      "index_pdf_page": 6,
+      "sequence": 34,
+      "occurrence": 1,
+      "key": "2.2.13@29#1",
+      "pdf_page_start": 45,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.14",
+      "chapter": "2",
+      "title": "Premium Charges and Fire Infrastructure Charges.",
+      "printed_page_start": 30,
+      "index_pdf_page": 6,
+      "sequence": 35,
+      "occurrence": 1,
+      "key": "2.2.14@30#1",
+      "pdf_page_start": 46,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.15",
+      "chapter": "2",
+      "title": "Structural Stability Certificate",
+      "printed_page_start": 31,
+      "index_pdf_page": 6,
+      "sequence": 36,
+      "occurrence": 1,
+      "key": "2.2.15@31#1",
+      "pdf_page_start": 47,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.16",
+      "chapter": "2",
+      "title": "Signing the Plan",
+      "printed_page_start": 31,
+      "index_pdf_page": 6,
+      "sequence": 37,
+      "occurrence": 1,
+      "key": "2.2.16@31#1",
+      "pdf_page_start": 47,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.17",
+      "chapter": "2",
+      "title": "Size of Drawing Sheets",
+      "printed_page_start": 32,
+      "index_pdf_page": 6,
+      "sequence": 38,
+      "occurrence": 1,
+      "key": "2.2.17@32#1",
+      "pdf_page_start": 48,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.18",
+      "chapter": "2",
+      "title": "Colouring Notations for Plans",
+      "printed_page_start": 32,
+      "index_pdf_page": 6,
+      "sequence": 39,
+      "occurrence": 1,
+      "key": "2.2.18@32#1",
+      "pdf_page_start": 48,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.2.19",
+      "chapter": "2",
+      "title": "Qualification and Competence of the Architect / Licensed Engineer / Structural Engineer / Town Planner / Supervisor",
+      "printed_page_start": 33,
+      "index_pdf_page": 6,
+      "sequence": 40,
+      "occurrence": 1,
+      "key": "2.2.19@33#1",
+      "pdf_page_start": 49,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.3",
+      "chapter": "2",
+      "title": "Discretionary Powers - Interpretation",
+      "printed_page_start": 33,
+      "index_pdf_page": 6,
+      "sequence": 41,
+      "occurrence": 1,
+      "key": "2.3@33#1",
+      "pdf_page_start": 49,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.4",
+      "chapter": "2",
+      "title": "Discretionary Powers - Relaxations in Specific Cases",
+      "printed_page_start": 33,
+      "index_pdf_page": 6,
+      "sequence": 42,
+      "occurrence": 1,
+      "key": "2.4@33#1",
+      "pdf_page_start": 49,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.5",
+      "chapter": "2",
+      "title": "Drafting Error",
+      "printed_page_start": 34,
+      "index_pdf_page": 6,
+      "sequence": 43,
+      "occurrence": 1,
+      "key": "2.5@34#1",
+      "pdf_page_start": 50,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.6",
+      "chapter": "2",
+      "title": "Grant or Refusal of Permission",
+      "printed_page_start": 34,
+      "index_pdf_page": 6,
+      "sequence": 44,
+      "occurrence": 1,
+      "key": "2.6@34#1",
+      "pdf_page_start": 50,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.6.1",
+      "chapter": "2",
+      "title": "General",
+      "printed_page_start": 34,
+      "index_pdf_page": 6,
+      "sequence": 45,
+      "occurrence": 1,
+      "key": "2.6.1@34#1",
+      "pdf_page_start": 50,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.6.2",
+      "chapter": "2",
+      "title": "Deemed Permission",
+      "printed_page_start": 34,
+      "index_pdf_page": 6,
+      "sequence": 46,
+      "occurrence": 1,
+      "key": "2.6.2@34#1",
+      "pdf_page_start": 50,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.6.3",
+      "chapter": "2",
+      "title": "Approval of building permission on Risk Based Classification",
+      "printed_page_start": 35,
+      "index_pdf_page": 6,
+      "sequence": 47,
+      "occurrence": 1,
+      "key": "2.6.3@35#1",
+      "pdf_page_start": 51,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.6.4",
+      "chapter": "2",
+      "title": "Display of Sanctioned Permissions on Authority's Web-Site.",
+      "printed_page_start": 35,
+      "index_pdf_page": 6,
+      "sequence": 48,
+      "occurrence": 1,
+      "key": "2.6.4@35#1",
+      "pdf_page_start": 51,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.7",
+      "chapter": "2",
+      "title": "Commencement of Work",
+      "printed_page_start": 35,
+      "index_pdf_page": 6,
+      "sequence": 49,
+      "occurrence": 1,
+      "key": "2.7@35#1",
+      "pdf_page_start": 51,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.7.1",
+      "chapter": "2",
+      "title": "Commencement",
+      "printed_page_start": 35,
+      "index_pdf_page": 6,
+      "sequence": 50,
+      "occurrence": 1,
+      "key": "2.7.1@35#1",
+      "pdf_page_start": 51,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.7.2",
+      "chapter": "2",
+      "title": "Development of Land Subdivision / Group Housing Schemes",
+      "printed_page_start": 36,
+      "index_pdf_page": 6,
+      "sequence": 51,
+      "occurrence": 1,
+      "key": "2.7.2@36#1",
+      "pdf_page_start": 52,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.8",
+      "chapter": "2",
+      "title": "Procedure During Construction",
+      "printed_page_start": 36,
+      "index_pdf_page": 6,
+      "sequence": 52,
+      "occurrence": 1,
+      "key": "2.8@36#1",
+      "pdf_page_start": 52,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.8.2",
+      "chapter": "2",
+      "title": "Results of Test",
+      "printed_page_start": 36,
+      "index_pdf_page": 6,
+      "sequence": 53,
+      "occurrence": 1,
+      "key": "2.8.2@36#1",
+      "pdf_page_start": 52,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.8.3",
+      "chapter": "2",
+      "title": "Display Board",
+      "printed_page_start": 36,
+      "index_pdf_page": 6,
+      "sequence": 54,
+      "occurrence": 1,
+      "key": "2.8.3@36#1",
+      "pdf_page_start": 52,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.8.4",
+      "chapter": "2",
+      "title": "Plinth Checking",
+      "printed_page_start": 37,
+      "index_pdf_page": 6,
+      "sequence": 55,
+      "occurrence": 1,
+      "key": "2.8.4@37#1",
+      "pdf_page_start": 53,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.8.5",
+      "chapter": "2",
+      "title": "Deviation during Construction",
+      "printed_page_start": 37,
+      "index_pdf_page": 6,
+      "sequence": 56,
+      "occurrence": 1,
+      "key": "2.8.5@37#1",
+      "pdf_page_start": 53,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.9",
+      "chapter": "2",
+      "title": "Completion Certificate",
+      "printed_page_start": 37,
+      "index_pdf_page": 6,
+      "sequence": 57,
+      "occurrence": 1,
+      "key": "2.9@37#1",
+      "pdf_page_start": 53,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.10",
+      "chapter": "2",
+      "title": "Occupancy Certificate",
+      "printed_page_start": 37,
+      "index_pdf_page": 6,
+      "sequence": 58,
+      "occurrence": 1,
+      "key": "2.10@37#1",
+      "pdf_page_start": 53,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.11",
+      "chapter": "2",
+      "title": "Part Occupancy Certificate",
+      "printed_page_start": 38,
+      "index_pdf_page": 6,
+      "sequence": 59,
+      "occurrence": 1,
+      "key": "2.11@38#1",
+      "pdf_page_start": 54,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.12",
+      "chapter": "2",
+      "title": "Inspection",
+      "printed_page_start": 38,
+      "index_pdf_page": 6,
+      "sequence": 60,
+      "occurrence": 1,
+      "key": "2.12@38#1",
+      "pdf_page_start": 54,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.13",
+      "chapter": "2",
+      "title": "Unsafe Buildings",
+      "printed_page_start": 38,
+      "index_pdf_page": 6,
+      "sequence": 61,
+      "occurrence": 1,
+      "key": "2.13@38#1",
+      "pdf_page_start": 54,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.14",
+      "chapter": "2",
+      "title": "Offences and Penalties",
+      "printed_page_start": 38,
+      "index_pdf_page": 6,
+      "sequence": 62,
+      "occurrence": 1,
+      "key": "2.14@38#1",
+      "pdf_page_start": 54,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "2.15",
+      "chapter": "2",
+      "title": "Revocation of Permission",
+      "printed_page_start": 39,
+      "index_pdf_page": 6,
+      "sequence": 63,
+      "occurrence": 1,
+      "key": "2.15@39#1",
+      "pdf_page_start": 55,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.1",
+      "chapter": "3",
+      "title": "Requirements of Site",
+      "printed_page_start": 41,
+      "index_pdf_page": 6,
+      "sequence": 64,
+      "occurrence": 1,
+      "key": "3.1@41#1",
+      "pdf_page_start": 57,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.1.1",
+      "chapter": "3",
+      "title": "Site Not Eligible For Construction of Building",
+      "printed_page_start": 41,
+      "index_pdf_page": 6,
+      "sequence": 65,
+      "occurrence": 1,
+      "key": "3.1.1@41#1",
+      "pdf_page_start": 57,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.1.2",
+      "chapter": "3",
+      "title": "Distance of Site From Electric Lines",
+      "printed_page_start": 42,
+      "index_pdf_page": 7,
+      "sequence": 66,
+      "occurrence": 1,
+      "key": "3.1.2@42#1",
+      "pdf_page_start": 58,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.1.3",
+      "chapter": "3",
+      "title": "Construction Within Blue and Red Flood Line",
+      "printed_page_start": 42,
+      "index_pdf_page": 7,
+      "sequence": 67,
+      "occurrence": 1,
+      "key": "3.1.3@42#1",
+      "pdf_page_start": 58,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.1.4",
+      "chapter": "3",
+      "title": "Development Within 30 m. Distance From Railway Boundary",
+      "printed_page_start": 43,
+      "index_pdf_page": 7,
+      "sequence": 68,
+      "occurrence": 1,
+      "key": "3.1.4@43#1",
+      "pdf_page_start": 59,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.1.5",
+      "chapter": "3",
+      "title": "Environmental Clearance",
+      "printed_page_start": 43,
+      "index_pdf_page": 7,
+      "sequence": 69,
+      "occurrence": 1,
+      "key": "3.1.5@43#1",
+      "pdf_page_start": 59,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.1.6",
+      "chapter": "3",
+      "title": "Development Along Highways / Classified Roads.",
+      "printed_page_start": 43,
+      "index_pdf_page": 7,
+      "sequence": 70,
+      "occurrence": 1,
+      "key": "3.1.6@43#1",
+      "pdf_page_start": 59,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.1.7",
+      "chapter": "3",
+      "title": "Development Within Certain Distance from the Prison Premises",
+      "printed_page_start": 43,
+      "index_pdf_page": 7,
+      "sequence": 71,
+      "occurrence": 1,
+      "key": "3.1.7@43#1",
+      "pdf_page_start": 59,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.1.8",
+      "chapter": "3",
+      "title": "Distances from Land Fill Sites",
+      "printed_page_start": 43,
+      "index_pdf_page": 7,
+      "sequence": 72,
+      "occurrence": 1,
+      "key": "3.1.8@43#1",
+      "pdf_page_start": 59,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.1.9",
+      "chapter": "3",
+      "title": "Restrictions in the Vicinity of Airport",
+      "printed_page_start": 43,
+      "index_pdf_page": 7,
+      "sequence": 73,
+      "occurrence": 1,
+      "key": "3.1.9@43#1",
+      "pdf_page_start": 59,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.1.10",
+      "chapter": "3",
+      "title": "Restrictions in the Vicinity of Ancient Monuments",
+      "printed_page_start": 44,
+      "index_pdf_page": 7,
+      "sequence": 74,
+      "occurrence": 1,
+      "key": "3.1.10@44#1",
+      "pdf_page_start": 60,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.1.11",
+      "chapter": "3",
+      "title": "Restriction under the Works of Defense Act, 1903",
+      "printed_page_start": 44,
+      "index_pdf_page": 7,
+      "sequence": 75,
+      "occurrence": 1,
+      "key": "3.1.11@44#1",
+      "pdf_page_start": 60,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.1.12",
+      "chapter": "3",
+      "title": "Distance from Natural Lake and Dam.",
+      "printed_page_start": 44,
+      "index_pdf_page": 7,
+      "sequence": 76,
+      "occurrence": 1,
+      "key": "3.1.12@44#1",
+      "pdf_page_start": 60,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.1.13",
+      "chapter": "3",
+      "title": "Authorities to Supply Complete Information about Restrictions to the Authority",
+      "printed_page_start": 45,
+      "index_pdf_page": 7,
+      "sequence": 77,
+      "occurrence": 1,
+      "key": "3.1.13@45#1",
+      "pdf_page_start": 61,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.2",
+      "chapter": "3",
+      "title": "Means of Access",
+      "printed_page_start": 45,
+      "index_pdf_page": 7,
+      "sequence": 78,
+      "occurrence": 1,
+      "key": "3.2@45#1",
+      "pdf_page_start": 61,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.3",
+      "chapter": "3",
+      "title": "Regulations for Land Sub-division and Layout",
+      "printed_page_start": 45,
+      "index_pdf_page": 7,
+      "sequence": 79,
+      "occurrence": 1,
+      "key": "3.3@45#1",
+      "pdf_page_start": 61,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.3.1",
+      "chapter": "3",
+      "title": "Obligation to Prepare Layout",
+      "printed_page_start": 45,
+      "index_pdf_page": 7,
+      "sequence": 80,
+      "occurrence": 1,
+      "key": "3.3.1@45#1",
+      "pdf_page_start": 61,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.3.2",
+      "chapter": "3",
+      "title": "Roads / Streets in Land Sub-division or Layout",
+      "printed_page_start": 46,
+      "index_pdf_page": 7,
+      "sequence": 81,
+      "occurrence": 1,
+      "key": "3.3.2@46#1",
+      "pdf_page_start": 62,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.3.3",
+      "chapter": "3",
+      "title": "Length of Internal Roads, How to be Measured",
+      "printed_page_start": 47,
+      "index_pdf_page": 7,
+      "sequence": 82,
+      "occurrence": 1,
+      "key": "3.3.3@47#1",
+      "pdf_page_start": 63,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.3.4",
+      "chapter": "3",
+      "title": "Co-ordination of Roads in Adjoining Lands",
+      "printed_page_start": 47,
+      "index_pdf_page": 7,
+      "sequence": 83,
+      "occurrence": 1,
+      "key": "3.3.4@47#1",
+      "pdf_page_start": 63,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.3.5",
+      "chapter": "3",
+      "title": "Narrow Roads in Congested Areas (Core area in case of Nashik Municipal Corporation)",
+      "printed_page_start": 47,
+      "index_pdf_page": 7,
+      "sequence": 84,
+      "occurrence": 1,
+      "key": "3.3.5@47#1",
+      "pdf_page_start": 63,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.3.6",
+      "chapter": "3",
+      "title": "Development of Street",
+      "printed_page_start": 47,
+      "index_pdf_page": 7,
+      "sequence": 85,
+      "occurrence": 1,
+      "key": "3.3.6@47#1",
+      "pdf_page_start": 63,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.3.7",
+      "chapter": "3",
+      "title": "Development of Private Street, if neglected",
+      "printed_page_start": 47,
+      "index_pdf_page": 7,
+      "sequence": 86,
+      "occurrence": 1,
+      "key": "3.3.7@47#1",
+      "pdf_page_start": 63,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.3.8",
+      "chapter": "3",
+      "title": "Access from the Highways / Classified Roads",
+      "printed_page_start": 47,
+      "index_pdf_page": 7,
+      "sequence": 87,
+      "occurrence": 1,
+      "key": "3.3.8@47#1",
+      "pdf_page_start": 63,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.3.9",
+      "chapter": "3",
+      "title": "Access Provision for Special Buildings of Regulation No.1.3(93)(xiv)",
+      "printed_page_start": 48,
+      "index_pdf_page": 7,
+      "sequence": 88,
+      "occurrence": 1,
+      "key": "3.3.9@48#1",
+      "pdf_page_start": 64,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.3.10",
+      "chapter": "3",
+      "title": "Cul-de-sacs",
+      "printed_page_start": 48,
+      "index_pdf_page": 7,
+      "sequence": 89,
+      "occurrence": 1,
+      "key": "3.3.10@48#1",
+      "pdf_page_start": 64,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.3.11",
+      "chapter": "3",
+      "title": "Handing Over of Layout Roads",
+      "printed_page_start": 49,
+      "index_pdf_page": 7,
+      "sequence": 90,
+      "occurrence": 1,
+      "key": "3.3.11@49#1",
+      "pdf_page_start": 65,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.3.12",
+      "chapter": "3",
+      "title": "Intersection of Roads",
+      "printed_page_start": 49,
+      "index_pdf_page": 7,
+      "sequence": 91,
+      "occurrence": 1,
+      "key": "3.3.12@49#1",
+      "pdf_page_start": 65,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.3.13",
+      "chapter": "3",
+      "title": "Acute Angled Junctions",
+      "printed_page_start": 49,
+      "index_pdf_page": 7,
+      "sequence": 92,
+      "occurrence": 1,
+      "key": "3.3.13@49#1",
+      "pdf_page_start": 65,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.3.14",
+      "chapter": "3",
+      "title": "Land-locked Plot",
+      "printed_page_start": 49,
+      "index_pdf_page": 7,
+      "sequence": 93,
+      "occurrence": 1,
+      "key": "3.3.14@49#1",
+      "pdf_page_start": 65,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.3.15",
+      "chapter": "3",
+      "title": "Approach by Underpass or Over Bride for Adjoining Properties.",
+      "printed_page_start": 50,
+      "index_pdf_page": 7,
+      "sequence": 94,
+      "occurrence": 1,
+      "key": "3.3.15@50#1",
+      "pdf_page_start": 66,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.4",
+      "chapter": "3",
+      "title": "Recreational Open Spaces",
+      "printed_page_start": 50,
+      "index_pdf_page": 7,
+      "sequence": 95,
+      "occurrence": 1,
+      "key": "3.4@50#1",
+      "pdf_page_start": 66,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.4.1",
+      "chapter": "3",
+      "title": "Recreational Open Space",
+      "printed_page_start": 50,
+      "index_pdf_page": 7,
+      "sequence": 96,
+      "occurrence": 1,
+      "key": "3.4.1@50#1",
+      "pdf_page_start": 66,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.4.2",
+      "chapter": "3",
+      "title": "Recreational Open Space - Owner’s Undertaking",
+      "printed_page_start": 51,
+      "index_pdf_page": 7,
+      "sequence": 97,
+      "occurrence": 1,
+      "key": "3.4.2@51#1",
+      "pdf_page_start": 67,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.4.3",
+      "chapter": "3",
+      "title": "Recreational Open Space - Rearrangement",
+      "printed_page_start": 52,
+      "index_pdf_page": 7,
+      "sequence": 98,
+      "occurrence": 1,
+      "key": "3.4.3@52#1",
+      "pdf_page_start": 68,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.4.4",
+      "chapter": "3",
+      "title": "Recreational Open Space - Exclusive",
+      "printed_page_start": 52,
+      "index_pdf_page": 7,
+      "sequence": 99,
+      "occurrence": 1,
+      "key": "3.4.4@52#1",
+      "pdf_page_start": 68,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.4.5",
+      "chapter": "3",
+      "title": "Recreational Open Space in Green Belt",
+      "printed_page_start": 52,
+      "index_pdf_page": 7,
+      "sequence": 100,
+      "occurrence": 1,
+      "key": "3.4.5@52#1",
+      "pdf_page_start": 68,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.4.6",
+      "chapter": "3",
+      "title": "Minimum Dimensions",
+      "printed_page_start": 52,
+      "index_pdf_page": 7,
+      "sequence": 101,
+      "occurrence": 1,
+      "key": "3.4.6@52#1",
+      "pdf_page_start": 68,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.4.7",
+      "chapter": "3",
+      "title": "Structures Permitted in Open Space",
+      "printed_page_start": 52,
+      "index_pdf_page": 7,
+      "sequence": 102,
+      "occurrence": 1,
+      "key": "3.4.7@52#1",
+      "pdf_page_start": 68,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.4.8",
+      "chapter": "3",
+      "title": "Recreational Open Space and Means of Access",
+      "printed_page_start": 53,
+      "index_pdf_page": 7,
+      "sequence": 103,
+      "occurrence": 1,
+      "key": "3.4.8@53#1",
+      "pdf_page_start": 69,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.5",
+      "chapter": "3",
+      "title": "Provision for Amenity Space",
+      "printed_page_start": 53,
+      "index_pdf_page": 8,
+      "sequence": 104,
+      "occurrence": 1,
+      "key": "3.5@53#1",
+      "pdf_page_start": 69,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.5.1",
+      "chapter": "3",
+      "title": "In the areas of Local Authorities, Special Planning Authorities and Metropolitan Region Authorities",
+      "printed_page_start": 53,
+      "index_pdf_page": 8,
+      "sequence": 105,
+      "occurrence": 1,
+      "key": "3.5.1@53#1",
+      "pdf_page_start": 69,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.5.2",
+      "chapter": "3",
+      "title": "In case of Regional Plan Areas.",
+      "printed_page_start": 54,
+      "index_pdf_page": 8,
+      "sequence": 106,
+      "occurrence": 1,
+      "key": "3.5.2@54#1",
+      "pdf_page_start": 70,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.5.3",
+      "chapter": "3",
+      "title": "Development of Amenity Spaces in Earlier Sanctioned Layout",
+      "printed_page_start": 54,
+      "index_pdf_page": 8,
+      "sequence": 107,
+      "occurrence": 1,
+      "key": "3.5.3@54#1",
+      "pdf_page_start": 70,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.6",
+      "chapter": "3",
+      "title": "Provision for Electric Sub-station",
+      "printed_page_start": 55,
+      "index_pdf_page": 8,
+      "sequence": 108,
+      "occurrence": 1,
+      "key": "3.6@55#1",
+      "pdf_page_start": 71,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.7",
+      "chapter": "3",
+      "title": "Minimum Plot Area for Various Uses",
+      "printed_page_start": 55,
+      "index_pdf_page": 8,
+      "sequence": 109,
+      "occurrence": 1,
+      "key": "3.7@55#1",
+      "pdf_page_start": 71,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.8",
+      "chapter": "3",
+      "title": "Provision for Inclusive Housing",
+      "printed_page_start": 56,
+      "index_pdf_page": 8,
+      "sequence": 110,
+      "occurrence": 1,
+      "key": "3.8@56#1",
+      "pdf_page_start": 72,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.9",
+      "chapter": "3",
+      "title": "Net Plot Area and Computation of FSI",
+      "printed_page_start": 59,
+      "index_pdf_page": 8,
+      "sequence": 111,
+      "occurrence": 1,
+      "key": "3.9@59#1",
+      "pdf_page_start": 75,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.10",
+      "chapter": "3",
+      "title": "Transfer of DP Sites (other than DP road) in lieu of FSI",
+      "printed_page_start": 59,
+      "index_pdf_page": 8,
+      "sequence": 112,
+      "occurrence": 1,
+      "key": "3.10@59#1",
+      "pdf_page_start": 75,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.11",
+      "chapter": "3",
+      "title": "Relocation of DP-RP Sites / Roads",
+      "printed_page_start": 59,
+      "index_pdf_page": 8,
+      "sequence": 113,
+      "occurrence": 1,
+      "key": "3.11@59#1",
+      "pdf_page_start": 75,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.12",
+      "chapter": "3",
+      "title": "Amalgamation of Plots",
+      "printed_page_start": 60,
+      "index_pdf_page": 8,
+      "sequence": 114,
+      "occurrence": 1,
+      "key": "3.12@60#1",
+      "pdf_page_start": 76,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.13",
+      "chapter": "3",
+      "title": "Development of Cycle Track Along River and Nallah",
+      "printed_page_start": 60,
+      "index_pdf_page": 8,
+      "sequence": 115,
+      "occurrence": 1,
+      "key": "3.13@60#1",
+      "pdf_page_start": 76,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.13.1",
+      "chapter": "3",
+      "title": "For Nashik Municipal Corporation.",
+      "printed_page_start": 60,
+      "index_pdf_page": 8,
+      "sequence": 116,
+      "occurrence": 1,
+      "key": "3.13.1@60#1",
+      "pdf_page_start": 76,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "3.13.2",
+      "chapter": "3",
+      "title": "For Other Municipal Corporations.",
+      "printed_page_start": 60,
+      "index_pdf_page": 8,
+      "sequence": 117,
+      "occurrence": 1,
+      "key": "3.13.2@60#1",
+      "pdf_page_start": 76,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.1",
+      "chapter": "4",
+      "title": "General",
+      "printed_page_start": 61,
+      "index_pdf_page": 8,
+      "sequence": 118,
+      "occurrence": 1,
+      "key": "4.1@61#1",
+      "pdf_page_start": 77,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.2",
+      "chapter": "4",
+      "title": "+ Land Use Classification and Equivalency of Zones",
+      "printed_page_start": 61,
+      "index_pdf_page": 8,
+      "sequence": 119,
+      "occurrence": 1,
+      "key": "4.2@61#1",
+      "pdf_page_start": 77,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.3",
+      "chapter": "4",
+      "title": "Residential Zone - R-1",
+      "printed_page_start": 63,
+      "index_pdf_page": 8,
+      "sequence": 120,
+      "occurrence": 1,
+      "key": "4.3@63#1",
+      "pdf_page_start": 79,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.4",
+      "chapter": "4",
+      "title": "Residential Zone - R-2",
+      "printed_page_start": 65,
+      "index_pdf_page": 8,
+      "sequence": 121,
+      "occurrence": 1,
+      "key": "4.4@65#1",
+      "pdf_page_start": 81,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.5",
+      "chapter": "4",
+      "title": "Low Density Residential Zone",
+      "printed_page_start": 67,
+      "index_pdf_page": 8,
+      "sequence": 122,
+      "occurrence": 1,
+      "key": "4.5@67#1",
+      "pdf_page_start": 83,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.6",
+      "chapter": "4",
+      "title": "Future Urbanisable Zone",
+      "printed_page_start": 67,
+      "index_pdf_page": 8,
+      "sequence": 123,
+      "occurrence": 1,
+      "key": "4.6@67#1",
+      "pdf_page_start": 83,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.7",
+      "chapter": "4",
+      "title": "Commercial Zone",
+      "printed_page_start": 67,
+      "index_pdf_page": 8,
+      "sequence": 124,
+      "occurrence": 1,
+      "key": "4.7@67#1",
+      "pdf_page_start": 83,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.8",
+      "chapter": "4",
+      "title": "Industrial Zone",
+      "printed_page_start": 67,
+      "index_pdf_page": 8,
+      "sequence": 125,
+      "occurrence": 1,
+      "key": "4.8@67#1",
+      "pdf_page_start": 83,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.9",
+      "chapter": "4",
+      "title": "Loom Industry cum Residential Zone.",
+      "printed_page_start": 71,
+      "index_pdf_page": 8,
+      "sequence": 126,
+      "occurrence": 1,
+      "key": "4.9@71#1",
+      "pdf_page_start": 87,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.10",
+      "chapter": "4",
+      "title": "Public / Semi Public Zone",
+      "printed_page_start": 71,
+      "index_pdf_page": 8,
+      "sequence": 127,
+      "occurrence": 1,
+      "key": "4.10@71#1",
+      "pdf_page_start": 87,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.11",
+      "chapter": "4",
+      "title": "Agricultural Zone",
+      "printed_page_start": 72,
+      "index_pdf_page": 8,
+      "sequence": 128,
+      "occurrence": 1,
+      "key": "4.11@72#1",
+      "pdf_page_start": 88,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.12",
+      "chapter": "4",
+      "title": "Green Belt Zone / River Protection Belt",
+      "printed_page_start": 78,
+      "index_pdf_page": 8,
+      "sequence": 129,
+      "occurrence": 1,
+      "key": "4.12@78#1",
+      "pdf_page_start": 94,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.13",
+      "chapter": "4",
+      "title": "Traffic and Transportation Zone",
+      "printed_page_start": 78,
+      "index_pdf_page": 8,
+      "sequence": 130,
+      "occurrence": 1,
+      "key": "4.13@78#1",
+      "pdf_page_start": 94,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.14",
+      "chapter": "4",
+      "title": "Regional Park Zone.",
+      "printed_page_start": 78,
+      "index_pdf_page": 8,
+      "sequence": 131,
+      "occurrence": 1,
+      "key": "4.14@78#1",
+      "pdf_page_start": 94,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.15",
+      "chapter": "4",
+      "title": "Tourism Development Zone",
+      "printed_page_start": 79,
+      "index_pdf_page": 8,
+      "sequence": 132,
+      "occurrence": 1,
+      "key": "4.15@79#1",
+      "pdf_page_start": 95,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.16",
+      "chapter": "4",
+      "title": "Afforestation Zone",
+      "printed_page_start": 79,
+      "index_pdf_page": 8,
+      "sequence": 133,
+      "occurrence": 1,
+      "key": "4.16@79#1",
+      "pdf_page_start": 95,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.17",
+      "chapter": "4",
+      "title": "Hill Top - Hill Slope Zone / Hilly Area",
+      "printed_page_start": 79,
+      "index_pdf_page": 8,
+      "sequence": 134,
+      "occurrence": 1,
+      "key": "4.17@79#1",
+      "pdf_page_start": 95,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.18",
+      "chapter": "4",
+      "title": "Green Zone-2",
+      "printed_page_start": 79,
+      "index_pdf_page": 8,
+      "sequence": 135,
+      "occurrence": 1,
+      "key": "4.18@79#1",
+      "pdf_page_start": 95,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.19",
+      "chapter": "4",
+      "title": "Forest Zone",
+      "printed_page_start": 79,
+      "index_pdf_page": 8,
+      "sequence": 136,
+      "occurrence": 1,
+      "key": "4.19@79#1",
+      "pdf_page_start": 95,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.20",
+      "chapter": "4",
+      "title": "Defense Zone",
+      "printed_page_start": 79,
+      "index_pdf_page": 8,
+      "sequence": 137,
+      "occurrence": 1,
+      "key": "4.20@79#1",
+      "pdf_page_start": 95,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.21",
+      "chapter": "4",
+      "title": "Mines and Quarry Zone",
+      "printed_page_start": 80,
+      "index_pdf_page": 8,
+      "sequence": 138,
+      "occurrence": 1,
+      "key": "4.21@80#1",
+      "pdf_page_start": 96,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.22",
+      "chapter": "4",
+      "title": "Public Utility Zone",
+      "printed_page_start": 80,
+      "index_pdf_page": 8,
+      "sequence": 139,
+      "occurrence": 1,
+      "key": "4.22@80#1",
+      "pdf_page_start": 96,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.23",
+      "chapter": "4",
+      "title": "Woodland Corridor",
+      "printed_page_start": 80,
+      "index_pdf_page": 9,
+      "sequence": 140,
+      "occurrence": 1,
+      "key": "4.23@80#1",
+      "pdf_page_start": 96,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.24",
+      "chapter": "4",
+      "title": "Special Economic Zone.",
+      "printed_page_start": 80,
+      "index_pdf_page": 9,
+      "sequence": 141,
+      "occurrence": 1,
+      "key": "4.24@80#1",
+      "pdf_page_start": 96,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.25",
+      "chapter": "4",
+      "title": "Airport and Allied Activities / Service Zone.",
+      "printed_page_start": 80,
+      "index_pdf_page": 9,
+      "sequence": 142,
+      "occurrence": 1,
+      "key": "4.25@80#1",
+      "pdf_page_start": 96,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.26",
+      "chapter": "4",
+      "title": "Additional Uses.",
+      "printed_page_start": 81,
+      "index_pdf_page": 9,
+      "sequence": 143,
+      "occurrence": 1,
+      "key": "4.26@81#1",
+      "pdf_page_start": 97,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "4.27",
+      "chapter": "4",
+      "title": "Uses Permissible in Development Plan Reservations.",
+      "printed_page_start": 81,
+      "index_pdf_page": 9,
+      "sequence": 144,
+      "occurrence": 1,
+      "key": "4.27@81#1",
+      "pdf_page_start": 97,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.0",
+      "chapter": "5",
+      "title": "General",
+      "printed_page_start": 85,
+      "index_pdf_page": 9,
+      "sequence": 145,
+      "occurrence": 1,
+      "key": "5.0@85#1",
+      "pdf_page_start": 101,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.1",
+      "chapter": "5",
+      "title": "For all Regional Plan Areas",
+      "printed_page_start": 85,
+      "index_pdf_page": 9,
+      "sequence": 146,
+      "occurrence": 1,
+      "key": "5.1@85#1",
+      "pdf_page_start": 101,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.1.1",
+      "chapter": "5",
+      "title": "Development Permissible Adjacent to Gaothan.",
+      "printed_page_start": 85,
+      "index_pdf_page": 9,
+      "sequence": 147,
+      "occurrence": 1,
+      "key": "5.1.1@85#1",
+      "pdf_page_start": 101,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.1.2",
+      "chapter": "5",
+      "title": "Regulations for Development of Tourist Resorts / Holiday Homes / Township in Hill Stations Type Areas under Hill Station Policy.",
+      "printed_page_start": 86,
+      "index_pdf_page": 9,
+      "sequence": 148,
+      "occurrence": 1,
+      "key": "5.1.2@86#1",
+      "pdf_page_start": 102,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.1.3",
+      "chapter": "5",
+      "title": "Committed Development",
+      "printed_page_start": 86,
+      "index_pdf_page": 9,
+      "sequence": 149,
+      "occurrence": 1,
+      "key": "5.1.3@86#1",
+      "pdf_page_start": 102,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.1.4",
+      "chapter": "5",
+      "title": "Rectification of Draftsman's Error.",
+      "printed_page_start": 86,
+      "index_pdf_page": 9,
+      "sequence": 150,
+      "occurrence": 1,
+      "key": "5.1.4@86#1",
+      "pdf_page_start": 102,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.1.5",
+      "chapter": "5",
+      "title": "Highways notified by State / Central Government.",
+      "printed_page_start": 87,
+      "index_pdf_page": 9,
+      "sequence": 151,
+      "occurrence": 1,
+      "key": "5.1.5@87#1",
+      "pdf_page_start": 103,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.1.6",
+      "chapter": "5",
+      "title": "Station Area Development.",
+      "printed_page_start": 87,
+      "index_pdf_page": 9,
+      "sequence": 152,
+      "occurrence": 1,
+      "key": "5.1.6@87#1",
+      "pdf_page_start": 103,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.1.7",
+      "chapter": "5",
+      "title": "Modification Proposals Already Sanctioned.",
+      "printed_page_start": 87,
+      "index_pdf_page": 9,
+      "sequence": 153,
+      "occurrence": 1,
+      "key": "5.1.7@87#1",
+      "pdf_page_start": 103,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.1.8",
+      "chapter": "5",
+      "title": "Provision of Amenity Space.",
+      "printed_page_start": 87,
+      "index_pdf_page": 9,
+      "sequence": 154,
+      "occurrence": 1,
+      "key": "5.1.8@87#1",
+      "pdf_page_start": 103,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.1.9",
+      "chapter": "5",
+      "title": "Residential Zone with Payment of Premium",
+      "printed_page_start": 88,
+      "index_pdf_page": 9,
+      "sequence": 155,
+      "occurrence": 1,
+      "key": "5.1.9@88#1",
+      "pdf_page_start": 104,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.2",
+      "chapter": "5",
+      "title": "For Thane - Raigad - Palghar Regional Plan.",
+      "printed_page_start": 88,
+      "index_pdf_page": 9,
+      "sequence": 156,
+      "occurrence": 1,
+      "key": "5.2@88#1",
+      "pdf_page_start": 104,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.2.1",
+      "chapter": "5",
+      "title": "Development in Tarapur - Boisar Area.",
+      "printed_page_start": 88,
+      "index_pdf_page": 9,
+      "sequence": 157,
+      "occurrence": 1,
+      "key": "5.2.1@88#1",
+      "pdf_page_start": 104,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.3",
+      "chapter": "5",
+      "title": "For Ratnagiri - Sindhudurg Regional Plan",
+      "printed_page_start": 89,
+      "index_pdf_page": 9,
+      "sequence": 158,
+      "occurrence": 1,
+      "key": "5.3@89#1",
+      "pdf_page_start": 105,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.3.1",
+      "chapter": "5",
+      "title": "Area within Ratnagiri District",
+      "printed_page_start": 89,
+      "index_pdf_page": 9,
+      "sequence": 159,
+      "occurrence": 1,
+      "key": "5.3.1@89#1",
+      "pdf_page_start": 105,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.3.2",
+      "chapter": "5",
+      "title": "Area within SindhudurgDistrict",
+      "printed_page_start": 89,
+      "index_pdf_page": 9,
+      "sequence": 160,
+      "occurrence": 1,
+      "key": "5.3.2@89#1",
+      "pdf_page_start": 105,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.4",
+      "chapter": "5",
+      "title": "For Kolhapur Regional Plan",
+      "printed_page_start": 91,
+      "index_pdf_page": 9,
+      "sequence": 161,
+      "occurrence": 1,
+      "key": "5.4@91#1",
+      "pdf_page_start": 107,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.5",
+      "chapter": "5",
+      "title": "For Satara Regional Plan",
+      "printed_page_start": 92,
+      "index_pdf_page": 9,
+      "sequence": 162,
+      "occurrence": 1,
+      "key": "5.5@92#1",
+      "pdf_page_start": 108,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.6",
+      "chapter": "5",
+      "title": "For Hingoli, Buldhana, Washim, Yawatmal, Nanded Regional Plan",
+      "printed_page_start": 101,
+      "index_pdf_page": 9,
+      "sequence": 163,
+      "occurrence": 1,
+      "key": "5.6@101#1",
+      "pdf_page_start": 117,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.7",
+      "chapter": "5",
+      "title": "For Raigad Regional Plan",
+      "printed_page_start": 102,
+      "index_pdf_page": 9,
+      "sequence": 164,
+      "occurrence": 1,
+      "key": "5.7@102#1",
+      "pdf_page_start": 118,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.8",
+      "chapter": "5",
+      "title": "For Solapur Regional Plan",
+      "printed_page_start": 102,
+      "index_pdf_page": 9,
+      "sequence": 165,
+      "occurrence": 1,
+      "key": "5.8@102#1",
+      "pdf_page_start": 118,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.9",
+      "chapter": "5",
+      "title": "For Pune Regional Plan",
+      "printed_page_start": 102,
+      "index_pdf_page": 9,
+      "sequence": 166,
+      "occurrence": 1,
+      "key": "5.9@102#1",
+      "pdf_page_start": 118,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.10",
+      "chapter": "5",
+      "title": "Certain Regulations cease to operate in future.",
+      "printed_page_start": 104,
+      "index_pdf_page": 9,
+      "sequence": 167,
+      "occurrence": 1,
+      "key": "5.10@104#1",
+      "pdf_page_start": 120,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.11",
+      "chapter": "5",
+      "title": "Board of Appeals",
+      "printed_page_start": 104,
+      "index_pdf_page": 9,
+      "sequence": 168,
+      "occurrence": 1,
+      "key": "5.11@104#1",
+      "pdf_page_start": 120,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "5.12",
+      "chapter": "5",
+      "title": "Aurangabad Regional Plan",
+      "printed_page_start": 105,
+      "index_pdf_page": 9,
+      "sequence": 169,
+      "occurrence": 1,
+      "key": "5.12@105#1",
+      "pdf_page_start": 121,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.0",
+      "chapter": "6",
+      "title": "General",
+      "printed_page_start": 107,
+      "index_pdf_page": 9,
+      "sequence": 170,
+      "occurrence": 1,
+      "key": "6.0@107#1",
+      "pdf_page_start": 123,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.1",
+      "chapter": "6",
+      "title": "Regulations for Congested Area in Development Plans / Gaothan of Village Settlements in Metropolitan Region Development Authorities and Regional Plans",
+      "printed_page_start": 107,
+      "index_pdf_page": 9,
+      "sequence": 171,
+      "occurrence": 1,
+      "key": "6.1@107#1",
+      "pdf_page_start": 123,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.1.1",
+      "chapter": "6",
+      "title": "Residential Buildings / Residential Buildings with mixed-use",
+      "printed_page_start": 107,
+      "index_pdf_page": 10,
+      "sequence": 172,
+      "occurrence": 1,
+      "key": "6.1.1@107#1",
+      "pdf_page_start": 123,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.1.2",
+      "chapter": "6",
+      "title": "Other buildings like Public / Semi-Public, Educational, Medical, Institutional, Commercial, Mercantile, etc.",
+      "printed_page_start": 109,
+      "index_pdf_page": 10,
+      "sequence": 173,
+      "occurrence": 1,
+      "key": "6.1.2@109#1",
+      "pdf_page_start": 125,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.1.3",
+      "chapter": "6",
+      "title": "Width of Pathway",
+      "printed_page_start": 109,
+      "index_pdf_page": 10,
+      "sequence": 174,
+      "occurrence": 1,
+      "key": "6.1.3@109#1",
+      "pdf_page_start": 125,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.1.4",
+      "chapter": "6",
+      "title": "Front Setback",
+      "printed_page_start": 109,
+      "index_pdf_page": 10,
+      "sequence": 175,
+      "occurrence": 1,
+      "key": "6.1.4@109#1",
+      "pdf_page_start": 125,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.2",
+      "chapter": "6",
+      "title": "Regulations for Outside Congested Area (Non-Congested Area).",
+      "printed_page_start": 109,
+      "index_pdf_page": 10,
+      "sequence": 176,
+      "occurrence": 1,
+      "key": "6.2@109#1",
+      "pdf_page_start": 125,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.2.1",
+      "chapter": "6",
+      "title": "Marginal Distances and Set-back for Residential Buildings and Mixed Use",
+      "printed_page_start": 109,
+      "index_pdf_page": 10,
+      "sequence": 177,
+      "occurrence": 1,
+      "key": "6.2.1@109#1",
+      "pdf_page_start": 125,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.2.2",
+      "chapter": "6",
+      "title": "Other Building.",
+      "printed_page_start": 112,
+      "index_pdf_page": 10,
+      "sequence": 178,
+      "occurrence": 1,
+      "key": "6.2.2@112#1",
+      "pdf_page_start": 128,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.2.3",
+      "chapter": "6",
+      "title": "Marginal Distances for Buildings of Higher Heights",
+      "printed_page_start": 116,
+      "index_pdf_page": 10,
+      "sequence": 179,
+      "occurrence": 1,
+      "key": "6.2.3@116#1",
+      "pdf_page_start": 132,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.2.4",
+      "chapter": "6",
+      "title": "In the cases of layouts of two or more buildings in a plot for any uses",
+      "printed_page_start": 117,
+      "index_pdf_page": 10,
+      "sequence": 180,
+      "occurrence": 1,
+      "key": "6.2.4@117#1",
+      "pdf_page_start": 133,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.2.5",
+      "chapter": "6",
+      "title": "In case of group housing scheme",
+      "printed_page_start": 117,
+      "index_pdf_page": 10,
+      "sequence": 181,
+      "occurrence": 1,
+      "key": "6.2.5@117#1",
+      "pdf_page_start": 133,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.2.6",
+      "chapter": "6",
+      "title": "Building Abutting Two or More Streets",
+      "printed_page_start": 117,
+      "index_pdf_page": 10,
+      "sequence": 182,
+      "occurrence": 1,
+      "key": "6.2.6@117#1",
+      "pdf_page_start": 133,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.3",
+      "chapter": "6",
+      "title": "Permissible FSI",
+      "printed_page_start": 117,
+      "index_pdf_page": 10,
+      "sequence": 183,
+      "occurrence": 1,
+      "key": "6.3@117#1",
+      "pdf_page_start": 133,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.4",
+      "chapter": "6",
+      "title": "Industrial Buildings",
+      "printed_page_start": 121,
+      "index_pdf_page": 10,
+      "sequence": 184,
+      "occurrence": 1,
+      "key": "6.4@121#1",
+      "pdf_page_start": 137,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.5",
+      "chapter": "6",
+      "title": "FSI of Green Belt",
+      "printed_page_start": 121,
+      "index_pdf_page": 10,
+      "sequence": 185,
+      "occurrence": 1,
+      "key": "6.5@121#1",
+      "pdf_page_start": 137,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.6",
+      "chapter": "6",
+      "title": "Calculation of Built-up area for the Purposes of FSI",
+      "printed_page_start": 122,
+      "index_pdf_page": 10,
+      "sequence": 186,
+      "occurrence": 1,
+      "key": "6.6@122#1",
+      "pdf_page_start": 138,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.7",
+      "chapter": "6",
+      "title": "Permissible Projections in Marginal Open Spaces / Distances",
+      "printed_page_start": 122,
+      "index_pdf_page": 10,
+      "sequence": 187,
+      "occurrence": 1,
+      "key": "6.7@122#1",
+      "pdf_page_start": 138,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.8",
+      "chapter": "6",
+      "title": "Exclusion of Structures / Projections for FSI Calculation",
+      "printed_page_start": 123,
+      "index_pdf_page": 10,
+      "sequence": 188,
+      "occurrence": 1,
+      "key": "6.8@123#1",
+      "pdf_page_start": 139,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.9",
+      "chapter": "6",
+      "title": "Interior and Exterior chowk",
+      "printed_page_start": 124,
+      "index_pdf_page": 10,
+      "sequence": 189,
+      "occurrence": 1,
+      "key": "6.9@124#1",
+      "pdf_page_start": 140,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.10",
+      "chapter": "6",
+      "title": "Height of Building",
+      "printed_page_start": 124,
+      "index_pdf_page": 10,
+      "sequence": 190,
+      "occurrence": 1,
+      "key": "6.10@124#1",
+      "pdf_page_start": 140,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.11",
+      "chapter": "6",
+      "title": "Height Exemptions",
+      "printed_page_start": 125,
+      "index_pdf_page": 10,
+      "sequence": 191,
+      "occurrence": 1,
+      "key": "6.11@125#1",
+      "pdf_page_start": 141,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.12",
+      "chapter": "6",
+      "title": "Requirements in case of Building more than 70 m. Height",
+      "printed_page_start": 125,
+      "index_pdf_page": 10,
+      "sequence": 192,
+      "occurrence": 1,
+      "key": "6.12@125#1",
+      "pdf_page_start": 141,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.13",
+      "chapter": "6",
+      "title": "FSI of Lands Affected by HEMRL or Other Restrictions",
+      "printed_page_start": 125,
+      "index_pdf_page": 10,
+      "sequence": 193,
+      "occurrence": 1,
+      "key": "6.13@125#1",
+      "pdf_page_start": 141,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "6.14",
+      "chapter": "6",
+      "title": "Provision of Recreational Floor",
+      "printed_page_start": 125,
+      "index_pdf_page": 10,
+      "sequence": 194,
+      "occurrence": 1,
+      "key": "6.14@125#1",
+      "pdf_page_start": 141,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.0",
+      "chapter": "7",
+      "title": "General",
+      "printed_page_start": 127,
+      "index_pdf_page": 10,
+      "sequence": 195,
+      "occurrence": 1,
+      "key": "7.0@127#1",
+      "pdf_page_start": 143,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.1",
+      "chapter": "7",
+      "title": "Higher F.S.I.",
+      "printed_page_start": 128,
+      "index_pdf_page": 10,
+      "sequence": 196,
+      "occurrence": 1,
+      "key": "7.1@128#1",
+      "pdf_page_start": 144,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.2",
+      "chapter": "7",
+      "title": "Entitlement of FSI for Road Widening or Construction of New Roads / Surrender of Reserved Land",
+      "printed_page_start": 131,
+      "index_pdf_page": 10,
+      "sequence": 197,
+      "occurrence": 1,
+      "key": "7.2@131#1",
+      "pdf_page_start": 147,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.3",
+      "chapter": "7",
+      "title": "Development / Redevelopment of Staff Quarters of the State Government or its Statutory Bodies or Planning Authority",
+      "printed_page_start": 131,
+      "index_pdf_page": 10,
+      "sequence": 198,
+      "occurrence": 1,
+      "key": "7.3@131#1",
+      "pdf_page_start": 147,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.5",
+      "chapter": "7",
+      "title": "Protection of FSI in Redevelopment of Existing Buildings",
+      "printed_page_start": 136,
+      "index_pdf_page": 10,
+      "sequence": 199,
+      "occurrence": 1,
+      "key": "7.5@136#1",
+      "pdf_page_start": 152,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.6",
+      "chapter": "7",
+      "title": "Redevelopment of Old Dilapidated / Dangerous Buildings",
+      "printed_page_start": 136,
+      "index_pdf_page": 10,
+      "sequence": 200,
+      "occurrence": 1,
+      "key": "7.6@136#1",
+      "pdf_page_start": 152,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.6.2",
+      "chapter": "7",
+      "title": "Redevelopment of Tenanted Buildings",
+      "printed_page_start": 137,
+      "index_pdf_page": 10,
+      "sequence": 201,
+      "occurrence": 1,
+      "key": "7.6.2@137#1",
+      "pdf_page_start": 153,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.7",
+      "chapter": "7",
+      "title": "Development of Housing for EWS / LIG",
+      "printed_page_start": 138,
+      "index_pdf_page": 10,
+      "sequence": 202,
+      "occurrence": 1,
+      "key": "7.7@138#1",
+      "pdf_page_start": 154,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.8",
+      "chapter": "7",
+      "title": "Regulations for Development of Information Technology Establishment",
+      "printed_page_start": 139,
+      "index_pdf_page": 10,
+      "sequence": 203,
+      "occurrence": 1,
+      "key": "7.8@139#1",
+      "pdf_page_start": 155,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.8.1",
+      "chapter": "7",
+      "title": "For Municipal Corporation, Area Development Authority and Special Planning Authority area.",
+      "printed_page_start": 139,
+      "index_pdf_page": 10,
+      "sequence": 204,
+      "occurrence": 1,
+      "key": "7.8.1@139#1",
+      "pdf_page_start": 155,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.8.2",
+      "chapter": "7",
+      "title": "For Municipal Council, Nagar Panchayat and Non-Municipal Town Development Plan Area",
+      "printed_page_start": 141,
+      "index_pdf_page": 11,
+      "sequence": 205,
+      "occurrence": 1,
+      "key": "7.8.2@141#1",
+      "pdf_page_start": 157,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.8.3",
+      "chapter": "7",
+      "title": "For Regional Plan Area",
+      "printed_page_start": 141,
+      "index_pdf_page": 11,
+      "sequence": 206,
+      "occurrence": 1,
+      "key": "7.8.3@141#1",
+      "pdf_page_start": 157,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.9",
+      "chapter": "7",
+      "title": "Regulation for Development of Biotechnology Parks",
+      "printed_page_start": 142,
+      "index_pdf_page": 11,
+      "sequence": 207,
+      "occurrence": 1,
+      "key": "7.9@142#1",
+      "pdf_page_start": 158,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.10",
+      "chapter": "7",
+      "title": "Incentive for Green Buildings",
+      "printed_page_start": 143,
+      "index_pdf_page": 11,
+      "sequence": 208,
+      "occurrence": 1,
+      "key": "7.10@143#1",
+      "pdf_page_start": 159,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.11",
+      "chapter": "7",
+      "title": "Development of Public Toilet",
+      "printed_page_start": 144,
+      "index_pdf_page": 11,
+      "sequence": 209,
+      "occurrence": 1,
+      "key": "7.11@144#1",
+      "pdf_page_start": 160,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.12",
+      "chapter": "7",
+      "title": "Buildings of Smart Fin-Tech Centre",
+      "printed_page_start": 144,
+      "index_pdf_page": 11,
+      "sequence": 210,
+      "occurrence": 1,
+      "key": "7.12@144#1",
+      "pdf_page_start": 160,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "7.13",
+      "chapter": "7",
+      "title": "Commercial Building in CBD, Commercial, Residential Zone in Planning Authorities Area.",
+      "printed_page_start": 145,
+      "index_pdf_page": 11,
+      "sequence": 211,
+      "occurrence": 1,
+      "key": "7.13@145#1",
+      "pdf_page_start": 161,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "8.1",
+      "chapter": "8",
+      "title": "Parking Spaces",
+      "printed_page_start": 147,
+      "index_pdf_page": 11,
+      "sequence": 212,
+      "occurrence": 1,
+      "key": "8.1@147#1",
+      "pdf_page_start": 163,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "8.2",
+      "chapter": "8",
+      "title": "Off Street Parking Requirement",
+      "printed_page_start": 148,
+      "index_pdf_page": 11,
+      "sequence": 213,
+      "occurrence": 1,
+      "key": "8.2@148#1",
+      "pdf_page_start": 164,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "8.2.1",
+      "chapter": "8",
+      "title": "Off Street Parking Requirement",
+      "printed_page_start": 148,
+      "index_pdf_page": 11,
+      "sequence": 214,
+      "occurrence": 1,
+      "key": "8.2.1@148#1",
+      "pdf_page_start": 164,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "8.2.2",
+      "chapter": "8",
+      "title": "Off Street Parking Requirement for Various Planning Authorities / Areas.",
+      "printed_page_start": 154,
+      "index_pdf_page": 11,
+      "sequence": 215,
+      "occurrence": 1,
+      "key": "8.2.2@154#1",
+      "pdf_page_start": 170,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.0",
+      "chapter": "9",
+      "title": "Standard Requirement of Various Parts of Buildings",
+      "printed_page_start": 155,
+      "index_pdf_page": 11,
+      "sequence": 216,
+      "occurrence": 1,
+      "key": "9.0@155#1",
+      "pdf_page_start": 171,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.1",
+      "chapter": "9",
+      "title": "Plinth",
+      "printed_page_start": 155,
+      "index_pdf_page": 11,
+      "sequence": 217,
+      "occurrence": 1,
+      "key": "9.1@155#1",
+      "pdf_page_start": 171,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.2",
+      "chapter": "9",
+      "title": "Habitable Rooms",
+      "printed_page_start": 155,
+      "index_pdf_page": 11,
+      "sequence": 218,
+      "occurrence": 1,
+      "key": "9.2@155#1",
+      "pdf_page_start": 171,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.3",
+      "chapter": "9",
+      "title": "Kitchen",
+      "printed_page_start": 156,
+      "index_pdf_page": 11,
+      "sequence": 219,
+      "occurrence": 1,
+      "key": "9.3@156#1",
+      "pdf_page_start": 172,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.4",
+      "chapter": "9",
+      "title": "Bath Rooms, Water Closets, Combined Bath Room and Water Closet",
+      "printed_page_start": 156,
+      "index_pdf_page": 11,
+      "sequence": 220,
+      "occurrence": 1,
+      "key": "9.4@156#1",
+      "pdf_page_start": 172,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.5",
+      "chapter": "9",
+      "title": "Ledge or Tand / Loft",
+      "printed_page_start": 156,
+      "index_pdf_page": 11,
+      "sequence": 221,
+      "occurrence": 1,
+      "key": "9.5@156#1",
+      "pdf_page_start": 172,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.6",
+      "chapter": "9",
+      "title": "Cupboard",
+      "printed_page_start": 157,
+      "index_pdf_page": 11,
+      "sequence": 222,
+      "occurrence": 1,
+      "key": "9.6@157#1",
+      "pdf_page_start": 173,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.7",
+      "chapter": "9",
+      "title": "Mezzanine Floor",
+      "printed_page_start": 157,
+      "index_pdf_page": 11,
+      "sequence": 223,
+      "occurrence": 1,
+      "key": "9.7@157#1",
+      "pdf_page_start": 173,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.8",
+      "chapter": "9",
+      "title": "Store Room",
+      "printed_page_start": 158,
+      "index_pdf_page": 11,
+      "sequence": 224,
+      "occurrence": 1,
+      "key": "9.8@158#1",
+      "pdf_page_start": 174,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.9",
+      "chapter": "9",
+      "title": "Garage",
+      "printed_page_start": 158,
+      "index_pdf_page": 11,
+      "sequence": 225,
+      "occurrence": 1,
+      "key": "9.9@158#1",
+      "pdf_page_start": 174,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.10",
+      "chapter": "9",
+      "title": "Roofs",
+      "printed_page_start": 158,
+      "index_pdf_page": 11,
+      "sequence": 226,
+      "occurrence": 1,
+      "key": "9.10@158#1",
+      "pdf_page_start": 174,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.11",
+      "chapter": "9",
+      "title": "Basements",
+      "printed_page_start": 159,
+      "index_pdf_page": 11,
+      "sequence": 227,
+      "occurrence": 1,
+      "key": "9.11@159#1",
+      "pdf_page_start": 175,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.12",
+      "chapter": "9",
+      "title": "Ramp",
+      "printed_page_start": 160,
+      "index_pdf_page": 11,
+      "sequence": 228,
+      "occurrence": 1,
+      "key": "9.12@160#1",
+      "pdf_page_start": 176,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.13",
+      "chapter": "9",
+      "title": "Podium",
+      "printed_page_start": 160,
+      "index_pdf_page": 11,
+      "sequence": 229,
+      "occurrence": 1,
+      "key": "9.13@160#1",
+      "pdf_page_start": 176,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.14",
+      "chapter": "9",
+      "title": "Balcony",
+      "printed_page_start": 161,
+      "index_pdf_page": 11,
+      "sequence": 230,
+      "occurrence": 1,
+      "key": "9.14@161#1",
+      "pdf_page_start": 177,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.15",
+      "chapter": "9",
+      "title": "Supported Double Height Terraces",
+      "printed_page_start": 161,
+      "index_pdf_page": 11,
+      "sequence": 231,
+      "occurrence": 1,
+      "key": "9.15@161#1",
+      "pdf_page_start": 177,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.16",
+      "chapter": "9",
+      "title": "Stilt",
+      "printed_page_start": 161,
+      "index_pdf_page": 11,
+      "sequence": 232,
+      "occurrence": 1,
+      "key": "9.16@161#1",
+      "pdf_page_start": 177,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.17",
+      "chapter": "9",
+      "title": "Chimneys",
+      "printed_page_start": 161,
+      "index_pdf_page": 11,
+      "sequence": 233,
+      "occurrence": 1,
+      "key": "9.17@161#1",
+      "pdf_page_start": 177,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.18",
+      "chapter": "9",
+      "title": "Letter Box",
+      "printed_page_start": 162,
+      "index_pdf_page": 11,
+      "sequence": 234,
+      "occurrence": 1,
+      "key": "9.18@162#1",
+      "pdf_page_start": 178,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.19",
+      "chapter": "9",
+      "title": "Meter Room",
+      "printed_page_start": 162,
+      "index_pdf_page": 11,
+      "sequence": 235,
+      "occurrence": 1,
+      "key": "9.19@162#1",
+      "pdf_page_start": 178,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.20",
+      "chapter": "9",
+      "title": "Lighting and Ventilation of Room",
+      "printed_page_start": 162,
+      "index_pdf_page": 11,
+      "sequence": 236,
+      "occurrence": 1,
+      "key": "9.20@162#1",
+      "pdf_page_start": 178,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.21",
+      "chapter": "9",
+      "title": "Overhead Tanks",
+      "printed_page_start": 163,
+      "index_pdf_page": 11,
+      "sequence": 237,
+      "occurrence": 1,
+      "key": "9.21@163#1",
+      "pdf_page_start": 179,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.22",
+      "chapter": "9",
+      "title": "Parapet",
+      "printed_page_start": 163,
+      "index_pdf_page": 12,
+      "sequence": 238,
+      "occurrence": 1,
+      "key": "9.22@163#1",
+      "pdf_page_start": 179,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.23",
+      "chapter": "9",
+      "title": "Cabin",
+      "printed_page_start": 163,
+      "index_pdf_page": 12,
+      "sequence": 239,
+      "occurrence": 1,
+      "key": "9.23@163#1",
+      "pdf_page_start": 179,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.24",
+      "chapter": "9",
+      "title": "Wells",
+      "printed_page_start": 163,
+      "index_pdf_page": 12,
+      "sequence": 240,
+      "occurrence": 1,
+      "key": "9.24@163#1",
+      "pdf_page_start": 179,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.25",
+      "chapter": "9",
+      "title": "Septic Tanks",
+      "printed_page_start": 163,
+      "index_pdf_page": 12,
+      "sequence": 241,
+      "occurrence": 1,
+      "key": "9.25@163#1",
+      "pdf_page_start": 179,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.26",
+      "chapter": "9",
+      "title": "Boundary / Compound Wall",
+      "printed_page_start": 163,
+      "index_pdf_page": 12,
+      "sequence": 242,
+      "occurrence": 1,
+      "key": "9.26@163#1",
+      "pdf_page_start": 179,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.27",
+      "chapter": "9",
+      "title": "Provision of Lift",
+      "printed_page_start": 164,
+      "index_pdf_page": 12,
+      "sequence": 243,
+      "occurrence": 1,
+      "key": "9.27@164#1",
+      "pdf_page_start": 180,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.28",
+      "chapter": "9",
+      "title": "Exit Requirements",
+      "printed_page_start": 164,
+      "index_pdf_page": 12,
+      "sequence": 244,
+      "occurrence": 1,
+      "key": "9.28@164#1",
+      "pdf_page_start": 180,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.29",
+      "chapter": "9",
+      "title": "Other Requirements of Individual Exit at Each Floor",
+      "printed_page_start": 167,
+      "index_pdf_page": 12,
+      "sequence": 245,
+      "occurrence": 1,
+      "key": "9.29@167#1",
+      "pdf_page_start": 183,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.30",
+      "chapter": "9",
+      "title": "Architectural Projections.",
+      "printed_page_start": 171,
+      "index_pdf_page": 12,
+      "sequence": 246,
+      "occurrence": 1,
+      "key": "9.30@171#1",
+      "pdf_page_start": 187,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.31",
+      "chapter": "9",
+      "title": "Additional Requirements in case of Housing Schemes",
+      "printed_page_start": 171,
+      "index_pdf_page": 12,
+      "sequence": 247,
+      "occurrence": 1,
+      "key": "9.31@171#1",
+      "pdf_page_start": 187,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.32",
+      "chapter": "9",
+      "title": "Fire Protection Requirement",
+      "printed_page_start": 171,
+      "index_pdf_page": 12,
+      "sequence": 248,
+      "occurrence": 1,
+      "key": "9.32@171#1",
+      "pdf_page_start": 187,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "9.33",
+      "chapter": "9",
+      "title": "Service Floor",
+      "printed_page_start": 172,
+      "index_pdf_page": 12,
+      "sequence": 249,
+      "occurrence": 1,
+      "key": "9.33@172#1",
+      "pdf_page_start": 188,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.0",
+      "chapter": "10",
+      "title": "General",
+      "printed_page_start": 173,
+      "index_pdf_page": 12,
+      "sequence": 250,
+      "occurrence": 1,
+      "key": "10.0@173#1",
+      "pdf_page_start": 189,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.1",
+      "chapter": "10",
+      "title": "Pune City Municipal Corporation.",
+      "printed_page_start": 173,
+      "index_pdf_page": 12,
+      "sequence": 251,
+      "occurrence": 1,
+      "key": "10.1@173#1",
+      "pdf_page_start": 189,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.2",
+      "chapter": "10",
+      "title": "Thane Municipal Corporation area.",
+      "printed_page_start": 176,
+      "index_pdf_page": 12,
+      "sequence": 252,
+      "occurrence": 1,
+      "key": "10.2@176#1",
+      "pdf_page_start": 192,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.3",
+      "chapter": "10",
+      "title": "Nagpur Municipal Corporation",
+      "printed_page_start": 182,
+      "index_pdf_page": 12,
+      "sequence": 253,
+      "occurrence": 1,
+      "key": "10.3@182#1",
+      "pdf_page_start": 198,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.4",
+      "chapter": "10",
+      "title": "Nagpur Metropolitan Region Development Authority",
+      "printed_page_start": 183,
+      "index_pdf_page": 12,
+      "sequence": 254,
+      "occurrence": 1,
+      "key": "10.4@183#1",
+      "pdf_page_start": 199,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.5",
+      "chapter": "10",
+      "title": "Nashik Municipal Corporation",
+      "printed_page_start": 186,
+      "index_pdf_page": 12,
+      "sequence": 255,
+      "occurrence": 1,
+      "key": "10.5@186#1",
+      "pdf_page_start": 202,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.6",
+      "chapter": "10",
+      "title": "Vasai-Virar City Municipal Corporation",
+      "printed_page_start": 187,
+      "index_pdf_page": 12,
+      "sequence": 256,
+      "occurrence": 1,
+      "key": "10.6@187#1",
+      "pdf_page_start": 203,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.7",
+      "chapter": "10",
+      "title": "Mira-Bhayandar Municipal Corporation",
+      "printed_page_start": 187,
+      "index_pdf_page": 12,
+      "sequence": 257,
+      "occurrence": 1,
+      "key": "10.7@187#1",
+      "pdf_page_start": 203,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.8",
+      "chapter": "10",
+      "title": "Ulhasnagar City Municipal Corporation",
+      "printed_page_start": 187,
+      "index_pdf_page": 12,
+      "sequence": 258,
+      "occurrence": 1,
+      "key": "10.8@187#1",
+      "pdf_page_start": 203,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.9",
+      "chapter": "10",
+      "title": "Kolhapur Municipal Corporation",
+      "printed_page_start": 187,
+      "index_pdf_page": 12,
+      "sequence": 259,
+      "occurrence": 1,
+      "key": "10.9@187#1",
+      "pdf_page_start": 203,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.10",
+      "chapter": "10",
+      "title": "Navi Mumbai Municipal Corporation",
+      "printed_page_start": 193,
+      "index_pdf_page": 12,
+      "sequence": 260,
+      "occurrence": 1,
+      "key": "10.10@193#1",
+      "pdf_page_start": 209,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.11",
+      "chapter": "10",
+      "title": "National Park and Tungareshwar Eco Sensitive Zone.",
+      "printed_page_start": 199,
+      "index_pdf_page": 12,
+      "sequence": 261,
+      "occurrence": 1,
+      "key": "10.11@199#1",
+      "pdf_page_start": 215,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.12",
+      "chapter": "10",
+      "title": "Maharashtra Airport Development Company Notified Area.",
+      "printed_page_start": 199,
+      "index_pdf_page": 12,
+      "sequence": 262,
+      "occurrence": 1,
+      "key": "10.12@199#1",
+      "pdf_page_start": 215,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.13",
+      "chapter": "10",
+      "title": "Bhiwandi Surrounding Notified Area",
+      "printed_page_start": 199,
+      "index_pdf_page": 12,
+      "sequence": 263,
+      "occurrence": 1,
+      "key": "10.13@199#1",
+      "pdf_page_start": 215,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.14",
+      "chapter": "10",
+      "title": "CIDCO Area Excluding NAINA Area",
+      "printed_page_start": 203,
+      "index_pdf_page": 12,
+      "sequence": 264,
+      "occurrence": 1,
+      "key": "10.14@203#1",
+      "pdf_page_start": 219,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.14",
+      "chapter": "10",
+      "title": "A CIDCO Area within Panvel Municipal Corporation",
+      "printed_page_start": 205,
+      "index_pdf_page": 12,
+      "sequence": 265,
+      "occurrence": 2,
+      "key": "10.14@205#2",
+      "pdf_page_start": 221,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "10.15",
+      "chapter": "10",
+      "title": "Certain Regulations Cease to Operate in Future.",
+      "printed_page_start": 205,
+      "index_pdf_page": 12,
+      "sequence": 266,
+      "occurrence": 1,
+      "key": "10.15@205#1",
+      "pdf_page_start": 221,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.0",
+      "chapter": "11",
+      "title": "General",
+      "printed_page_start": 207,
+      "index_pdf_page": 12,
+      "sequence": 267,
+      "occurrence": 1,
+      "key": "11.0@207#1",
+      "pdf_page_start": 223,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.1",
+      "chapter": "11",
+      "title": "Manner of Development of Reserved Site in Development Plan (Accommodation Reservation Principle)",
+      "printed_page_start": 207,
+      "index_pdf_page": 12,
+      "sequence": 268,
+      "occurrence": 1,
+      "key": "11.1@207#1",
+      "pdf_page_start": 223,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.2",
+      "chapter": "11",
+      "title": "Regulations for Grant of Transferable Development Rights",
+      "printed_page_start": 221,
+      "index_pdf_page": 12,
+      "sequence": 269,
+      "occurrence": 1,
+      "key": "11.2@221#1",
+      "pdf_page_start": 237,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.2.1",
+      "chapter": "11",
+      "title": "Transferable Development Rights",
+      "printed_page_start": 221,
+      "index_pdf_page": 12,
+      "sequence": 270,
+      "occurrence": 1,
+      "key": "11.2.1@221#1",
+      "pdf_page_start": 237,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.2.2",
+      "chapter": "11",
+      "title": "Cases Eligible for Transferable Development Rights (TDR)",
+      "printed_page_start": 221,
+      "index_pdf_page": 12,
+      "sequence": 271,
+      "occurrence": 1,
+      "key": "11.2.2@221#1",
+      "pdf_page_start": 237,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.2.3",
+      "chapter": "11",
+      "title": "Cases not Eligible for Transferable Development Rights (TDR)",
+      "printed_page_start": 221,
+      "index_pdf_page": 13,
+      "sequence": 272,
+      "occurrence": 1,
+      "key": "11.2.3@221#1",
+      "pdf_page_start": 237,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.2.4",
+      "chapter": "11",
+      "title": "Generation of the Transferable Development Rights (TDR)",
+      "printed_page_start": 222,
+      "index_pdf_page": 13,
+      "sequence": 273,
+      "occurrence": 1,
+      "key": "11.2.4@222#1",
+      "pdf_page_start": 238,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.2.5",
+      "chapter": "11",
+      "title": "Transferable Development Rights (TDR) against Construction of Amenity",
+      "printed_page_start": 223,
+      "index_pdf_page": 13,
+      "sequence": 274,
+      "occurrence": 1,
+      "key": "11.2.5@223#1",
+      "pdf_page_start": 239,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.2.6",
+      "chapter": "11",
+      "title": "Utilisation of Transferable Development Rights (TDR)",
+      "printed_page_start": 224,
+      "index_pdf_page": 13,
+      "sequence": 275,
+      "occurrence": 1,
+      "key": "11.2.6@224#1",
+      "pdf_page_start": 240,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.2.7",
+      "chapter": "11",
+      "title": "Utilisation of Transferable Development Rights (TDR) and Road Width Relation",
+      "printed_page_start": 224,
+      "index_pdf_page": 13,
+      "sequence": 276,
+      "occurrence": 1,
+      "key": "11.2.7@224#1",
+      "pdf_page_start": 240,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.2.8",
+      "chapter": "11",
+      "title": "Areas Restricted from Utilisation of Transferable Development Rights (TDR)",
+      "printed_page_start": 224,
+      "index_pdf_page": 13,
+      "sequence": 277,
+      "occurrence": 1,
+      "key": "11.2.8@224#1",
+      "pdf_page_start": 240,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.2.9",
+      "chapter": "11",
+      "title": "General Stipulation",
+      "printed_page_start": 225,
+      "index_pdf_page": 13,
+      "sequence": 278,
+      "occurrence": 1,
+      "key": "11.2.9@225#1",
+      "pdf_page_start": 241,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.2.10",
+      "chapter": "11",
+      "title": "Transfer of DRC",
+      "printed_page_start": 225,
+      "index_pdf_page": 13,
+      "sequence": 279,
+      "occurrence": 1,
+      "key": "11.2.10@225#1",
+      "pdf_page_start": 241,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.2.11",
+      "chapter": "11",
+      "title": "Infrastructure Improvement Charges",
+      "printed_page_start": 226,
+      "index_pdf_page": 13,
+      "sequence": 280,
+      "occurrence": 1,
+      "key": "11.2.11@226#1",
+      "pdf_page_start": 242,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.2.12",
+      "chapter": "11",
+      "title": "Vesting of Land",
+      "printed_page_start": 226,
+      "index_pdf_page": 13,
+      "sequence": 281,
+      "occurrence": 1,
+      "key": "11.2.12@226#1",
+      "pdf_page_start": 242,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.2.13",
+      "chapter": "11",
+      "title": "Effect of this Regulation",
+      "printed_page_start": 226,
+      "index_pdf_page": 13,
+      "sequence": 282,
+      "occurrence": 1,
+      "key": "11.2.13@226#1",
+      "pdf_page_start": 242,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "11.3",
+      "chapter": "11",
+      "title": "Reservation Credit Certificate (RCC)",
+      "printed_page_start": 226,
+      "index_pdf_page": 13,
+      "sequence": 283,
+      "occurrence": 1,
+      "key": "11.3@226#1",
+      "pdf_page_start": 242,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "12.1",
+      "chapter": "12",
+      "title": "Structural Design",
+      "printed_page_start": 229,
+      "index_pdf_page": 13,
+      "sequence": 284,
+      "occurrence": 1,
+      "key": "12.1@229#1",
+      "pdf_page_start": 245,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "12.2",
+      "chapter": "12",
+      "title": "Quality of Materials and Workmanship",
+      "printed_page_start": 229,
+      "index_pdf_page": 13,
+      "sequence": 285,
+      "occurrence": 1,
+      "key": "12.2@229#1",
+      "pdf_page_start": 245,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "12.3",
+      "chapter": "12",
+      "title": "Alternative Materials, Methods of Design & Construction and Tests",
+      "printed_page_start": 229,
+      "index_pdf_page": 13,
+      "sequence": 286,
+      "occurrence": 1,
+      "key": "12.3@229#1",
+      "pdf_page_start": 245,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "12.4",
+      "chapter": "12",
+      "title": "Building Services",
+      "printed_page_start": 230,
+      "index_pdf_page": 13,
+      "sequence": 287,
+      "occurrence": 1,
+      "key": "12.4@230#1",
+      "pdf_page_start": 246,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "12.5",
+      "chapter": "12",
+      "title": "Water Supply, Drainage and Sanitary Requirements",
+      "printed_page_start": 230,
+      "index_pdf_page": 13,
+      "sequence": 288,
+      "occurrence": 1,
+      "key": "12.5@230#1",
+      "pdf_page_start": 246,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "12.6",
+      "chapter": "12",
+      "title": "Drainage and Sanitation Requirements",
+      "printed_page_start": 232,
+      "index_pdf_page": 13,
+      "sequence": 289,
+      "occurrence": 1,
+      "key": "12.6@232#1",
+      "pdf_page_start": 248,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "12.6.1",
+      "chapter": "12",
+      "title": "General",
+      "printed_page_start": 232,
+      "index_pdf_page": 13,
+      "sequence": 290,
+      "occurrence": 1,
+      "key": "12.6.1@232#1",
+      "pdf_page_start": 248,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "12.6.2",
+      "chapter": "12",
+      "title": "For Residences",
+      "printed_page_start": 232,
+      "index_pdf_page": 13,
+      "sequence": 291,
+      "occurrence": 1,
+      "key": "12.6.2@232#1",
+      "pdf_page_start": 248,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "12.6.3",
+      "chapter": "12",
+      "title": "For Buildings other than Residences",
+      "printed_page_start": 232,
+      "index_pdf_page": 13,
+      "sequence": 292,
+      "occurrence": 1,
+      "key": "12.6.3@232#1",
+      "pdf_page_start": 248,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "12.7",
+      "chapter": "12",
+      "title": "Signs and Outdoor Display Structures",
+      "printed_page_start": 233,
+      "index_pdf_page": 13,
+      "sequence": 293,
+      "occurrence": 1,
+      "key": "12.7@233#1",
+      "pdf_page_start": 249,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "13.0",
+      "chapter": "13",
+      "title": "General",
+      "printed_page_start": 239,
+      "index_pdf_page": 13,
+      "sequence": 294,
+      "occurrence": 1,
+      "key": "13.0@239#1",
+      "pdf_page_start": 255,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "13.1",
+      "chapter": "13",
+      "title": "Provisions for Barrier Free Access",
+      "printed_page_start": 239,
+      "index_pdf_page": 13,
+      "sequence": 295,
+      "occurrence": 1,
+      "key": "13.1@239#1",
+      "pdf_page_start": 255,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "13.1.1",
+      "chapter": "13",
+      "title": "Definitions",
+      "printed_page_start": 239,
+      "index_pdf_page": 13,
+      "sequence": 296,
+      "occurrence": 1,
+      "key": "13.1.1@239#1",
+      "pdf_page_start": 255,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "13.1.2",
+      "chapter": "13",
+      "title": "Scope",
+      "printed_page_start": 239,
+      "index_pdf_page": 13,
+      "sequence": 297,
+      "occurrence": 1,
+      "key": "13.1.2@239#1",
+      "pdf_page_start": 255,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "13.1.3",
+      "chapter": "13",
+      "title": "Site Development",
+      "printed_page_start": 239,
+      "index_pdf_page": 13,
+      "sequence": 298,
+      "occurrence": 1,
+      "key": "13.1.3@239#1",
+      "pdf_page_start": 255,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "13.1.4",
+      "chapter": "13",
+      "title": "Building Requirements",
+      "printed_page_start": 240,
+      "index_pdf_page": 13,
+      "sequence": 299,
+      "occurrence": 1,
+      "key": "13.1.4@240#1",
+      "pdf_page_start": 256,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "13.2",
+      "chapter": "13",
+      "title": "Installation of Solar Assisted Water Heating (SWH) System / Roof Top Photovoltaic (RTPV) System",
+      "printed_page_start": 242,
+      "index_pdf_page": 13,
+      "sequence": 300,
+      "occurrence": 1,
+      "key": "13.2@242#1",
+      "pdf_page_start": 258,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "13.3",
+      "chapter": "13",
+      "title": "Rain Water Harvesting",
+      "printed_page_start": 243,
+      "index_pdf_page": 13,
+      "sequence": 301,
+      "occurrence": 1,
+      "key": "13.3@243#1",
+      "pdf_page_start": 259,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "13.4",
+      "chapter": "13",
+      "title": "Grey Water Recycling and Reuse",
+      "printed_page_start": 244,
+      "index_pdf_page": 13,
+      "sequence": 302,
+      "occurrence": 1,
+      "key": "13.4@244#1",
+      "pdf_page_start": 260,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "13.5",
+      "chapter": "13",
+      "title": "Solid Waste Management",
+      "printed_page_start": 246,
+      "index_pdf_page": 13,
+      "sequence": 303,
+      "occurrence": 1,
+      "key": "13.5@246#1",
+      "pdf_page_start": 262,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.1",
+      "chapter": "14",
+      "title": "Integrated Township Project (ITP)",
+      "printed_page_start": 247,
+      "index_pdf_page": 14,
+      "sequence": 304,
+      "occurrence": 1,
+      "key": "14.1@247#1",
+      "pdf_page_start": 263,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.1.1",
+      "chapter": "14",
+      "title": "For Regional Plan Area",
+      "printed_page_start": 247,
+      "index_pdf_page": 14,
+      "sequence": 305,
+      "occurrence": 1,
+      "key": "14.1.1@247#1",
+      "pdf_page_start": 263,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.1.2",
+      "chapter": "14",
+      "title": "For Development Plan Area",
+      "printed_page_start": 263,
+      "index_pdf_page": 14,
+      "sequence": 306,
+      "occurrence": 1,
+      "key": "14.1.2@263#1",
+      "pdf_page_start": 279,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.2",
+      "chapter": "14",
+      "title": "Transit Oriented Development (TOD)",
+      "printed_page_start": 264,
+      "index_pdf_page": 14,
+      "sequence": 307,
+      "occurrence": 1,
+      "key": "14.2@264#1",
+      "pdf_page_start": 280,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.2.1",
+      "chapter": "14",
+      "title": "For Pune Municipal Corporation Area",
+      "printed_page_start": 265,
+      "index_pdf_page": 14,
+      "sequence": 308,
+      "occurrence": 1,
+      "key": "14.2.1@265#1",
+      "pdf_page_start": 281,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.2.2",
+      "chapter": "14",
+      "title": "Pune Metropolitan Region Development Authority area.",
+      "printed_page_start": 269,
+      "index_pdf_page": 14,
+      "sequence": 309,
+      "occurrence": 1,
+      "key": "14.2.2@269#1",
+      "pdf_page_start": 285,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.2.3",
+      "chapter": "14",
+      "title": "For Nagpur Municipal Corporation and Nagpur Metropolitan Region Development Authority.",
+      "printed_page_start": 269,
+      "index_pdf_page": 14,
+      "sequence": 310,
+      "occurrence": 1,
+      "key": "14.2.3@269#1",
+      "pdf_page_start": 285,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.2.4",
+      "chapter": "14",
+      "title": "For Other Municipal Corporations and Other Metropolitan Region Development Authority Area",
+      "printed_page_start": 274,
+      "index_pdf_page": 14,
+      "sequence": 311,
+      "occurrence": 1,
+      "key": "14.2.4@274#1",
+      "pdf_page_start": 290,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.2.5",
+      "chapter": "14",
+      "title": "Regulations for BRT Corridor in Pimpri-Chinchwad Municipal Corporation.",
+      "printed_page_start": 274,
+      "index_pdf_page": 14,
+      "sequence": 312,
+      "occurrence": 1,
+      "key": "14.2.5@274#1",
+      "pdf_page_start": 290,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.3",
+      "chapter": "14",
+      "title": "Affordable Housing Scheme",
+      "printed_page_start": 275,
+      "index_pdf_page": 14,
+      "sequence": 313,
+      "occurrence": 1,
+      "key": "14.3@275#1",
+      "pdf_page_start": 291,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.4",
+      "chapter": "14",
+      "title": "Pradhan Mantri Awas Yojana",
+      "printed_page_start": 278,
+      "index_pdf_page": 14,
+      "sequence": 314,
+      "occurrence": 1,
+      "key": "14.4@278#1",
+      "pdf_page_start": 294,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.4.1",
+      "chapter": "14",
+      "title": "For Development Plan Area.",
+      "printed_page_start": 278,
+      "index_pdf_page": 14,
+      "sequence": 315,
+      "occurrence": 1,
+      "key": "14.4.1@278#1",
+      "pdf_page_start": 294,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.4.2",
+      "chapter": "14",
+      "title": "For Regional Plan Area.",
+      "printed_page_start": 279,
+      "index_pdf_page": 14,
+      "sequence": 316,
+      "occurrence": 1,
+      "key": "14.4.2@279#1",
+      "pdf_page_start": 295,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.5",
+      "chapter": "14",
+      "title": "Conservation of Heritage Buildings / Precincts / Natural Features",
+      "printed_page_start": 279,
+      "index_pdf_page": 14,
+      "sequence": 317,
+      "occurrence": 1,
+      "key": "14.5@279#1",
+      "pdf_page_start": 295,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.6",
+      "chapter": "14",
+      "title": "Slum Rehabilitation Scheme for Pune, PCMC, PCNTDA and Nagpur.",
+      "printed_page_start": 285,
+      "index_pdf_page": 14,
+      "sequence": 318,
+      "occurrence": 1,
+      "key": "14.6@285#1",
+      "pdf_page_start": 301,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.7",
+      "chapter": "14",
+      "title": "Slum Rehabilitation Scheme for Other Municipal Corporations.",
+      "printed_page_start": 318,
+      "index_pdf_page": 14,
+      "sequence": 319,
+      "occurrence": 1,
+      "key": "14.7@318#1",
+      "pdf_page_start": 334,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.8",
+      "chapter": "14",
+      "title": "Urban Renewal Scheme",
+      "printed_page_start": 332,
+      "index_pdf_page": 14,
+      "sequence": 320,
+      "occurrence": 1,
+      "key": "14.8@332#1",
+      "pdf_page_start": 348,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.9",
+      "chapter": "14",
+      "title": "Development of Tourism and Hospitality Services under Community Nature Conservancy Around Wild Life Sanctuaries and National Parks.",
+      "printed_page_start": 349,
+      "index_pdf_page": 14,
+      "sequence": 321,
+      "occurrence": 1,
+      "key": "14.9@349#1",
+      "pdf_page_start": 365,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.10",
+      "chapter": "14",
+      "title": "Integrated Information Technology Township (IITP)",
+      "printed_page_start": 350,
+      "index_pdf_page": 14,
+      "sequence": 322,
+      "occurrence": 1,
+      "key": "14.10@350#1",
+      "pdf_page_start": 366,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.11",
+      "chapter": "14",
+      "title": "Integrated Logistic Park (ILP)",
+      "printed_page_start": 354,
+      "index_pdf_page": 14,
+      "sequence": 323,
+      "occurrence": 1,
+      "key": "14.11@354#1",
+      "pdf_page_start": 370,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.12",
+      "chapter": "14",
+      "title": "Industrial Township Under Aerospace and Defense Manufacturing Policy",
+      "printed_page_start": 357,
+      "index_pdf_page": 14,
+      "sequence": 324,
+      "occurrence": 1,
+      "key": "14.12@357#1",
+      "pdf_page_start": 373,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "14.13",
+      "chapter": "14",
+      "title": "Development of Integrated Industrial Area",
+      "printed_page_start": 357,
+      "index_pdf_page": 14,
+      "sequence": 325,
+      "occurrence": 1,
+      "key": "14.13@357#1",
+      "pdf_page_start": 373,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "15.1",
+      "chapter": "15",
+      "title": "Quarrying Operations",
+      "printed_page_start": 359,
+      "index_pdf_page": 14,
+      "sequence": 326,
+      "occurrence": 1,
+      "key": "15.1@359#1",
+      "pdf_page_start": 375,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "15.2",
+      "chapter": "15",
+      "title": "Erection of Mobile Towers",
+      "printed_page_start": 359,
+      "index_pdf_page": 14,
+      "sequence": 327,
+      "occurrence": 1,
+      "key": "15.2@359#1",
+      "pdf_page_start": 375,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "15.3",
+      "chapter": "15",
+      "title": "Preparation of Local Area Plan",
+      "printed_page_start": 360,
+      "index_pdf_page": 14,
+      "sequence": 328,
+      "occurrence": 1,
+      "key": "15.3@360#1",
+      "pdf_page_start": 376,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    },
+    {
+      "number": "15.4",
+      "chapter": "15",
+      "title": "Guidelines for Street Design in City / Town.",
+      "printed_page_start": 360,
+      "index_pdf_page": 14,
+      "sequence": 329,
+      "occurrence": 1,
+      "key": "15.4@360#1",
+      "pdf_page_start": 376,
+      "pdf_page_end": null,
+      "printed_page_end": null
+    }
+  ],
+  "printed_page_map": {
+    "1": [
+      17
+    ],
+    "2": [
+      18
+    ],
+    "3": [
+      19
+    ],
+    "4": [
+      20
+    ],
+    "5": [
+      21
+    ],
+    "6": [
+      22
+    ],
+    "7": [
+      23
+    ],
+    "8": [
+      24
+    ],
+    "9": [
+      25
+    ],
+    "10": [
+      26
+    ],
+    "11": [
+      27
+    ],
+    "12": [
+      28
+    ],
+    "13": [
+      29
+    ],
+    "14": [
+      30
+    ],
+    "15": [
+      31
+    ],
+    "16": [
+      32
+    ],
+    "17": [
+      33
+    ],
+    "18": [
+      34
+    ],
+    "19": [
+      35
+    ],
+    "20": [
+      36
+    ],
+    "21": [
+      37
+    ],
+    "22": [
+      38
+    ],
+    "23": [
+      39
+    ],
+    "24": [
+      40
+    ],
+    "25": [
+      41
+    ],
+    "26": [
+      42
+    ],
+    "27": [
+      43
+    ],
+    "28": [
+      44
+    ],
+    "29": [
+      45
+    ],
+    "30": [
+      46
+    ],
+    "31": [
+      47
+    ],
+    "32": [
+      48
+    ],
+    "33": [
+      49
+    ],
+    "34": [
+      50
+    ],
+    "35": [
+      51
+    ],
+    "36": [
+      52
+    ],
+    "37": [
+      53
+    ],
+    "38": [
+      54
+    ],
+    "39": [
+      55
+    ],
+    "40": [
+      56
+    ],
+    "41": [
+      57
+    ],
+    "42": [
+      58
+    ],
+    "43": [
+      59
+    ],
+    "44": [
+      60
+    ],
+    "45": [
+      61
+    ],
+    "46": [
+      62
+    ],
+    "47": [
+      63
+    ],
+    "48": [
+      64
+    ],
+    "49": [
+      65
+    ],
+    "50": [
+      66
+    ],
+    "51": [
+      67
+    ],
+    "52": [
+      68
+    ],
+    "53": [
+      69
+    ],
+    "54": [
+      70
+    ],
+    "55": [
+      71
+    ],
+    "56": [
+      72
+    ],
+    "57": [
+      73
+    ],
+    "58": [
+      74
+    ],
+    "59": [
+      75
+    ],
+    "60": [
+      76
+    ],
+    "61": [
+      77
+    ],
+    "62": [
+      78
+    ],
+    "63": [
+      79
+    ],
+    "64": [
+      80
+    ],
+    "65": [
+      81
+    ],
+    "66": [
+      82
+    ],
+    "67": [
+      83
+    ],
+    "68": [
+      84
+    ],
+    "69": [
+      85
+    ],
+    "70": [
+      86
+    ],
+    "71": [
+      87
+    ],
+    "72": [
+      88
+    ],
+    "73": [
+      89
+    ],
+    "74": [
+      90
+    ],
+    "75": [
+      91
+    ],
+    "76": [
+      92
+    ],
+    "77": [
+      93
+    ],
+    "78": [
+      94
+    ],
+    "79": [
+      95
+    ],
+    "80": [
+      96
+    ],
+    "81": [
+      97
+    ],
+    "82": [
+      98
+    ],
+    "83": [
+      99
+    ],
+    "84": [
+      100
+    ],
+    "85": [
+      101
+    ],
+    "86": [
+      102
+    ],
+    "87": [
+      103
+    ],
+    "88": [
+      104
+    ],
+    "89": [
+      105
+    ],
+    "90": [
+      106
+    ],
+    "91": [
+      107
+    ],
+    "92": [
+      108
+    ],
+    "93": [
+      109
+    ],
+    "94": [
+      110
+    ],
+    "95": [
+      111
+    ],
+    "96": [
+      112
+    ],
+    "97": [
+      113
+    ],
+    "98": [
+      114
+    ],
+    "99": [
+      115
+    ],
+    "100": [
+      116
+    ],
+    "101": [
+      117
+    ],
+    "102": [
+      118
+    ],
+    "103": [
+      119
+    ],
+    "104": [
+      120
+    ],
+    "105": [
+      121
+    ],
+    "106": [
+      122
+    ],
+    "107": [
+      123
+    ],
+    "108": [
+      124
+    ],
+    "109": [
+      125
+    ],
+    "110": [
+      126
+    ],
+    "111": [
+      127
+    ],
+    "112": [
+      128
+    ],
+    "113": [
+      129
+    ],
+    "114": [
+      130
+    ],
+    "115": [
+      131
+    ],
+    "116": [
+      132
+    ],
+    "117": [
+      133
+    ],
+    "118": [
+      134
+    ],
+    "119": [
+      135
+    ],
+    "120": [
+      136
+    ],
+    "121": [
+      137
+    ],
+    "122": [
+      138
+    ],
+    "123": [
+      139
+    ],
+    "124": [
+      140
+    ],
+    "125": [
+      141
+    ],
+    "126": [
+      142
+    ],
+    "127": [
+      143
+    ],
+    "128": [
+      144
+    ],
+    "129": [
+      145
+    ],
+    "130": [
+      146
+    ],
+    "131": [
+      147
+    ],
+    "132": [
+      148
+    ],
+    "133": [
+      149
+    ],
+    "134": [
+      150
+    ],
+    "135": [
+      151
+    ],
+    "136": [
+      152
+    ],
+    "137": [
+      153
+    ],
+    "138": [
+      154
+    ],
+    "139": [
+      155
+    ],
+    "140": [
+      156
+    ],
+    "141": [
+      157
+    ],
+    "142": [
+      158
+    ],
+    "143": [
+      159
+    ],
+    "144": [
+      160
+    ],
+    "145": [
+      161
+    ],
+    "146": [
+      162
+    ],
+    "147": [
+      163
+    ],
+    "148": [
+      164
+    ],
+    "149": [
+      165
+    ],
+    "150": [
+      166
+    ],
+    "151": [
+      167
+    ],
+    "152": [
+      168
+    ],
+    "153": [
+      169
+    ],
+    "154": [
+      170
+    ],
+    "155": [
+      171
+    ],
+    "156": [
+      172
+    ],
+    "157": [
+      173
+    ],
+    "158": [
+      174
+    ],
+    "159": [
+      175
+    ],
+    "160": [
+      176
+    ],
+    "161": [
+      177
+    ],
+    "162": [
+      178
+    ],
+    "163": [
+      179
+    ],
+    "164": [
+      180
+    ],
+    "165": [
+      181
+    ],
+    "166": [
+      182
+    ],
+    "167": [
+      183
+    ],
+    "168": [
+      184
+    ],
+    "169": [
+      185
+    ],
+    "170": [
+      186
+    ],
+    "171": [
+      187
+    ],
+    "172": [
+      188
+    ],
+    "173": [
+      189
+    ],
+    "174": [
+      190
+    ],
+    "175": [
+      191
+    ],
+    "176": [
+      192
+    ],
+    "177": [
+      193
+    ],
+    "178": [
+      194
+    ],
+    "179": [
+      195
+    ],
+    "180": [
+      196
+    ],
+    "181": [
+      197
+    ],
+    "182": [
+      198
+    ],
+    "183": [
+      199
+    ],
+    "184": [
+      200
+    ],
+    "185": [
+      201
+    ],
+    "186": [
+      202
+    ],
+    "187": [
+      203
+    ],
+    "188": [
+      204
+    ],
+    "189": [
+      205
+    ],
+    "190": [
+      206
+    ],
+    "191": [
+      207
+    ],
+    "192": [
+      208
+    ],
+    "193": [
+      209
+    ],
+    "194": [
+      210
+    ],
+    "195": [
+      211
+    ],
+    "196": [
+      212
+    ],
+    "197": [
+      213
+    ],
+    "198": [
+      214
+    ],
+    "199": [
+      215
+    ],
+    "200": [
+      216
+    ],
+    "201": [
+      217
+    ],
+    "202": [
+      218
+    ],
+    "203": [
+      219
+    ],
+    "204": [
+      220
+    ],
+    "205": [
+      221
+    ],
+    "206": [
+      222
+    ],
+    "207": [
+      223
+    ],
+    "208": [
+      224
+    ],
+    "209": [
+      225
+    ],
+    "210": [
+      226
+    ],
+    "211": [
+      227
+    ],
+    "212": [
+      228
+    ],
+    "213": [
+      229
+    ],
+    "214": [
+      230
+    ],
+    "215": [
+      231
+    ],
+    "216": [
+      232
+    ],
+    "217": [
+      233
+    ],
+    "218": [
+      234
+    ],
+    "219": [
+      235
+    ],
+    "220": [
+      236
+    ],
+    "221": [
+      237
+    ],
+    "222": [
+      238
+    ],
+    "223": [
+      239
+    ],
+    "224": [
+      240
+    ],
+    "225": [
+      241
+    ],
+    "226": [
+      242
+    ],
+    "227": [
+      243
+    ],
+    "228": [
+      244
+    ],
+    "229": [
+      245
+    ],
+    "230": [
+      246
+    ],
+    "231": [
+      247
+    ],
+    "232": [
+      248
+    ],
+    "233": [
+      249
+    ],
+    "234": [
+      250
+    ],
+    "235": [
+      251
+    ],
+    "236": [
+      252
+    ],
+    "237": [
+      253
+    ],
+    "238": [
+      254
+    ],
+    "239": [
+      255
+    ],
+    "240": [
+      256
+    ],
+    "241": [
+      257
+    ],
+    "242": [
+      258
+    ],
+    "243": [
+      259
+    ],
+    "244": [
+      260
+    ],
+    "245": [
+      261
+    ],
+    "246": [
+      262
+    ],
+    "247": [
+      263
+    ],
+    "248": [
+      264
+    ],
+    "249": [
+      265
+    ],
+    "250": [
+      266
+    ],
+    "251": [
+      267
+    ],
+    "252": [
+      268
+    ],
+    "253": [
+      269
+    ],
+    "254": [
+      270
+    ],
+    "255": [
+      271
+    ],
+    "256": [
+      272
+    ],
+    "257": [
+      273
+    ],
+    "258": [
+      274
+    ],
+    "259": [
+      275
+    ],
+    "260": [
+      276
+    ],
+    "261": [
+      277
+    ],
+    "262": [
+      278
+    ],
+    "263": [
+      279
+    ],
+    "264": [
+      280
+    ],
+    "265": [
+      281
+    ],
+    "266": [
+      282
+    ],
+    "267": [
+      283
+    ],
+    "268": [
+      284
+    ],
+    "269": [
+      285
+    ],
+    "270": [
+      286
+    ],
+    "271": [
+      287
+    ],
+    "272": [
+      288
+    ],
+    "273": [
+      289
+    ],
+    "274": [
+      290
+    ],
+    "275": [
+      291
+    ],
+    "276": [
+      292
+    ],
+    "277": [
+      293
+    ],
+    "278": [
+      294
+    ],
+    "279": [
+      295
+    ],
+    "280": [
+      296
+    ],
+    "281": [
+      297
+    ],
+    "282": [
+      298
+    ],
+    "283": [
+      299
+    ],
+    "284": [
+      300
+    ],
+    "285": [
+      301
+    ],
+    "286": [
+      302
+    ],
+    "287": [
+      303
+    ],
+    "288": [
+      304
+    ],
+    "289": [
+      305
+    ],
+    "290": [
+      306
+    ],
+    "291": [
+      307
+    ],
+    "292": [
+      308
+    ],
+    "293": [
+      309
+    ],
+    "294": [
+      310
+    ],
+    "295": [
+      311
+    ],
+    "296": [
+      312
+    ],
+    "297": [
+      313
+    ],
+    "298": [
+      314
+    ],
+    "299": [
+      315
+    ],
+    "300": [
+      316
+    ],
+    "301": [
+      317
+    ],
+    "302": [
+      318
+    ],
+    "303": [
+      319
+    ],
+    "304": [
+      320
+    ],
+    "305": [
+      321
+    ],
+    "306": [
+      322
+    ],
+    "307": [
+      323
+    ],
+    "308": [
+      324
+    ],
+    "309": [
+      325
+    ],
+    "310": [
+      326
+    ],
+    "311": [
+      327
+    ],
+    "312": [
+      328
+    ],
+    "313": [
+      329
+    ],
+    "314": [
+      330
+    ],
+    "315": [
+      331
+    ],
+    "316": [
+      332
+    ],
+    "317": [
+      333
+    ],
+    "318": [
+      334
+    ],
+    "319": [
+      335
+    ],
+    "320": [
+      336
+    ],
+    "321": [
+      337
+    ],
+    "322": [
+      338
+    ],
+    "323": [
+      339
+    ],
+    "324": [
+      340
+    ],
+    "325": [
+      341
+    ],
+    "326": [
+      342
+    ],
+    "327": [
+      343
+    ],
+    "328": [
+      344
+    ],
+    "329": [
+      345
+    ],
+    "330": [
+      346
+    ],
+    "331": [
+      347
+    ],
+    "332": [
+      348
+    ],
+    "333": [
+      349
+    ],
+    "334": [
+      350
+    ],
+    "335": [
+      351
+    ],
+    "336": [
+      352
+    ],
+    "337": [
+      353
+    ],
+    "338": [
+      354
+    ],
+    "339": [
+      355
+    ],
+    "340": [
+      356
+    ],
+    "341": [
+      357
+    ],
+    "342": [
+      358
+    ],
+    "343": [
+      359
+    ],
+    "344": [
+      360
+    ],
+    "345": [
+      361
+    ],
+    "346": [
+      362
+    ],
+    "347": [
+      363
+    ],
+    "348": [
+      364
+    ],
+    "349": [
+      365
+    ],
+    "350": [
+      366
+    ],
+    "351": [
+      367
+    ],
+    "352": [
+      368
+    ],
+    "353": [
+      369
+    ],
+    "354": [
+      370
+    ],
+    "355": [
+      371
+    ],
+    "356": [
+      372
+    ],
+    "357": [
+      373
+    ],
+    "358": [
+      374
+    ],
+    "359": [
+      375
+    ],
+    "360": [
+      376
+    ],
+    "361": [
+      377
+    ],
+    "362": [
+      378
+    ],
+    "363": [
+      379
+    ],
+    "364": [
+      380
+    ],
+    "365": [
+      381
+    ],
+    "366": [
+      382
+    ],
+    "367": [
+      383
+    ],
+    "368": [
+      384
+    ],
+    "369": [
+      385
+    ],
+    "370": [
+      386
+    ],
+    "371": [
+      387
+    ],
+    "372": [
+      388
+    ],
+    "373": [
+      389
+    ],
+    "374": [
+      390
+    ],
+    "375": [
+      391
+    ],
+    "376": [
+      392
+    ],
+    "377": [
+      393
+    ],
+    "378": [
+      394
+    ],
+    "379": [
+      395
+    ],
+    "380": [
+      396
+    ],
+    "381": [
+      397
+    ],
+    "382": [
+      398
+    ],
+    "383": [
+      399
+    ],
+    "384": [
+      400
+    ],
+    "385": [
+      401
+    ],
+    "386": [
+      402
+    ],
+    "387": [
+      403
+    ],
+    "388": [
+      404
+    ],
+    "389": [
+      405
+    ],
+    "390": [
+      406
+    ],
+    "391": [
+      407
+    ],
+    "392": [
+      408
+    ],
+    "393": [
+      409
+    ],
+    "394": [
+      410
+    ],
+    "395": [
+      411
+    ],
+    "396": [
+      412
+    ],
+    "397": [
+      413
+    ],
+    "398": [
+      414
+    ],
+    "399": [
+      415
+    ],
+    "400": [
+      416
+    ],
+    "401": [
+      417
+    ],
+    "402": [
+      418
+    ],
+    "403": [
+      419
+    ],
+    "404": [
+      420
+    ],
+    "405": [
+      421
+    ],
+    "406": [
+      422
+    ],
+    "407": [
+      423
+    ],
+    "408": [
+      424
+    ],
+    "409": [
+      425
+    ],
+    "410": [
+      426
+    ],
+    "411": [
+      427
+    ],
+    "412": [
+      428
+    ],
+    "413": [
+      429
+    ],
+    "414": [
+      430
+    ],
+    "415": [
+      431
+    ],
+    "416": [
+      432
+    ],
+    "417": [
+      433
+    ],
+    "418": [
+      434
+    ],
+    "419": [
+      435
+    ],
+    "420": [
+      436
+    ],
+    "421": [
+      437
+    ],
+    "422": [
+      438
+    ],
+    "423": [
+      439
+    ]
+  }
+}

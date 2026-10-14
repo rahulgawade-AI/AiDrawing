@@ -1,0 +1,32 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 502,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0502.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "प्रत माहितीस्तव व कार्यवाहीसाठी -\n१) संचालक, नगर रचना, महाराष्ट्र राज्य, पुणे.  २) विभागीय सहसंचालक, नगर रचना, पुणे / नागपूर / अमरावती / कोकण / औरंगाबाद / नाशिक.  ३) विभागीय आयुक्त, पुणे / नागपूर / अमरावती / कोकण / औरंगाबाद / नाशिक.  ४) सहायक संचालक, नगर रचना / नगर रचनाकार, नगर रचना व मूल्यनिर्धारण विभाग, सर्व शाखा कार्यालये.  ५) अवर सचिव, नवि -११ / नवि-३०, कक्ष अधिकारी, नवि-९ / नवि -१२, नगर विकास विभाग, मंत्रालय, मुंबई.  ६) कक्ष अधिकारी (नवि-२९), नगर विकास विभाग, मंत्रालय, मुंबई. -/सदर आदेश विभागाच्या संकेतस्थळावर प्रसिध्द करण्यात यावेत.  ७) कक्ष अधिकारी, माहिती व तंत्रज्ञान विभाग, मंत्रालय, मुंबई. -/सदर आदेश शासनाच्या संकेतस्थळावर प्रसिध्द करण्याबाबत कार्यवाही करण्यात यावी.  ८) निवड नस्ती, कार्यासन (नवि-१३).\n486",
+  "translated_english_text": "To be informed and to take action -\n1) Controller, Urban Planning, Maharashtra State, Pune. 2) Deputy Controller, Urban Planning, Pune / Nagpur / Amaravati / Konkan / Aurangabad / Nashik. 3) Departmental Commissioner, Pune / Nagpur / Amaravati / Konkan / Aurangabad / Nashik. 4) Assistant Controller, Urban Planning / Urban Planner, Urban Planning and Valuation Department, All Branch Offices. 5) Department Officer (Navi-29), Urban Development Department, Ministry, Mumbai. -/This order shall be published on the website of the Department. 6) Department Officer, Information and Technology Department, Ministry, Mumbai. -/Action shall be taken to publish this order on the website of the Government. 7) Department Officer, Information and Technology Department, Ministry, Mumbai. -/This order shall be published on the website of the Department. 8) Nivad Nastee, Karyasan (Navi-13). 486 /think",
+  "validation": {
+    "original_regulation_numbers": [],
+    "translated_regulation_numbers": [],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 723,
+    "translated_characters": 894,
+    "elapsed_seconds": 76.37
+  }
+}

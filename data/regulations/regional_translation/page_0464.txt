@@ -1,0 +1,51 @@
+**UDCPR Regulation Translations**  
+*(Marathi Text Translated, English Text Preserved)*  
+
+---
+
+**Section 1**  
+*Additional 20 sq.m. area for every 300 flats. ii) Sanitary block for servants having maximum area of 3 sq.m. in schemes having minimum 100 flats and thereafter additional 3 sq.m. area for every 200 flats. iii) Drivers room of size 12 sq.m. with attached toilet in schemes having minimum 100 flats and thereafter additional 10 sq.m. area for every 300 flats iv) ----- v) -----*  
+
+**Regulation 6.2.3(a)** *In accordance with the provisions of Regulation 6.2.3(a), as per the explanation given, for Special Building (Special Building), the distance specified in Table 6-D shall be maintained. After this, the distance of 6.0 m on the other side shall be maintained for the construction of podium. For Non-Special Building, the construction of podium shall be allowed after maintaining the minimum required distance as per the regulation.*  
+
+---
+
+**Section 2**  
+*9.13 PROVISION OF PODIUM*  
+*9.13.1 Planning and Design: At least one lift -----, it will not be necessary to raise the existing lift to the additional floor.*  
+
+**Regulation 9.13** *As per the said regulation, 1 fire lift shall be allowed for buildings with height between 15.0 m and 24.0 m.*  
+
+---
+
+**Section 3**  
+*9.27 PROVISION OF LIFT*  
+*9.27.1 Planning and Design: At least one lift -----, it will not be necessary to raise the existing lift to the additional floor.*  
+
+**Regulation 9.27** *For buildings with height exceeding 15.0 m and up to 24.0 m, 1 fire lift shall be allowed.*  
+
+---
+
+**Section 4**  
+*9.28 STAIRCASE REQUIREMENTS*  
+*9.28.1 Planning and Design: At least one lift -----, it will not be necessary to raise the existing lift to the additional floor.*  
+
+**Regulation 9.28** *For buildings with height exceeding 15.0 m and up to 24.0 m, 1 fire lift shall be allowed. For special buildings exceeding 24.0 m, a separate fire staircase shall be proposed as per UDCPR.*  
+
+---
+
+**Section 5**  
+*UDCPR पूर्वी मंजूर झालेल्या तसेच भागशः / पूर्णतः भोगवटा प्रमाणपत्र मिळालेल्या अथवा अद्यापि न मिळालेल्या इमारतीसाठी तत्कालिन नियमानुसार १.२० मी. रुंद जिना (Staircase) अस्तित्वात असेल आणि आता UDCPR नुसार मिळणाऱ्या चटई क्षेत्र निर्देशांकानुसार अतिरिक्त बांधकाम अनुज्ञेय होऊ शकते, परंतु इमारतीची उंची वाढून त्या उंचीसाठी सदर विनियमातील तरतुदीनुसार १.५० मी. रुंदीचा जिना आवश्यक असेल.*  
+
+**Regulation 9.28** *For buildings with height exceeding 15.0 m and up to 24.0 m, 1 fire lift shall be allowed. For special buildings exceeding 24.0 m, a separate fire staircase shall be proposed as per UDCPR. However, if the existing staircase width of 1.20 m is maintained in accordance with current regulations, and the building height increases to meet the guidelines under UDCPR, the required staircase width of 1.50 m shall be mandatory. If structural modifications (e.g., beams, columns) are not feasible, the staircase width of 1.20 m shall be allowed for any floor, provided the total floor area is less than 750 sq.m. as per Regulation 9.28.8, Table 9-G, Sub-item 1(d).*  
+
+---
+
+**Note:**  
+- All regulation numbers (e.g., 9.13, 9.27, 9.28) and technical terms (e.g., "Fire NOC," "Land Measurement Certificate") are preserved as per the original text.  
+- Devanagari numerals (e.g., १४.२.१) are converted to ASCII (e.g., 14.2.1).  
+- Mixed text (English + Marathi) is translated while retaining the original structure.  
+- The final "8" at the end of the OCR text is retained as a page number or artifact.  
+
+---  
+**End of Translation**

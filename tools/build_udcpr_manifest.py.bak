@@ -1,0 +1,1218 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import re
+from dataclasses import asdict, dataclass
+from pathlib import Path
+
+import fitz
+
+
+LOG = logging.getLogger("udcpr-manifest")
+
+
+# ============================================================
+# UDCPR INDEX
+# ============================================================
+
+INDEX_START_PDF_PAGE = 5
+INDEX_END_PDF_PAGE = 14
+
+# Appendix index starts here.
+APPENDIX_START_PDF_PAGE = 15
+
+
+# ============================================================
+# DATA STRUCTURES
+# ============================================================
+
+
+@dataclass(slots=True)
+class RegulationIndexEntry:
+    sequence: int
+
+    number: str
+    chapter: str
+    title: str
+
+    printed_page_start: int
+
+    index_pdf_page: int
+
+    printed_page_end: int | None = None
+
+    pdf_page_start: int | None = None
+    pdf_page_end: int | None = None
+
+    occurrence: int = 1
+
+    key: str = ""
+
+
+@dataclass(slots=True)
+class AppendixIndexEntry:
+    sequence: int
+
+    name: str
+
+    index_pdf_page: int
+
+
+# ============================================================
+# TEXT HELPERS
+# ============================================================
+
+
+def clean_text(value: str) -> str:
+    return re.sub(
+        r"\s+",
+        " ",
+        value,
+    ).strip()
+
+
+def remove_index_markers(value: str) -> str:
+    """
+    Remove annotation markers appearing immediately before
+    regulation titles.
+
+    Examples:
+
+        * Extent and Jurisdiction
+        * # Definitions
+        *** Permission Not Necessary
+
+    become:
+
+        Extent and Jurisdiction
+        Definitions
+        Permission Not Necessary
+    """
+
+    value = clean_text(value)
+
+    value = re.sub(
+        r"^(?:(?:\*+|#+)\s*)+",
+        "",
+        value,
+    )
+
+    return clean_text(value)
+
+
+# ============================================================
+# CHAPTER DETECTION
+# ============================================================
+
+
+CHAPTER_RE = re.compile(
+    r"\bCHAPTER\s*[-–—]\s*"
+    r"(?P<number>\d+)"
+    r"\b",
+    re.IGNORECASE,
+)
+
+
+def detect_chapter(text: str) -> str | None:
+
+    match = CHAPTER_RE.search(text)
+
+    if not match:
+        return None
+
+    return match.group("number")
+
+
+# ============================================================
+# REGULATION NUMBER
+# ============================================================
+
+
+REGULATION_NUMBER_RE = re.compile(
+    r"^\s*"
+    r"(?P<number>\d+(?:\.\d+)*)"
+    r"\s*"
+    r"(?P<variant>\([a-z]\))?"
+    r"\s*$",
+    re.IGNORECASE,
+)
+
+
+def normalize_regulation_number(
+    number: str,
+    variant: str | None,
+) -> str:
+
+    number = number.strip()
+
+    if variant:
+        return (
+            number
+            + variant.lower()
+        )
+
+    return number
+
+
+# ============================================================
+# BLOCK PARSING
+# ============================================================
+
+
+def extract_lines(
+    page: fitz.Page,
+) -> list[str]:
+
+    blocks = page.get_text(
+        "blocks",
+        sort=True,
+    )
+
+    lines: list[str] = []
+
+    for block in blocks:
+
+        text = block[4]
+
+        for line in text.splitlines():
+
+            line = clean_text(line)
+
+            if line:
+                lines.append(line)
+
+    return lines
+
+
+def parse_regulation_block(
+    text: str,
+    chapter: str,
+    pdf_page: int,
+    sequence: int,
+) -> RegulationIndexEntry | None:
+
+    text = clean_text(text)
+
+    # --------------------------------------------------------
+    # Pattern:
+    #
+    # 2.2.5 (a) Sub-division Layout Plan 25
+    #
+    # 6.1.1 Residential Buildings / Residential Buildings 107
+    # --------------------------------------------------------
+
+    match = re.match(
+        r"^"
+        r"(?P<number>\d+(?:\.\d+)*)"
+        r"\s*"
+        r"(?P<variant>\([a-z]\))?"
+        r"\s+"
+        r"(?P<body>.*?)"
+        r"\s+"
+        r"(?P<page>\d+)"
+        r"$",
+        text,
+        re.IGNORECASE,
+    )
+
+    if not match:
+        return None
+
+    number = match.group("number")
+
+    variant = match.group(
+        "variant"
+    )
+
+    body = match.group(
+        "body"
+    )
+
+    printed_page = int(
+        match.group("page")
+    )
+
+    canonical_number = (
+        normalize_regulation_number(
+            number,
+            variant,
+        )
+    )
+
+    title = remove_index_markers(
+        body
+    )
+
+    if not title:
+        return None
+
+    return RegulationIndexEntry(
+        sequence=sequence,
+        number=canonical_number,
+        chapter=chapter,
+        title=title,
+        printed_page_start=printed_page,
+        index_pdf_page=pdf_page,
+    )
+
+
+# ============================================================
+# SPECIAL HANDLING FOR SPLIT INDEX ROWS
+# ============================================================
+
+
+def parse_index_page(
+    page: fitz.Page,
+    pdf_page: int,
+    chapter: str | None,
+    sequence: int,
+) -> tuple[
+    list[RegulationIndexEntry],
+    str | None,
+    int,
+]:
+
+    lines = extract_lines(page)
+
+    entries: list[
+        RegulationIndexEntry
+    ] = []
+
+    i = 0
+
+    while i < len(lines):
+
+        line = lines[i]
+
+        # ----------------------------------------------------
+        # CHAPTER
+        # ----------------------------------------------------
+
+        detected = detect_chapter(
+            line
+        )
+
+        if detected:
+
+            chapter = detected
+            i += 1
+            continue
+
+        # ----------------------------------------------------
+        # Skip headers
+        # ----------------------------------------------------
+
+        upper = line.upper()
+
+        if upper in {
+            "INDEX",
+            "REGULATION",
+            "PARTICULARS",
+            "PAGE NO.",
+            "NO.",
+        }:
+            i += 1
+            continue
+
+        # ----------------------------------------------------
+        # Try one-line regulation
+        # ----------------------------------------------------
+
+        entry = parse_regulation_block(
+            line,
+            chapter or "",
+            pdf_page,
+            sequence,
+        )
+
+        if entry:
+
+            entries.append(entry)
+
+            sequence += 1
+
+            i += 1
+            continue
+
+        # ----------------------------------------------------
+        # Some PDF extraction layouts split the number/title
+        # from the page number.
+        #
+        # Try:
+        #
+        # 6.1.1
+        # Residential Buildings
+        # 107
+        # ----------------------------------------------------
+
+        number_match = REGULATION_NUMBER_RE.match(
+            line
+        )
+
+        if number_match:
+
+            number = normalize_regulation_number(
+                number_match.group(
+                    "number"
+                ),
+                number_match.group(
+                    "variant"
+                ),
+            )
+
+            # Search ahead for page number.
+            #
+            # We only look a few lines ahead so that we don't
+            # accidentally consume the next regulation.
+            candidate_lines = []
+
+            j = i + 1
+
+            while (
+                j < len(lines)
+                and j <= i + 8
+            ):
+
+                candidate = lines[j]
+
+                if detect_chapter(
+                    candidate
+                ):
+                    break
+
+                if REGULATION_NUMBER_RE.match(
+                    candidate
+                ):
+                    break
+
+                candidate_lines.append(
+                    candidate
+                )
+
+                j += 1
+
+            page_index = None
+
+            for k in range(
+                len(candidate_lines) - 1,
+                -1,
+                -1,
+            ):
+
+                if re.fullmatch(
+                    r"\d+",
+                    candidate_lines[k],
+                ):
+
+                    page_index = k
+                    break
+
+            if page_index is not None:
+
+                printed_page = int(
+                    candidate_lines[
+                        page_index
+                    ]
+                )
+
+                title_parts = candidate_lines[
+                    :page_index
+                ]
+
+                title = remove_index_markers(
+                    " ".join(
+                        title_parts
+                    )
+                )
+
+                if title:
+
+                    entry = RegulationIndexEntry(
+                        sequence=sequence,
+                        number=number,
+                        chapter=chapter or "",
+                        title=title,
+                        printed_page_start=printed_page,
+                        index_pdf_page=pdf_page,
+                    )
+
+                    entries.append(
+                        entry
+                    )
+
+                    sequence += 1
+
+                    i = (
+                        i
+                        + 1
+                        + page_index
+                        + 1
+                    )
+
+                    continue
+
+        i += 1
+
+    return (
+        entries,
+        chapter,
+        sequence,
+    )
+
+
+# ============================================================
+# APPENDIX INDEX
+# ============================================================
+
+
+def parse_appendix_pages(
+    doc: fitz.Document,
+) -> list[AppendixIndexEntry]:
+
+    entries: list[
+        AppendixIndexEntry
+    ] = []
+
+    sequence = 1
+
+    for pdf_page in range(
+        APPENDIX_START_PDF_PAGE,
+        min(
+            APPENDIX_START_PDF_PAGE + 2,
+            len(doc) + 1,
+        ),
+    ):
+
+        page = doc[
+            pdf_page - 1
+        ]
+
+        lines = extract_lines(
+            page
+        )
+
+        for line in lines:
+
+            if re.match(
+                r"^Appendix\s+",
+                line,
+                re.IGNORECASE,
+            ):
+
+                entries.append(
+                    AppendixIndexEntry(
+                        sequence=sequence,
+                        name=line,
+                        index_pdf_page=pdf_page,
+                    )
+                )
+
+                sequence += 1
+
+    return entries
+
+
+# ============================================================
+# PRINTED PAGE → PDF PAGE MAP
+# ============================================================
+
+
+PRINTED_PAGE_RE = re.compile(
+    r"^\s*(\d{1,3})\s*$"
+)
+
+
+def detect_printed_page(
+    page: fitz.Page,
+) -> int | None:
+
+    """
+    Detect the page number printed at the bottom of a PDF page.
+
+    We deliberately inspect the bottom-most text blocks.
+
+    This is NOT the PDF page index.
+    """
+
+    blocks = page.get_text(
+        "blocks",
+        sort=True,
+    )
+
+    candidates = []
+
+    for block in blocks:
+
+        x0, y0, x1, y1, text = block[:5]
+
+        text = clean_text(text)
+
+        if not text:
+            continue
+
+        # Bottom portion of page only.
+        page_height = page.rect.height
+
+        if y1 < page_height * 0.80:
+            continue
+
+        for line in text.splitlines():
+
+            line = clean_text(line)
+
+            match = PRINTED_PAGE_RE.match(
+                line
+            )
+
+            if match:
+
+                value = int(
+                    match.group(1)
+                )
+
+                # UDCPR main printed pages are within this
+                # broad range. This avoids picking up years,
+                # order numbers, etc.
+                if 1 <= value <= 999:
+
+                    candidates.append(
+                        (
+                            y1,
+                            value,
+                        )
+                    )
+
+    if not candidates:
+        return None
+
+    candidates.sort(
+        key=lambda x: x[0],
+        reverse=True,
+    )
+
+    return candidates[0][1]
+
+
+def build_printed_page_map(
+    doc: fitz.Document,
+) -> dict[int, list[int]]:
+
+    result: dict[
+        int,
+        list[int],
+    ] = {}
+
+    for pdf_page in range(
+        1,
+        len(doc) + 1,
+    ):
+
+        printed = detect_printed_page(
+            doc[
+                pdf_page - 1
+            ]
+        )
+
+        if printed is None:
+            continue
+
+        result.setdefault(
+            printed,
+            [],
+        ).append(
+            pdf_page
+        )
+
+    return result
+
+
+# ============================================================
+# CALCULATE REGULATION RANGES
+# ============================================================
+
+
+def assign_occurrences(
+    entries: list[
+        RegulationIndexEntry
+    ],
+) -> None:
+
+    counts: dict[
+        str,
+        int,
+    ] = {}
+
+    for entry in entries:
+
+        count = (
+            counts.get(
+                entry.number,
+                0,
+            )
+            + 1
+        )
+
+        counts[
+            entry.number
+        ] = count
+
+        entry.occurrence = count
+
+        entry.key = (
+            f"{entry.number}"
+            f"@"
+            f"{entry.printed_page_start}"
+            f"#"
+            f"{entry.occurrence}"
+        )
+
+
+def calculate_ranges(
+    entries: list[
+        RegulationIndexEntry
+    ],
+    printed_page_map: dict[
+        int,
+        list[int],
+    ],
+) -> None:
+
+    """
+    IMPORTANT:
+
+    Regulation N starts at the printed page from the index.
+
+    Its end page is immediately BEFORE the next regulation's
+    printed start page.
+
+    If multiple regulations start on the same printed page,
+    they share that page and their exact textual boundary will
+    later be determined from headings on that page.
+
+    We therefore DO NOT pretend that the complete page belongs
+    exclusively to one regulation.
+    """
+
+    for i, entry in enumerate(
+        entries
+    ):
+
+        current_page = (
+            entry.printed_page_start
+        )
+
+        next_page = None
+
+        for next_entry in entries[
+            i + 1 :
+        ]:
+
+            if (
+                next_entry.printed_page_start
+                > current_page
+            ):
+
+                next_page = (
+                    next_entry.printed_page_start
+                )
+
+                break
+
+        if next_page is None:
+
+            # Last indexed regulation.
+            #
+            # We don't guess an arbitrary page.
+            entry.printed_page_end = None
+
+        else:
+
+            entry.printed_page_end = (
+                next_page - 1
+            )
+
+        pdf_start_candidates = (
+            printed_page_map.get(
+                current_page,
+                [],
+            )
+        )
+
+        if pdf_start_candidates:
+
+            entry.pdf_page_start = min(
+                pdf_start_candidates
+            )
+
+        if (
+            entry.printed_page_end
+            is not None
+        ):
+
+            pdf_end_candidates = []
+
+            for printed_page in range(
+                current_page,
+                entry.printed_page_end + 1,
+            ):
+
+                pdf_end_candidates.extend(
+                    printed_page_map.get(
+                        printed_page,
+                        [],
+                    )
+                )
+
+            if pdf_end_candidates:
+
+                entry.pdf_page_end = max(
+                    pdf_end_candidates
+                )
+
+
+# ============================================================
+# VALIDATION
+# ============================================================
+
+
+def validate_entries(
+    entries: list[
+        RegulationIndexEntry
+    ],
+) -> list[str]:
+
+    errors: list[str] = []
+
+    if not entries:
+
+        errors.append(
+            "No regulation entries found."
+        )
+
+        return errors
+
+    # --------------------------------------------------------
+    # Sequence
+    # --------------------------------------------------------
+
+    for expected, entry in enumerate(
+        entries,
+        start=1,
+    ):
+
+        if entry.sequence != expected:
+
+            errors.append(
+                "Invalid sequence at "
+                f"{entry.number}"
+            )
+
+    # --------------------------------------------------------
+    # Page numbers
+    # --------------------------------------------------------
+
+    for entry in entries:
+
+        if entry.printed_page_start <= 0:
+
+            errors.append(
+                f"{entry.number}: "
+                "invalid printed page"
+            )
+
+        if (
+            entry.printed_page_end
+            is not None
+            and entry.printed_page_end
+            < entry.printed_page_start
+        ):
+
+            errors.append(
+                f"{entry.number}: "
+                "invalid page range"
+            )
+
+    # --------------------------------------------------------
+    # Missing PDF mappings
+    # --------------------------------------------------------
+
+    for entry in entries:
+
+        if entry.pdf_page_start is None:
+
+            errors.append(
+                f"{entry.number}: "
+                f"printed page "
+                f"{entry.printed_page_start} "
+                "has no PDF mapping"
+            )
+
+    return errors
+
+
+# ============================================================
+# MAIN
+# ============================================================
+
+
+def main() -> None:
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Build canonical UDCPR "
+            "regulation manifest from "
+            "the PDF index."
+        )
+    )
+
+    parser.add_argument(
+        "--pdf",
+        required=True,
+        help="Path to UDCPR PDF",
+    )
+
+    parser.add_argument(
+        "--output",
+        default=(
+            "data/regulations/"
+            "udcpr_canonical_manifest.json"
+        ),
+        help="Manifest output path",
+    )
+
+    args = parser.parse_args()
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format=(
+            "%(asctime)s "
+            "%(levelname)s "
+            "%(message)s"
+        ),
+    )
+
+    pdf = Path(
+        args.pdf
+    )
+
+    if not pdf.exists():
+
+        raise FileNotFoundError(
+            pdf
+        )
+
+    output = Path(
+        args.output
+    )
+
+    output.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    LOG.info(
+        "Opening PDF: %s",
+        pdf,
+    )
+
+    doc = fitz.open(
+        str(pdf)
+    )
+
+    try:
+
+        # ----------------------------------------------------
+        # 1. Printed page mapping
+        # ----------------------------------------------------
+
+        LOG.info(
+            "Building printed-page map..."
+        )
+
+        printed_page_map = (
+            build_printed_page_map(
+                doc
+            )
+        )
+
+        LOG.info(
+            "Printed pages detected: %d",
+            len(printed_page_map),
+        )
+
+        # ----------------------------------------------------
+        # 2. Parse canonical index
+        # ----------------------------------------------------
+
+        LOG.info(
+            "Parsing index PDF pages "
+            "%d-%d...",
+            INDEX_START_PDF_PAGE,
+            INDEX_END_PDF_PAGE,
+        )
+
+        entries: list[
+            RegulationIndexEntry
+        ] = []
+
+        chapter = None
+        sequence = 1
+
+        for pdf_page in range(
+            INDEX_START_PDF_PAGE,
+            INDEX_END_PDF_PAGE + 1,
+        ):
+
+            page_entries, chapter, sequence = (
+                parse_index_page(
+                    doc[
+                        pdf_page - 1
+                    ],
+                    pdf_page,
+                    chapter,
+                    sequence,
+                )
+            )
+
+            entries.extend(
+                page_entries
+            )
+
+        # ----------------------------------------------------
+        # 3. Occurrences
+        # ----------------------------------------------------
+
+        assign_occurrences(
+            entries
+        )
+
+        # ----------------------------------------------------
+        # 4. Calculate page ranges
+        # ----------------------------------------------------
+
+        calculate_ranges(
+            entries,
+            printed_page_map,
+        )
+
+        # ----------------------------------------------------
+        # 5. Validation
+        # ----------------------------------------------------
+
+        errors = validate_entries(
+            entries
+        )
+
+        # ----------------------------------------------------
+        # 6. Appendices
+        # ----------------------------------------------------
+
+        appendices = (
+            parse_appendix_pages(
+                doc
+            )
+        )
+
+        # ----------------------------------------------------
+        # 7. Manifest
+        # ----------------------------------------------------
+
+        manifest = {
+            "source_document": {
+                "path": str(pdf),
+                "filename": pdf.name,
+                "version": "UDCPR-2020",
+            },
+
+            "index": {
+                "pdf_page_start":
+                    INDEX_START_PDF_PAGE,
+
+                "pdf_page_end":
+                    INDEX_END_PDF_PAGE,
+            },
+
+            "appendix_index": {
+                "pdf_page_start":
+                    APPENDIX_START_PDF_PAGE,
+            },
+
+            "statistics": {
+                "regulation_count":
+                    len(entries),
+
+                "appendix_count":
+                    len(appendices),
+
+                "validation_error_count":
+                    len(errors),
+            },
+
+            "regulations": [
+                asdict(entry)
+                for entry in entries
+            ],
+
+            "appendices": [
+                asdict(entry)
+                for entry in appendices
+            ],
+
+            "printed_page_map": {
+                str(page): pdf_pages
+                for page, pdf_pages
+                in printed_page_map.items()
+            },
+
+            "validation_errors":
+                errors,
+        }
+
+        with output.open(
+            "w",
+            encoding="utf-8",
+        ) as f:
+
+            json.dump(
+                manifest,
+                f,
+                ensure_ascii=False,
+                indent=2,
+            )
+
+        # ----------------------------------------------------
+        # Summary
+        # ----------------------------------------------------
+
+        print()
+        print(
+            "=" * 100
+        )
+        print(
+            "UDCPR CANONICAL MANIFEST"
+        )
+        print(
+            "=" * 100
+        )
+
+        print(
+            "PDF:",
+            pdf,
+        )
+
+        print(
+            "INDEX PDF PAGES:",
+            f"{INDEX_START_PDF_PAGE}"
+            f"-"
+            f"{INDEX_END_PDF_PAGE}",
+        )
+
+        print(
+            "REGULATIONS:",
+            len(entries),
+        )
+
+        print(
+            "APPENDICES:",
+            len(appendices),
+        )
+
+        print(
+            "VALIDATION ERRORS:",
+            len(errors),
+        )
+
+        print()
+
+        if errors:
+
+            print(
+                "VALIDATION ERRORS"
+            )
+
+            print(
+                "-" * 100
+            )
+
+            for error in errors[
+                :100
+            ]:
+
+                print(
+                    error
+                )
+
+        print()
+
+        print(
+            "FIRST 20 REGULATIONS"
+        )
+
+        print(
+            "-" * 100
+        )
+
+        for entry in entries[
+            :20
+        ]:
+
+            print(
+                f"{entry.number:18} "
+                f"chapter={entry.chapter:3} "
+                f"printed="
+                f"{entry.printed_page_start:4}-"
+                f"{str(entry.printed_page_end):4} "
+                f"pdf="
+                f"{str(entry.pdf_page_start):4}-"
+                f"{str(entry.pdf_page_end):4} "
+                f"{entry.title}"
+            )
+
+        print()
+
+        print(
+            "LAST 20 REGULATIONS"
+        )
+
+        print(
+            "-" * 100
+        )
+
+        for entry in entries[
+            -20:
+        ]:
+
+            print(
+                f"{entry.number:18} "
+                f"chapter={entry.chapter:3} "
+                f"printed="
+                f"{entry.printed_page_start:4}-"
+                f"{str(entry.printed_page_end):4} "
+                f"pdf="
+                f"{str(entry.pdf_page_start):4}-"
+                f"{str(entry.pdf_page_end):4} "
+                f"{entry.title}"
+            )
+
+        print()
+
+        print(
+            "MANIFEST:",
+            output,
+        )
+
+        print(
+            "=" * 100
+        )
+
+    finally:
+
+        doc.close()
+
+
+if __name__ == "__main__":
+    main()

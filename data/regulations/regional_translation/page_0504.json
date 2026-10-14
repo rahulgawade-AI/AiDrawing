@@ -1,0 +1,42 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 504,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0504.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "maintenance. Empty pipes (large size Hume pipes / HDPE pipes) should be laid before planting trees in order to accommodate additional Infrastructure.\n2) Design criteria and standards utilities should meet the following criteria :\nTelecommunication cables should ideally be placed below the parking area or service lane, which may be dug up easily without causing major inconvenience. Where this is not possible, the cables may be placed at the outer edge of the right-of-way. Telecom boxes should be placed in easements just off the right-of-way. Where this is not possible, they should be placed within parking or landscaping areas. If cables have to be located in the pedestrian path, a space of at least 2.0 m. should be maintained for the through movement of pedestrians. Telecom boxes should never constrain the width of a Cycle Track.\nd) While preparing the building plans, properly demarcated sections within buildings and on rooftops for housing Broad Band / digital connectivity infrastructure / antenna shall be shown on plans.  e) The layout plans should clearly indicate the telecom as Utility Infrastructure lines.  f) While submitting the proposed Building plan seeking approval from the relevant sanctioning Authority, applicant shall also submit a complete Service Plan for In Building Solutions (IBS) -Infrastructure along with required specifications (in consultation with, and certified by a credible Telecom Networking hardware-consultant)  g) Occupancy / Building Completion certificate to a building to be granted only after ensuring that the Common Telecommunication Infrastructure as per the prescribed standards is in place.  h) Visit from Department of Telecom (DOT) / TRAI officials along-with joint inspection with Telecom Service Providers (TSPs) who may suggest any relevant modification in the plan may be arranged, if required by Planning Authorities.  i) For any other necessary detailing of building components and service installations w.r.t. Common Telecom / Digital Connectivity Infrastructure, Architects / Developers and other service consultants involved in preparing building and service drawings may refer Part 8 - Section 6 : Information and communication Enabled Installations of Volume 2 of the National Building Code, 2016 and the norms of Department of Telecommunication / Information Technology or concerned Department of the Central / State Government, if any.\n(डॉ. प्रतिभा भदाणे) सह सचिव, महाराष्ट्र शासन\nC:\\User\\mantralay\\Desktop\\Building By Laws 25.08.2023.docx 6\n488",
+  "translated_english_text": "maintenance. Empty pipes (large size Hume pipes / HDPE pipes) should be laid before planting trees in order to accommodate additional Infrastructure.\n2) Design criteria and standards utilities should meet the following criteria :\nTelecommunication cables should ideally be placed below the parking area or service lane, which may be dug up easily without causing major inconvenience. Where this is not possible, the cables may be placed at the outer edge of the right-of-way. Telecom boxes should be placed in easements just off the right-of-way. Where this is not possible, they should be placed within parking or landscaping areas. If cables have to be located in the pedestrian path, a space of at least 2.0 m. should be maintained for the through movement of pedestrians. Telecom boxes should never constrain the width of a Cycle Track.\nd) While preparing the building plans, properly demarcated sections within buildings and on rooftops for housing Broad Band / digital connectivity infrastructure / antenna shall be shown on plans.  e) The layout plans should clearly indicate the telecom as Utility Infrastructure lines.  f) While submitting the proposed Building plan seeking approval from the relevant sanctioning Authority, applicant shall also submit a complete Service Plan for In Building Solutions (IBS) -Infrastructure along with required specifications (in consultation with, and certified by a credible Telecom Networking hardware-consultant)  g) Occupancy / Building Completion certificate to a building to be granted only after ensuring that the Common Telecommunication Infrastructure as per the prescribed standards is in place.  h) Visit from Department of Telecom (DOT) / TRAI officials along-with joint inspection with Telecom Service Providers (TSPs) who may suggest any relevant modification in the plan may be arranged, if required by Planning Authorities.  i) For any other necessary detailing of building components and service installations w.r.t. Common Telecom / Digital Connectivity Infrastructure, Architects / Developers and other service consultants involved in preparing building and service drawings may refer Part 8 - Section 6 : Information and communication Enabled Installations of Volume 2 of the National Building Code, 2016 and the norms of Department of Telecommunication / Information Technology or concerned Department of the Central / State Government, if any.\n(Dr. Pratibha Bhadane) Under Secretary, Maharashtra Government\nC:\\User\\mantralay\\Desktop\\Building By Laws 25.08.2023.docx 6\n488 /think",
+  "validation": {
+    "original_regulation_numbers": [
+      "2.0",
+      "25.08.2023"
+    ],
+    "translated_regulation_numbers": [
+      "2.0",
+      "25.08.2023"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [
+      "25.08.2023"
+    ],
+    "translated_dates": [
+      "25.08.2023"
+    ],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 2519,
+    "translated_characters": 2544,
+    "elapsed_seconds": 126.45
+  }
+}

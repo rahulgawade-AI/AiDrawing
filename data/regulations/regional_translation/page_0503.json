@@ -1,0 +1,58 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 503,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0503.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "परिशिष्ट\n(केंद्र शासनाच्या गृहनिर्माण व शहरी मंत्रालय विभागाने जारी केलेल्या addendum to model building Bye-Laws 2016 या विनियमांचा अंतर्भाव राज्यातील सर्व नियोजन प्राधिकरणांच्या मंजूर विकास नियंत्रण नियमावलीमध्ये करणेबाबत विनियम)\nArchitects / Developer &amp; Planning Authority Officer approving the plans shall ensure that the following provisions are incorporated in the building plans -\na) Plan for creation of Common Telecommunication Infrastructure including the common duct to access the common space used as telecom room inside the building is also prepared and separate set of drawings showing the inter / intra connectivity access to the building with distribution network.\nb) In Building Solutions In Built Solutions (IBS) - Installation spaces : area for rooms or systems should be provided as given below : -\n(I) Telecom Room Space for the building with built-up area more than 465 sq.mt.\nSr. No. \n Area to be covered by IBS \n Size of Telecom Room (all dimension in m.) \n \n \n \n \n 1 \n Upto 465 sq.mt \n 3.0 m. x 2.4 m. \n \n \n 2 \n 465 sq.mt. to 930 sq.mt \n 3.0 m. x 3.4 m. \n \n \n 3 \n More than 930.0 sq.mt \n Additional Telecom Room required with same space norms\n(II) Telecom Room Space requirements for the smaller building with built-up area less than 465 sq.mt.\nSr. No. \n Area to be covered by IBS \n Size of Telecom Room (all dimension in m.) \n \n \n \n \n 1 \n Upto 93.0 sq.mt \n Wall cabinets, Self contained enclosed cabinets \n \n \n 2 \n 93.0 sq.mt. to 465.0 sq.mt. \n i) Shallow Room - 0.6 m. x 2.6 m. ii) Walk - in Room 1.3 m. x 1.3 m\n(III) In Building Solutions In Built Solutions (IBS) -installation spaces, so provided, should be :\n• It should not susceptible to flooding \n • It should not exposed to water, moisture, fumes, gases or dust \n • It should be able to with stand designed equipment load (to be specified in design) \n • It should be located away from any vibrations to avoid dislocation / dislodgement\nc) At Layout Level -\n1) The placement and sequence of above-and below-ground utilities at the appropriate location in the right-of-way to be ensured for unconstrained movement as well as easy access for\nC:\\Users\\mantralay\\Desktop\\Building By Laws 25.08.2023.docx\n487",
+  "translated_english_text": "Appendix\n(Addendum to Model Building Bye-Laws 2016 issued by the Ministry of Housing and Urban Affairs, Central Government, incorporated in the approved Development Control Regulations of all planning authorities in the State)\nArchitects / Developer & Planning Authority Officer approving the plans shall ensure that the following provisions are incorporated in the building plans -\na) Plan for creation of Common Telecommunication Infrastructure including the common duct to access the common space used as telecom room inside the building is also prepared and separate set of drawings showing the inter / intra connectivity access to the building with distribution network.\nb) In Building Solutions In Built Solutions (IBS) - Installation spaces : area for rooms or systems should be provided as given below : -\n(I) Telecom Room Space for the building with built-up area more than 465 sq.mt.\nSr. No. \n Area to be covered by IBS \n Size of Telecom Room (all dimension in m.) \n \n \n \n \n 1 \n Upto 465 sq.mt \n 3.0 m. x 2.4 m. \n \n \n 2 \n 465 sq.mt. to 930 sq.mt \n 3.0 m. x 3.4 m. \n \n \n 3 \n More than 930.0 sq.mt \n Additional Telecom Room required with same space norms\n(II) Telecom Room Space requirements for the smaller building with built-up area less than 465 sq.mt.\nSr. No. \n Area to be covered by IBS \n Size of Telecom Room (all dimension in m.) \n \n \n \n \n 1 \n Upto 93.0 sq.mt \n Wall cabinets, Self contained enclosed cabinets \n \n \n 2 \n 93.0 sq.mt. to 465.0 sq.mt. \n i) Shallow Room - 0.6 m. x 2.6 m. ii) Walk - in Room 1.3 m. x 1.3 m\n(III) In Building Solutions In Built Solutions (IBS) -installation spaces, so provided, should be :\n• It should not susceptible to flooding \n• It should not exposed to water, moisture, fumes, gases or dust \n• It should be able to with stand designed equipment load (to be specified in design) \n• It should be located away from any vibrations to avoid dislocation / dislodgement\nc) At Layout Level -\n1) The placement and sequence of above-and below-ground utilities at the appropriate location in the right-of-way to be ensured for unconstrained movement as well as easy access for\nC:\\Users\\mantralay\\Desktop\\Building By Laws 25.08.2023.docx\n487 /think",
+  "validation": {
+    "original_regulation_numbers": [
+      "3.0",
+      "2.4",
+      "3.4",
+      "930.0",
+      "93.0",
+      "465.0",
+      "0.6",
+      "2.6",
+      "1.3",
+      "25.08.2023"
+    ],
+    "translated_regulation_numbers": [
+      "3.0",
+      "2.4",
+      "3.4",
+      "930.0",
+      "93.0",
+      "465.0",
+      "0.6",
+      "2.6",
+      "1.3",
+      "25.08.2023"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [
+      "25.08.2023"
+    ],
+    "translated_dates": [
+      "25.08.2023"
+    ],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 2189,
+    "translated_characters": 2185,
+    "elapsed_seconds": 107.39
+  }
+}

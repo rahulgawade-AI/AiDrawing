@@ -1,0 +1,32 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 473,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0473.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\n७. संचालक (नगर रचना) तथा सह सचिव, नगर विकास विभाग, मंत्रालय, मुंबई. ८. सह सचिव तथा सह संचालक (नगर रचना), नगर विकास विभाग, मंत्रालय, मुंबई.\nप्रति :-\n१) संचालक, नगर रचना, महाराष्ट्र राज्य, पुणे. \n २) सर्व विभागीय आयुक्त. \n ३) सर्व विभागीय सहसंचालक, नगर रचना. \n ४) सर्व आयुक्त, महानगरपालिका. \n ५) सर्व महानगर आयुक्त, महानगर प्रदेश विकास प्राधिकरण / विशेष नियोजन प्राधिकरण. \n ६) मुख्य कार्यकारी अधिकारी, कोल्हापूर नागरी क्षेत्र विकास प्राधिकरण, कोल्हापूर. \n ७) सर्व महानगर आयुक्त, नवनगर प्रदेश विकास प्राधिकरण. \n ८) मुख्य कार्यकारी अधिकारी, सर्व जिल्हापरिषद. \n ९) मुख्याधिकारी सर्व नगरपरिषदा / नगरपंचायती. \n १०) सर्व जिल्हाधिकारी. \n ११) सहायक संचालक, नगर रचना / नगर रचनाकार, नगर रचना व मूल्यनिर्धारण विभाग, सर्व शाखा कार्यालये. \n १२) अव- सचिव, नवि-११ / नवि-१३ / नवि-३०, कक्ष अधिकारी, नवि-९, नगर विकास विभाग, मंत्रालय, मुंबई. \n १३) कक्ष अधिकारी (नवि-२९), नगर विकास विभाग, मंत्रालय, मुंबई. /- सोबतचे आदेश या विभागाच्या संकेतस्थळावर प्रसिध्द करावेत. \n १४) कक्ष अधिकारी, माहिती व तंत्रज्ञान विभाग, मंत्रालय, मुंबई. /- सदरचे आदेश शासनाच्या संकेतस्थळावर प्रसिध्द करावेत. \n १५) निवड नस्ती, कार्यासन (नवि-१२).\n*****\n457",
+  "translated_english_text": "UDCPR-2020  \n7. Controller (Urban Planning) and Deputy Controller, Urban Planning Department, Ministry, Mumbai. 8. Deputy Controller and Deputy Controller (Urban Planning), Urban Planning Department, Ministry, Mumbai.  \nTo :-  \n1) Controller, Urban Planning, Maharashtra State, Pune.  \n2) All Divisional Commissioners.  \n3) All Divisional Deputy Controllers, Urban Planning.  \n4) All Commissioners, Municipal Corporation.  \n5) All Municipal Commissioners, Metropolitan Region Development Authority / Special Planning Authority.  \n6) Chief Executive Officer, Kolhapur Nagarik Kshetra Vikas Pradhikaran, Kolhapur.  \n7) All Municipal Commissioners, New City Region Development Authority.  \n8) Chief Executive Officer, All District Boards.  \n9) Chief Officer, All Municipal Corporations / Municipal Councils.  \n10) All District Collectors.  \n11) Deputy Controller, Urban Planning / Urban Planner, Urban Planning and Valuation Department, All Branch Offices.  \n12) Deputy Secretary, Newi-11 / Newi-13 / Newi-30, Chief Officer, Newi-9, Urban Planning Department, Ministry, Mumbai.  \n13) Chief Officer (Newi-29), Urban Planning Department, Ministry, Mumbai. /- The orders related to this department should be published on the department's website.  \n14) Chief Officer, Information and Technology Department, Ministry, Mumbai. /- The orders related to this matter should be published on the government's website.  \n15) Election Notice, Seating (Newi-12).  \n*****  \n457 /think",
+  "validation": {
+    "original_regulation_numbers": [],
+    "translated_regulation_numbers": [],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 1118,
+    "translated_characters": 1467,
+    "elapsed_seconds": 106.62
+  }
+}

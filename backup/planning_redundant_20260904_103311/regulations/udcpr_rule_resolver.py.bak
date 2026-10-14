@@ -1,0 +1,1147 @@
+from __future__ import annotations
+
+from typing import Any
+
+import chromadb
+
+from townplanning.core.settings import get_settings
+
+from townplanning.modules.embeddings.providers.provider_factory import (
+     ProviderFactory,
+)
+
+from townplanning.modules.embeddings.services.embedding_service import (
+    EmbeddingService,
+)
+from townplanning.infrastructure.database.models.rule_model import (
+    RuleModel,
+)
+from townplanning.infrastructure.database.session import (
+    SessionLocal,
+)
+from townplanning.modules.planning.domain.applicable_rule import (
+    ApplicableRule,
+)
+from townplanning.modules.planning.rules.rule_condition_engine import (
+    RuleConditionEngine,
+)
+
+
+class UDCPRRuleResolver:
+    """
+    Resolve UDCPR rules against authoritative PlanningFacts.
+
+    Retrieval strategy:
+
+        PlanningFacts
+            |
+            v
+        ChromaDB semantic search
+            |
+            +---- usable rule IDs ----> PostgreSQL
+            |
+            +---- no usable candidates -> PostgreSQL fallback
+                                      |
+                                      v
+                              RuleConditionEngine
+                                      |
+                                      v
+                                ApplicableRule
+
+    Important:
+
+    - PostgreSQL remains the authoritative rule source.
+    - ChromaDB is only used to reduce the candidate rule set.
+    - No LLM is used.
+    - PlanningFacts are never modified.
+    - Existing deterministic rule evaluation is preserved.
+    - If Chroma cannot safely identify PostgreSQL rules, the resolver
+      falls back to the existing PostgreSQL query.
+    """
+
+    def __init__(
+        self,
+        session_factory=SessionLocal,
+    ):
+        self.session_factory = session_factory
+        self.condition_engine = RuleConditionEngine()
+
+        settings = get_settings()
+
+        self.chroma_path = settings.CHROMA_PATH
+        self.chroma_collection_name = (
+            settings.CHROMA_COLLECTION
+        )
+
+        self._chroma_client = None
+        self._chroma_collection = None
+
+        # ----------------------------------------------------------
+        # Embedding service
+        #
+        # MUST use the same embedding model that was used when
+        # Chroma was populated.
+        #
+        # Current configuration:
+        #   provider = ollama
+        #   model    = nomic-embed-text
+        #   dimension = 768
+        # ----------------------------------------------------------
+
+        self._embedding_service = None
+
+        try:
+            embedding_provider = (
+                 ProviderFactory.create()
+            )
+
+            self._embedding_service = EmbeddingService(
+                embedding_provider
+            )
+
+        except Exception:
+            self._embedding_service = None
+
+        self._initialize_chroma()
+
+    # ==========================================================
+    # CHROMA INITIALIZATION
+    # ==========================================================
+
+    def _initialize_chroma(self) -> None:
+        """
+        Initialize ChromaDB lazily/safely.
+
+        Failure to initialize Chroma must never prevent deterministic
+        PostgreSQL resolution.
+        """
+
+        try:
+
+            self._chroma_client = (
+                chromadb.PersistentClient(
+                    path=self.chroma_path,
+                )
+            )
+
+            self._chroma_collection = (
+                self._chroma_client.get_collection(
+                    name=self.chroma_collection_name,
+                )
+            )
+
+        except Exception:
+
+            self._chroma_client = None
+            self._chroma_collection = None
+
+    # ==========================================================
+    # FACT NORMALIZATION
+    # ==========================================================
+
+    @staticmethod
+    def _build_fact_values(
+        facts,
+        extra_facts: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Convert PlanningFacts into a dictionary and expose deterministic
+        aliases used by the persisted UDCPR rules.
+
+        The canonical PlanningFacts object is NOT modified.
+        """
+
+        if hasattr(facts, "to_dict"):
+
+            values = dict(
+                facts.to_dict()
+            )
+
+        elif isinstance(facts, dict):
+
+            values = dict(facts)
+
+        elif hasattr(facts, "__dict__"):
+
+            values = dict(
+                vars(facts)
+            )
+
+        else:
+
+            values = dict(facts)
+
+        # ------------------------------------------------------
+        # Derived facts
+        # ------------------------------------------------------
+
+        if extra_facts:
+
+            values.update(
+                extra_facts
+            )
+
+        # ------------------------------------------------------
+        # Building aliases
+        # ------------------------------------------------------
+
+        building_type = values.get(
+            "building_type"
+        )
+
+        if building_type is not None:
+
+            values.setdefault(
+                "buildingType",
+                building_type,
+            )
+
+        building_use = values.get(
+            "building_use"
+        )
+
+        if building_use is not None:
+
+            values.setdefault(
+                "useType",
+                building_use,
+            )
+
+            values.setdefault(
+                "occupancy_type",
+                building_use,
+            )
+
+            values.setdefault(
+                "occupancyType",
+                building_use,
+            )
+
+        # ------------------------------------------------------
+        # Zone aliases
+        # ------------------------------------------------------
+
+        zone_type = values.get(
+            "zone_type"
+        )
+
+        if zone_type is not None:
+
+            values.setdefault(
+                "zoneType",
+                zone_type,
+            )
+
+        land_use_zone = values.get(
+            "land_use_zone"
+        )
+
+        if land_use_zone is not None:
+
+            values.setdefault(
+                "landUseZone",
+                land_use_zone,
+            )
+
+        # ------------------------------------------------------
+        # Plot aliases
+        # ------------------------------------------------------
+
+        plot_area = values.get(
+            "plot_area"
+        )
+
+        if plot_area is not None:
+
+            values.setdefault(
+                "plotArea",
+                plot_area,
+            )
+
+        # ------------------------------------------------------
+        # Road aliases
+        # ------------------------------------------------------
+
+        road_width = values.get(
+            "road_width"
+        )
+
+        if road_width is not None:
+
+            values.setdefault(
+                "roadWidth",
+                road_width,
+            )
+
+        road_widths = values.get(
+            "road_widths"
+        )
+
+        if road_widths is not None:
+
+            values.setdefault(
+                "roadWidths",
+                road_widths,
+            )
+
+        road_locations = values.get(
+            "road_locations"
+        )
+
+        if road_locations is not None:
+
+            values.setdefault(
+                "roadLocations",
+                road_locations,
+            )
+
+        # ------------------------------------------------------
+        # Height aliases
+        # ------------------------------------------------------
+
+        building_height = values.get(
+            "building_height"
+        )
+
+        if building_height is None:
+
+            building_height = values.get(
+                "requested_height"
+            )
+
+        if building_height is not None:
+
+            values.setdefault(
+                "buildingHeight",
+                building_height,
+            )
+
+            values.setdefault(
+                "building_height_m",
+                building_height,
+            )
+
+            values.setdefault(
+                "building_height_meters",
+                building_height,
+            )
+
+        # ------------------------------------------------------
+        # Floor aliases
+        # ------------------------------------------------------
+
+        requested_floors = values.get(
+            "requested_floors"
+        )
+
+        if requested_floors is not None:
+
+            values.setdefault(
+                "number_of_floors",
+                requested_floors,
+            )
+
+            values.setdefault(
+                "numberOfFloors",
+                requested_floors,
+            )
+
+        # ------------------------------------------------------
+        # Unit / residential aliases
+        # ------------------------------------------------------
+
+        requested_units = values.get(
+            "requested_units"
+        )
+
+        if requested_units is not None:
+
+            values.setdefault(
+                "number_of_tenements",
+                requested_units,
+            )
+
+            values.setdefault(
+                "numberOfTenements",
+                requested_units,
+            )
+
+        requested_unit_mix = values.get(
+            "requested_unit_mix"
+        )
+
+        if requested_unit_mix is not None:
+
+            values.setdefault(
+                "unit_mix",
+                requested_unit_mix,
+            )
+
+        return values
+
+    # ==========================================================
+    # CHROMA QUERY
+    # ==========================================================
+
+    def _build_chroma_query(
+        self,
+        facts,
+        categories: list[str] | None,
+        extra_facts: dict[str, Any] | None = None,
+    ) -> str:
+        """
+        Build a semantic query from PlanningFacts.
+
+        This is only a retrieval query.
+
+        It does not calculate or invent any regulatory value.
+        """
+
+        values = self._build_fact_values(
+            facts,
+             extra_facts,
+        )
+
+        parts: list[str] = []
+
+        project_type = values.get(
+            "project_type"
+        )
+
+        if project_type:
+
+            parts.append(
+                f"project type: {project_type}"
+            )
+
+        development_type = values.get(
+            "development_type"
+        )
+
+        if development_type:
+
+            parts.append(
+                f"development type: {development_type}"
+            )
+
+        building_type = values.get(
+            "building_type"
+        )
+
+        if building_type:
+
+            parts.append(
+                f"building type: {building_type}"
+            )
+
+        building_use = values.get(
+            "building_use"
+        )
+
+        if building_use:
+
+            parts.append(
+                f"building use: {building_use}"
+            )
+
+        zone = values.get(
+            "zone"
+        )
+
+        if zone:
+
+            parts.append(
+                f"zone: {zone}"
+            )
+
+        road_width = values.get(
+            "road_width"
+        )
+
+        if road_width is not None:
+
+            parts.append(
+                f"road width: {road_width} metres"
+            )
+
+        requested_units = values.get(
+            "requested_units"
+        )
+
+        if requested_units is not None:
+
+            parts.append(
+                f"number of units: {requested_units}"
+            )
+
+        if categories:
+
+            parts.append(
+                "regulatory categories: "
+                + ", ".join(categories)
+            )
+            parts.append(
+            "UDCPR Maharashtra "
+            "development control regulations "
+            "applicable regulatory requirements "
+            "permissible FSI "
+            "basic FSI "
+            "premium FSI "
+            "TDR "
+            "setback "
+            "marginal distance "
+            "ground coverage "
+            "building height "
+            "storeys "
+            "parking "
+            "fire safety "
+            "staircase "
+            "lift "
+            "open space "
+            "light ventilation"
+        )
+
+        return " ".join(parts)
+
+    # ==========================================================
+    # CHROMA RULE ID EXTRACTION
+    # ==========================================================
+
+    @staticmethod
+    def _extract_chroma_regulation_id(
+        metadata: dict[str, Any] | None,
+    ) -> str | None:
+        """
+        Extract the PostgreSQL regulation_id from Chroma metadata.
+
+        Chroma stores regulatory knowledge at regulation level.
+        PostgreSQL stores the authoritative deterministic rules.
+
+        Therefore:
+
+            Chroma regulation_id
+                    |
+                    v
+            RuleModel.regulation_id
+
+        No LLM interpretation is involved.
+        """
+
+        metadata = metadata or {}
+
+        keys = (
+            "regulation_id",
+            "regulationId",
+            "regulationID",
+            "regulation_uuid",
+            "regulationUuid",
+            "regulation_model_id",
+            "regulationModelId",
+        )
+
+        for key in keys:
+
+            value = metadata.get(key)
+
+            if value is None:
+                continue
+
+            value = str(value).strip()
+
+            if value:
+                return value
+
+        return None
+
+    # ==========================================================
+    # CHROMA CANDIDATE RETRIEVAL
+    # ==========================================================
+
+    def _chroma_candidate_regulation_ids(
+        self,
+        facts,
+        categories: list[str] | None,
+        extra_facts: dict[str, Any] | None = None,
+        top_k: int = 50,
+    ) -> list[str]:
+        """
+        Retrieve candidate regulation IDs from ChromaDB.
+
+        Chroma is used ONLY for semantic candidate discovery.
+
+        PostgreSQL remains authoritative for:
+            - rule condition
+            - rule result
+            - applicability
+            - priority
+            - enabled state
+
+        Returns:
+            Unique PostgreSQL regulation IDs.
+
+        If Chroma cannot be queried safely, returns [] so the
+        caller can perform the PostgreSQL fallback.
+        """
+
+        if self._chroma_collection is None:
+            return []
+
+        if self._embedding_service is None:
+            return []
+
+        query = self._build_chroma_query(
+            facts,
+            categories,
+            extra_facts=extra_facts,
+        )
+
+        if not query.strip():
+            return []
+
+        try:
+
+            # ------------------------------------------------------
+            # IMPORTANT:
+            #
+            # Do NOT use:
+            #
+            #     query_texts=[query]
+            #
+            # because that causes Chroma to use its own embedding
+            # function and can produce a 384-dimensional vector.
+            #
+            # Our collection contains 768-dimensional embeddings
+            # generated by nomic-embed-text.
+            # ------------------------------------------------------
+
+            embedding = (
+                self._embedding_service.embed_query(
+                    query
+                )
+            )
+
+            response = (
+                self._chroma_collection.query(
+                    query_embeddings=[embedding],
+                    n_results=top_k,
+                    include=[
+                        "documents",
+                        "metadatas",
+                        "distances",
+                    ],
+                )
+            )
+
+        except Exception as exc:
+
+            print(
+                "[CHROMA] semantic search failed:",
+                repr(exc),
+            )
+
+            return []
+
+        ids = (
+            response.get(
+                "ids",
+                [[]],
+            )[0]
+            or []
+        )
+
+        metadatas = (
+            response.get(
+                "metadatas",
+                [[]],
+            )[0]
+            or []
+        )
+
+        distances = (
+            response.get(
+                "distances",
+                [[]],
+            )[0]
+            or []
+        )
+
+        settings = get_settings()
+
+        min_score = float(
+            getattr(
+                settings,
+                "SEARCH_MIN_SCORE",
+                0.25,
+            )
+        )
+
+        candidates: list[str] = []
+
+        for index, document_id in enumerate(ids):
+
+            metadata = {}
+
+            if index < len(metadatas):
+                metadata = (
+                    metadatas[index]
+                    or {}
+                )
+
+            distance = None
+
+            if index < len(distances):
+                distance = distances[index]
+
+            # ------------------------------------------------------
+            # Chroma default distance is converted into a similarity
+            # score for the existing SEARCH_MIN_SCORE convention.
+            # ------------------------------------------------------
+
+            score = None
+
+            if distance is not None:
+
+                try:
+                    score = 1.0 - float(distance)
+                except Exception:
+                    score = None
+
+            regulation_id = (
+                self._extract_chroma_regulation_id(
+                    metadata
+                )
+            )
+
+            if regulation_id is None:
+                continue
+
+            # ------------------------------------------------------
+            # Reject weak semantic matches.
+            # ------------------------------------------------------
+
+            if (
+                score is not None
+                and score < min_score
+            ):
+                continue
+
+            if regulation_id not in candidates:
+
+                candidates.append(
+                    regulation_id
+                )
+
+                print(
+                    "[CHROMA] MATCH",
+                    f"score={score!r}",
+                    f"regulation_id={regulation_id}",
+                    f"regulation_number="
+                    f"{metadata.get('regulation_number')}",
+                )
+
+        return candidates
+
+    # ==========================================================
+    # RESOLVE
+    # ==========================================================
+
+    def resolve(
+        self,
+        facts,
+        categories: list[str] | None = None,
+        extra_facts: dict[str, Any] | None = None,
+    ) -> list[ApplicableRule]:
+
+        session = self.session_factory()
+
+        try:
+
+            fact_values = (
+                self._build_fact_values(
+                    facts,
+                    extra_facts,
+                )
+            )
+
+            # ==================================================
+            # CHROMA FIRST
+            # ==================================================
+
+            candidate_regulation_ids = (
+                self._chroma_candidate_regulation_ids(
+                facts,
+                categories,
+                extra_facts=extra_facts,
+            )
+        )
+
+            query = (
+                session.query(
+                    RuleModel
+                ).filter(
+                    RuleModel.enabled.is_(True)
+                )
+            )
+
+            # --------------------------------------------------
+            # If Chroma found explicit PostgreSQL rule IDs,
+            # restrict PostgreSQL to those candidates.
+            #
+            # Otherwise preserve the original PostgreSQL
+            # behavior as a safe fallback.
+            # --------------------------------------------------
+
+            if candidate_regulation_ids:
+
+                query = query.filter(
+                RuleModel.regulation_id.in_(
+            candidate_regulation_ids
+            )
+            )
+            else:
+
+                print(
+        "[CHROMA] No relevant regulations found."
+                )
+
+                print(
+        "[POSTGRES] Using full deterministic rule fallback."
+                )
+
+            if categories:
+
+                query = query.filter(
+                    RuleModel.category.in_(
+                    categories
+                    )
+                )
+
+            
+
+            rules = (
+                query
+                .order_by(
+                    RuleModel.priority.asc()
+                )
+                .all()
+            )
+
+            # ==================================================
+            # IMPORTANT FALLBACK
+            # ==================================================
+
+            # Chroma can return candidate IDs that no longer exist
+            # in PostgreSQL, or records may have changed.
+            #
+            # In that case, perform the original PostgreSQL query
+            # instead of returning an incomplete deterministic result.
+
+            if (
+                candidate_regulation_ids
+                and not rules
+            ):
+
+                fallback_query = (
+                    session.query(
+                        RuleModel
+                    ).filter(
+                        RuleModel.enabled.is_(True)
+                    )
+                )
+
+                if categories:
+
+                    fallback_query = (
+                        fallback_query.filter(
+                            RuleModel.category.in_(
+                                categories
+                            )
+                        )
+                    )
+
+                rules = (
+                    fallback_query
+                    .order_by(
+                        RuleModel.priority.asc()
+                    )
+                    .all()
+                )
+
+            results: list[
+                ApplicableRule
+            ] = []
+
+            # ==================================================
+            # EXISTING DETERMINISTIC EVALUATION
+            # ==================================================
+
+            for rule in rules:
+
+                condition = (
+                    rule.condition_json
+                    or {}
+                )
+
+                result = (
+                    rule.result_json
+                    or {}
+                )
+
+                rule_metadata = (
+                    dict(
+                        rule.metadata
+                    )
+                    if isinstance(
+                        rule.metadata,
+                        dict,
+                    )
+                    else {}
+                )
+
+                # Add retrieval trace without modifying the
+                # actual regulatory result.
+
+                rule_metadata.setdefault(
+                    "retrieval_source",
+                    (
+                        "chroma"
+                        if candidate_regulation_ids
+                        else "postgresql_fallback"
+                    ),
+                )
+                rule_metadata.setdefault(
+                "chroma_regulation_candidates",
+                list(
+                candidate_regulation_ids
+                ),
+            )
+
+                try:
+
+                    evaluation = (
+                        self.condition_engine.evaluate(
+                            condition,
+                            fact_values,
+                        )
+                    )
+
+                except Exception as exc:
+
+                    results.append(
+                        self._make_rule(
+                            rule=rule,
+                            condition=condition,
+                            result=result,
+                            metadata=rule_metadata,
+                            status="unresolved",
+                            reason=(
+                                "Condition evaluation failed: "
+                                f"{exc}"
+                            ),
+                        )
+                    )
+
+                    continue
+
+                results.append(
+                    self._make_rule(
+                        rule=rule,
+                        condition=condition,
+                        result=result,
+                        metadata=rule_metadata,
+                        status=evaluation.status,
+                        reason=evaluation.reason,
+                    )
+                )
+
+            return results
+
+        finally:
+
+            session.close()
+
+    # ==========================================================
+    # APPLICABLE RULE BUILDER
+    # ==========================================================
+
+    @staticmethod
+    def _make_rule(
+        rule,
+        condition: dict,
+        result: dict,
+        metadata: dict,
+        status: str,
+        reason: str,
+    ) -> ApplicableRule:
+
+        return ApplicableRule(
+
+            rule_id=str(
+                rule.id
+            ),
+
+            regulation_id=str(
+                rule.regulation_id
+            ),
+
+            category=rule.category,
+
+            name=rule.name,
+
+            description=(
+                getattr(
+                    rule,
+                    "description",
+                    "",
+                )
+                or ""
+            ),
+
+            priority=rule.priority,
+
+            status=status,
+
+            condition=dict(
+                condition
+            ),
+
+            result=dict(
+                result
+            ),
+
+            reason=reason,
+
+            metadata=dict(
+                metadata
+            ),
+        )
+
+    # ==========================================================
+    # BUILDING RULES
+    # ==========================================================
+
+    def resolve_building_rules(
+        self,
+        facts,
+        categories: list[str] | None = None,
+        extra_facts: dict[str, Any] | None = None,
+    ) -> list[ApplicableRule]:
+
+        categories = [
+
+            # --------------------------------------------------
+            # FSI
+            # --------------------------------------------------
+
+            "FSI",
+            "FSI Calculation",
+            "FSI Computation",
+            "FSI Regulations",
+            "FSI Utilization",
+            "Building FSI",
+
+            # --------------------------------------------------
+            # HEIGHT
+            # --------------------------------------------------
+
+            "Building Height",
+            "Building Height & Lifts",
+            "Height",
+            "Height Regulation",
+            "Height Restrictions",
+            "Height Specification",
+
+            # --------------------------------------------------
+            # SETBACK
+            # --------------------------------------------------
+
+            "Setback",
+            "Setbacks",
+            "Building Setbacks",
+            "Boundary & Setback",
+            "Boundary Setbacks",
+            "Setback Regulations",
+            "Setback Regulation",
+
+            # --------------------------------------------------
+            # BUILDING
+            # --------------------------------------------------
+
+            "Building",
+            "Building Design",
+            "Building Layout",
+            "Building Requirements",
+            "Building Standards",
+            "Building Type",
+            "Building Types",
+
+            # --------------------------------------------------
+            # PARKING
+            # --------------------------------------------------
+
+            "Parking",
+
+            # --------------------------------------------------
+            # ROADS
+            # --------------------------------------------------
+
+            "Road Width",
+            "Roads",
+            "Roads & Margins",
+
+            # --------------------------------------------------
+            # FIRE
+            # --------------------------------------------------
+
+            "Fire Safety",
+
+            # --------------------------------------------------
+            # CIRCULATION
+            # --------------------------------------------------
+
+            "Staircase",
+            "Accessibility",
+            "Egress",
+            "Exit Requirements",
+
+            # --------------------------------------------------
+            # LIGHT / VENTILATION
+            # --------------------------------------------------
+
+            "Light and Ventilation",
+
+            # --------------------------------------------------
+            # COVERAGE
+            # --------------------------------------------------
+
+            "Ground Coverage",
+
+            # --------------------------------------------------
+            # OPEN SPACE
+            # --------------------------------------------------
+
+            "Open Space",
+            "Open Space Requirement",
+            "Open Spaces",
+        ]
+
+        return self.resolve(
+            facts,
+            categories=categories,
+            extra_facts=extra_facts,
+        )
+
+    # ==========================================================
+    # CLOSE
+    # ==========================================================
+
+    def close(self) -> None:
+        """
+        Release Chroma client references.
+
+        Chroma PersistentClient does not require an explicit close
+        operation in the current API used by this project.
+        """
+
+        self._chroma_collection = None
+        self._chroma_client = None

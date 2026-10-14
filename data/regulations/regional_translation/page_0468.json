@@ -1,0 +1,36 @@
+{
+  "schema": "udcpr.regional.translation.v3",
+  "pdf_page": 468,
+  "source_ocr_file": "data/regulations/regional_ocr/page_0468.json",
+  "source_ocr_engine": "surya",
+  "source_ocr_mode": "full_page",
+  "source_ocr_language": "automatic_multilingual",
+  "translation_engine": "ollama",
+  "translation_model": "qwen3:8b",
+  "original_ocr_text": "UDCPR-2020\nनुसार रद्द होणार नसून अशी तरतुद अंमलात राहणार आहे. त्यामुळे विकास योजना मंजूरीच्या अधिसूचनेत आरेखकीय त्रुटी दुरुस्तीबाबत विशेष टिप अंतर्भूत असल्यास, अशा टिपेमधील तरतुदीनुसार संचालनालयाचे स्तरावरून कार्यवाही होणे अभिप्रेत व आवश्यक आहे.\nज्या विकास योजना मंजूरीच्या अधिसूचनेत आरेखकीय त्रुटी दुरुस्तीबाबतची तरतुद अंतर्भूत नसेल, अशावेळी UDCPR मधील विनियम क्र.२.५ नुसार कार्यवाही होणे अभिप्रेत आहे.\nआपला,\n(किशोर वि. गोखले)\nअवर सचिव, महाराष्ट्र शासन\nप्रत :-\n१. सह संचालक, नगर रचना, पुणे/औरंगाबाद/कोकण/नागपूर/नाशिक/अमरावती विभाग. \n २. सहायक संचालक, नगर रचना/नगर रचनाकार, सर्व शाखा कार्यालये. \n ३. अवर सचिव नवि-११/नवि-३०/कक्ष अधिकारी नवि-९/ कक्ष अधिकारी नवि-१२.\n452",
+  "translated_english_text": "UDCPR-2020\nAccording to the provisions, such provisions shall remain in force and not be repealed. Therefore, if there is a special note regarding correction of plan errors in the approval notification of the development plan, it is necessary and essential that action shall be taken at the level of the executing agency as per the provisions of such note.\nIf there is no provision regarding correction of plan errors in the approval notification of the development plan, then it is intended that action shall be taken as per Regulation No. 2.5 of UDCPR.\nYours,\n(Kishor V. Gokhale)\nUnder Secretary, Maharashtra Government\nCopy :-\n1. Additional Director, Urban Planning, Pune/Aurangabad/Konkan/Nagpur/Nashik/Amaravati Division.\n2. Additional Director, Urban Planning/Urban Planner, All Branch Offices.\n3. Under Secretary Newi-11/Newi-30/Department Officer Newi-9/Department Officer Newi-12.\n452 /think",
+  "validation": {
+    "original_regulation_numbers": [
+      "2.5"
+    ],
+    "translated_regulation_numbers": [
+      "2.5"
+    ],
+    "missing_regulation_numbers": [],
+    "original_dates": [],
+    "translated_dates": [],
+    "missing_dates": [],
+    "original_emails": [],
+    "translated_emails": [],
+    "missing_emails": [],
+    "original_notification_numbers": [],
+    "translated_notification_numbers": [],
+    "missing_notification_numbers": [],
+    "passed": true
+  },
+  "statistics": {
+    "source_characters": 667,
+    "translated_characters": 900,
+    "elapsed_seconds": 75.49
+  }
+}

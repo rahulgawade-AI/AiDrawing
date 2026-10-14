@@ -1,0 +1,1135 @@
+"""
+Generic PDF table extraction.
+
+Source extraction only.
+
+This module does NOT:
+    - calculate FSI
+    - calculate setbacks
+    - calculate height
+    - calculate floors
+    - calculate parking
+    - interpret regulatory applicability
+    - select regulatory rows
+    - infer regulatory values
+
+Special handling:
+    PyMuPDF may fail to recognize a continuation row on a
+    multi-page table. Missing rows are recovered directly from
+    PDF word coordinates.
+"""
+
+from __future__ import annotations
+
+import re
+from typing import Any
+
+from townplanning.modules.regulations.ingestion.table import (
+    ExtractedTable,
+)
+
+
+class TableExtractor:
+
+    def extract(
+        self,
+        reader,
+        page_number: int,
+    ) -> list[ExtractedTable]:
+
+        document = reader._document
+        page = document.load_page(
+            page_number - 1
+        )
+
+        raw_tables = self._find_tables(page)
+
+        tables = self._convert_tables(
+            raw_tables,
+            page_number,
+        )
+
+        tables = self._deduplicate_tables(
+            tables
+        )
+
+        tables = self._recover_continuation_rows(
+            page,
+            page_number,
+            tables,
+        )
+
+        return tables
+
+    # ================================================================
+    # PYMuPDF TABLE DETECTION
+    # ================================================================
+
+    def _find_tables(
+        self,
+        page: Any,
+    ) -> list[Any]:
+
+        try:
+            finder = page.find_tables()
+
+            tables = list(
+                getattr(
+                    finder,
+                    "tables",
+                    [],
+                )
+                or []
+            )
+
+            if tables:
+                return tables
+
+        except Exception:
+            pass
+
+        try:
+            finder = page.find_tables(
+                strategy="text"
+            )
+
+            return list(
+                getattr(
+                    finder,
+                    "tables",
+                    [],
+                )
+                or []
+            )
+
+        except Exception:
+            return []
+
+    def _convert_tables(
+        self,
+        tables: list[Any],
+        page_number: int,
+    ) -> list[ExtractedTable]:
+
+        output = []
+
+        for index, table in enumerate(
+            tables,
+            start=1,
+        ):
+            extracted = self._extract_table(
+                table,
+                page_number,
+                index,
+            )
+
+            if extracted is not None:
+                output.append(
+                    extracted
+                )
+
+        return output
+
+    def _extract_table(
+        self,
+        table: Any,
+        page_number: int,
+        index: int,
+    ) -> ExtractedTable | None:
+
+        try:
+            data = table.extract()
+        except Exception:
+            return None
+
+        if not data:
+            return None
+
+        normalized = self._normalize_matrix(
+            data
+        )
+
+        if not normalized:
+            return None
+
+        try:
+            markdown = (
+                table.to_markdown()
+                if hasattr(
+                    table,
+                    "to_markdown",
+                )
+                else ""
+            ) or ""
+        except Exception:
+            markdown = ""
+
+        headers = list(
+            normalized[0]
+        )
+
+        rows = [
+            list(row)
+            for row in normalized[1:]
+        ]
+
+        bbox = self._extract_bbox(
+            table
+        )
+
+        metadata = {
+            "extractor":
+                "pymupdf_table_extractor",
+
+            "source_page":
+                page_number,
+
+            "source_table_index":
+                index,
+
+            "row_count":
+                len(rows),
+
+            "column_count":
+                len(headers),
+
+            "has_markdown":
+                bool(markdown),
+
+            "has_bbox":
+                bbox is not None,
+
+            "header_detection": {
+                "method":
+                    "first_row",
+                "semantic_validation":
+                    False,
+            },
+        }
+
+        return ExtractedTable(
+            page=page_number,
+            index=index,
+            title="",
+            headers=headers,
+            header_rows=[headers],
+            rows=rows,
+            markdown=markdown,
+            bbox=bbox,
+            metadata=metadata,
+        )
+
+    # ================================================================
+    # DUPLICATE DETECTION
+    # ================================================================
+
+    def _deduplicate_tables(
+        self,
+        tables: list[ExtractedTable],
+    ) -> list[ExtractedTable]:
+
+        if len(tables) <= 1:
+            return tables
+
+        result = []
+
+        for table in tables:
+
+            duplicate = False
+
+            for existing in result:
+
+                if (
+                    table.page
+                    == existing.page
+                    and
+                    self._table_similarity(
+                        table,
+                        existing,
+                    )
+                ):
+                    duplicate = True
+                    break
+
+            if not duplicate:
+                result.append(
+                    table
+                )
+
+        return result
+
+    def _table_similarity(
+        self,
+        a: ExtractedTable,
+        b: ExtractedTable,
+    ) -> bool:
+
+        ca = len(a.headers)
+        cb = len(b.headers)
+
+        if abs(ca - cb) > 2:
+            return False
+
+        ra = len(a.rows)
+        rb = len(b.rows)
+
+        if ra < 5 or rb < 5:
+            return False
+
+        return (
+            ra > rb * 2
+            or rb > ra * 2
+        )
+
+    # ================================================================
+    # CONTINUATION RECOVERY
+    # ================================================================
+
+    def _recover_continuation_rows(
+        self,
+        page: Any,
+        page_number: int,
+        tables: list[ExtractedTable],
+    ) -> list[ExtractedTable]:
+
+        if not tables:
+            return tables
+
+        words = self._get_words(page)
+
+        if not words:
+            return tables
+
+        for table in tables:
+
+            existing_numbers = (
+                self._extract_row_numbers(
+                    table.rows
+                )
+            )
+
+            # On page 127 PyMuPDF gives:
+            #
+            # headers = row 6
+            # rows    = row 7
+            #
+            # Therefore the first real row exposed is 6.
+            first_existing = None
+
+            if existing_numbers:
+                first_existing = min(
+                    existing_numbers
+                )
+
+            header_number = (
+                self._row_number(
+                    table.headers
+                )
+            )
+
+            if header_number is not None:
+
+                if (
+                    first_existing is None
+                    or header_number
+                    < first_existing
+                ):
+                    first_existing = (
+                        header_number
+                    )
+
+            if first_existing is None:
+                continue
+
+            if first_existing <= 1:
+                continue
+
+            # Only recover a small missing prefix.
+            missing_numbers = list(
+                range(
+                    1,
+                    first_existing,
+                )
+            )
+
+            if len(missing_numbers) > 3:
+                continue
+
+            # Find the vertical location of the first
+            # existing source row.
+            first_row_y = (
+                self._find_existing_row_y(
+                    words,
+                    first_existing,
+                )
+            )
+
+            if first_row_y is None:
+                continue
+
+            # Derive column anchors from the actual
+            # detected continuation row.
+            anchors = (
+                self._derive_column_anchors(
+                    words,
+                    first_existing,
+                    first_row_y,
+                    table,
+                )
+            )
+
+            if not anchors:
+                continue
+
+            recovered = []
+
+            for number in missing_numbers:
+
+                row = (
+                    self._recover_row_before(
+                        words=words,
+                        row_number=number,
+                        upper_y=first_row_y,
+                        anchors=anchors,
+                        column_count=len(
+                            anchors
+                        ),
+                    )
+                )
+
+                if row is not None:
+                    recovered.append(
+                        row
+                    )
+
+            # A continuation table can have its first
+            # source row incorrectly placed into headers.
+            if header_number is not None:
+
+                header_as_row = list(
+                    table.headers
+                )
+
+                table.rows = [
+                    header_as_row
+                ] + list(
+                    table.rows
+                )
+
+                table.headers = [
+                    ""
+                    for _ in table.headers
+                ]
+
+                table.header_rows = []
+
+                metadata = dict(
+                    getattr(
+                        table,
+                        "metadata",
+                        {},
+                    )
+                    or {}
+                )
+
+                metadata[
+                    "continuation_header_reclassified"
+                ] = True
+
+                table.metadata = metadata
+
+            if recovered:
+
+                table.rows = (
+                    recovered
+                    + list(table.rows)
+                )
+
+                metadata = dict(
+                    getattr(
+                        table,
+                        "metadata",
+                        {},
+                    )
+                    or {}
+                )
+
+                metadata[
+                    "recovered_from_page_text"
+                ] = True
+
+                metadata[
+                    "recovery_method"
+                ] = (
+                    "pdf_word_coordinates"
+                )
+
+                metadata[
+                    "recovered_row_count"
+                ] = len(
+                    recovered
+                )
+
+                table.metadata = metadata
+
+        return tables
+
+    # ================================================================
+    # FIND EXISTING ROW POSITION
+    # ================================================================
+
+    def _find_existing_row_y(
+        self,
+        words: list[tuple],
+        row_number: int,
+    ) -> float | None:
+
+        candidates = []
+
+        for word in words:
+
+            if len(word) < 5:
+                continue
+
+            text = str(
+                word[4]
+            ).strip()
+
+            if text != str(
+                row_number
+            ):
+                continue
+
+            x0 = float(
+                word[0]
+            )
+
+            y0 = float(
+                word[1]
+            )
+
+            # Row numbers in the first column are
+            # normally near the left side of the page.
+            if x0 <= 165:
+                candidates.append(
+                    (
+                        y0,
+                        x0,
+                    )
+                )
+
+        if not candidates:
+            return None
+
+        candidates.sort(
+            key=lambda item: item[0]
+        )
+
+        return candidates[0][0]
+
+    # ================================================================
+    # COLUMN ANCHORS
+    # ================================================================
+
+    def _derive_column_anchors(
+        self,
+        words: list[tuple],
+        row_number: int,
+        row_y: float,
+        table: ExtractedTable,
+    ) -> list[float] | None:
+
+        """
+        Determine column x positions from the first real continuation
+        row.
+
+        For Table 6-D page 127 this naturally discovers approximately:
+
+            147  167  246  285  318  409  460  491
+
+        No regulatory values are hardcoded.
+        """
+
+        row_words = []
+
+        for word in words:
+
+            if len(word) < 5:
+                continue
+
+            y = float(
+                word[1]
+            )
+
+            if abs(
+                y - row_y
+            ) > 2.5:
+                continue
+
+            text = str(
+                word[4]
+            ).strip()
+
+            if not text:
+                continue
+
+            row_words.append(
+                word
+            )
+
+        if not row_words:
+            return None
+
+        # Use the first word of each logical cell.
+        #
+        # At this row the source PDF places the values
+        # on the same baseline, making the x positions
+        # reliable column anchors.
+        x_positions = sorted(
+            float(word[0])
+            for word in row_words
+        )
+
+        # Remove positions that are too close together.
+        anchors = []
+
+        for x in x_positions:
+
+            if not anchors:
+                anchors.append(
+                    x
+                )
+                continue
+
+            if (
+                x - anchors[-1]
+                >= 8.0
+            ):
+                anchors.append(
+                    x
+                )
+
+        # The actual continuation row must have at least
+        # the Sr.No and description plus numeric columns.
+        if len(anchors) < 5:
+            return None
+
+        # The table currently exposes its expected
+        # number of columns.
+        expected = len(
+            table.headers
+        )
+
+        if expected <= 0:
+            return None
+
+        # We don't want every word in a multiline cell
+        # to become a column. Select anchors using the
+        # table's horizontal span when available.
+        bbox = self._extract_bbox(
+            table
+        )
+
+        if bbox is not None:
+
+            x0, _, x1, _ = bbox
+
+            anchors = [
+                x
+                for x in anchors
+                if (
+                    x0 - 10
+                    <= x
+                    <= x1 + 10
+                )
+            ]
+
+        # For the continuation table the row itself gives
+        # exactly one first word per column.
+        #
+        # Select the leftmost expected anchors.
+        if len(anchors) > expected:
+            anchors = anchors[
+                :expected
+            ]
+
+        return anchors
+
+    # ================================================================
+    # RECOVER MISSING ROW
+    # ================================================================
+
+    def _recover_row_before(
+        self,
+        words: list[tuple],
+        row_number: int,
+        upper_y: float,
+        anchors: list[float],
+        column_count: int,
+    ) -> list[str] | None:
+
+        """
+        Recover a missing row whose source text occurs immediately
+        before the first row recognized by PyMuPDF.
+
+        The method locates the actual row-number word and collects
+        source words until the next numbered row.
+        """
+
+        starts = []
+
+        for word in words:
+
+            if len(word) < 5:
+                continue
+
+            text = str(
+                word[4]
+            ).strip()
+
+            if text != str(
+                row_number
+            ):
+                continue
+
+            x0 = float(
+                word[0]
+            )
+
+            y0 = float(
+                word[1]
+            )
+
+            # Row number should be in first column.
+            if x0 > 165:
+                continue
+
+            # It must be above the known first row.
+            if y0 >= upper_y - 2:
+                continue
+
+            starts.append(
+                (
+                    y0,
+                    x0,
+                )
+            )
+
+        if not starts:
+            return None
+
+        # The nearest matching row number above the known
+        # continuation row is the best candidate.
+        starts.sort(
+            key=lambda item: item[0],
+            reverse=True,
+        )
+
+        start_y, start_x = starts[0]
+
+        # Find the next numbered row boundary.
+        next_y = upper_y
+
+        for word in words:
+
+            if len(word) < 5:
+                continue
+
+            text = str(
+                word[4]
+            ).strip()
+
+            if not re.fullmatch(
+                r"[1-9][0-9]?",
+                text,
+            ):
+                continue
+
+            y = float(
+                word[1]
+            )
+
+            x = float(
+                word[0]
+            )
+
+            if (
+                y > start_y + 2
+                and y <= upper_y + 2
+                and x <= 165
+            ):
+                next_y = min(
+                    next_y,
+                    y,
+                )
+
+        row_words = []
+
+        for word in words:
+
+            if len(word) < 5:
+                continue
+
+            x0 = float(
+                word[0]
+            )
+
+            y0 = float(
+                word[1]
+            )
+
+            if y0 < start_y - 3:
+                continue
+
+            if y0 >= next_y - 2:
+                continue
+
+            # Restrict to the table region.
+            if x0 < anchors[0] - 15:
+                continue
+
+            if x0 > anchors[-1] + 80:
+                continue
+
+            text = str(
+                word[4]
+            ).strip()
+
+            if text:
+                row_words.append(
+                    word
+                )
+
+        if not row_words:
+            return None
+
+        cells = [
+            []
+            for _ in range(
+                column_count
+            )
+        ]
+
+        # Determine boundaries halfway between actual
+        # column anchors.
+        boundaries = []
+
+        for i in range(
+            len(anchors) - 1
+        ):
+            boundaries.append(
+                (
+                    anchors[i]
+                    + anchors[i + 1]
+                )
+                / 2.0
+            )
+
+        for word in sorted(
+            row_words,
+            key=lambda item: (
+                float(item[1]),
+                float(item[0]),
+            ),
+        ):
+
+            x0 = float(
+                word[0]
+            )
+
+            text = str(
+                word[4]
+            ).strip()
+
+            if not text:
+                continue
+
+            column = 0
+
+            while (
+                column
+                < len(boundaries)
+                and x0 >= boundaries[
+                    column
+                ]
+            ):
+                column += 1
+
+            if (
+                0 <= column
+                < column_count
+            ):
+                cells[
+                    column
+                ].append(
+                    text
+                )
+
+        row = [
+            " ".join(
+                cell
+            ).strip()
+            for cell in cells
+        ]
+
+        # Verify the source row number.
+        if not any(
+            value == str(
+                row_number
+            )
+            for value in row
+        ):
+            row[0] = (
+                str(row_number)
+                + (
+                    " "
+                    + row[0]
+                    if row[0]
+                    else ""
+                )
+            )
+
+        if not any(
+            value
+            for value in row
+        ):
+            return None
+
+        return row
+
+    # ================================================================
+    # ROW NUMBER HELPERS
+    # ================================================================
+
+    def _extract_row_numbers(
+        self,
+        rows: list[list[str]],
+    ) -> list[int]:
+
+        numbers = []
+
+        for row in rows:
+
+            number = self._row_number(
+                row
+            )
+
+            if number is not None:
+                numbers.append(
+                    number
+                )
+
+        return numbers
+
+    def _row_number(
+        self,
+        row: list[str],
+    ) -> int | None:
+
+        for cell in row[:3]:
+
+            value = str(
+                cell or ""
+            ).strip()
+
+            match = re.fullmatch(
+                r"([1-9][0-9]?)",
+                value,
+            )
+
+            if match:
+                return int(
+                    match.group(1)
+                )
+
+        return None
+
+    # ================================================================
+    # WORD EXTRACTION
+    # ================================================================
+
+    def _get_words(
+        self,
+        page: Any,
+    ) -> list[tuple]:
+
+        try:
+            return list(
+                page.get_text(
+                    "words"
+                )
+                or []
+            )
+        except Exception:
+            return []
+
+    # ================================================================
+    # NORMALIZATION
+    # ================================================================
+
+    def _normalize_matrix(
+        self,
+        data: Any,
+    ) -> list[list[str]]:
+
+        if not isinstance(
+            data,
+            (list, tuple),
+        ):
+            return []
+
+        output = []
+
+        for row in data:
+
+            if not isinstance(
+                row,
+                (list, tuple),
+            ):
+                row = [row]
+
+            output.append(
+                [
+                    self._normalize_cell(
+                        value
+                    )
+                    for value in row
+                ]
+            )
+
+        output = [
+            row
+            for row in output
+            if any(
+                value != ""
+                for value in row
+            )
+        ]
+
+        if not output:
+            return []
+
+        width = max(
+            len(row)
+            for row in output
+        )
+
+        normalized = []
+
+        for row in output:
+
+            values = list(
+                row
+            )
+
+            if len(values) < width:
+                values.extend(
+                    [""] * (
+                        width
+                        - len(values)
+                    )
+                )
+
+            elif len(values) > width:
+                values = values[
+                    :width
+                ]
+
+            normalized.append(
+                values
+            )
+
+        return normalized
+
+    @staticmethod
+    def _normalize_cell(
+        value: Any,
+    ) -> str:
+
+        if value is None:
+            return ""
+
+        text = str(
+            value
+        )
+
+        text = text.replace(
+            "\r\n",
+            "\n",
+        )
+
+        text = text.replace(
+            "\r",
+            "\n",
+        )
+
+        return "\n".join(
+            line.strip()
+            for line in text.split(
+                "\n"
+            )
+            if line.strip()
+        ).strip()
+
+    # ================================================================
+    # BBOX
+    # ================================================================
+
+    @staticmethod
+    def _extract_bbox(
+        table: Any,
+    ) -> tuple[
+        float,
+        float,
+        float,
+        float,
+    ] | None:
+
+        bbox = getattr(
+            table,
+            "bbox",
+            None,
+        )
+
+        if bbox is None:
+            bbox = getattr(
+                table,
+                "rect",
+                None,
+            )
+
+        if bbox is None:
+            return None
+
+        try:
+
+            if hasattr(
+                bbox,
+                "x0",
+            ):
+                return (
+                    float(bbox.x0),
+                    float(bbox.y0),
+                    float(bbox.x1),
+                    float(bbox.y1),
+                )
+
+            if isinstance(
+                bbox,
+                (list, tuple),
+            ) and len(bbox) >= 4:
+
+                return (
+                    float(bbox[0]),
+                    float(bbox[1]),
+                    float(bbox[2]),
+                    float(bbox[3]),
+                )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+            return None
+
+        return None

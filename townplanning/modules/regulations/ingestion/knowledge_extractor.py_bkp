@@ -1,0 +1,363 @@
+"""
+AI Knowledge Extractor.
+
+Input:
+    PageAnalysis
+    PageWindow
+
+Output:
+    KnowledgeCard
+"""
+
+import json
+from pathlib import Path
+from uuid import uuid4
+from townplanning.ai import AIRequest
+#from townplanning.ai import OllamaClient
+from townplanning.ai.factory import AIClientFactory
+
+from townplanning.modules.regulations.domain import KnowledgeCard
+from townplanning.modules.regulations.ingestion.page_analysis import (
+    PageAnalysis,
+)
+
+
+class KnowledgeExtractor:
+
+    def __init__(self):
+
+        #self.client = OllamaClient()
+        self.client = AIClientFactory.create()
+
+        prompt = Path(
+            "townplanning/prompts/knowledge_extraction.md"
+        )
+
+        self.system_prompt = prompt.read_text(
+            encoding="utf-8"
+        )
+
+    # ---------------------------------------------------------
+
+    def extract(
+        self,
+        analysis: PageAnalysis,
+        page_window,
+        regulation_id: str,
+    ) -> KnowledgeCard:
+
+        heading = analysis.regulations[0]
+        user_prompt = self._build_prompt(
+            # analysis,
+            # page_window,
+             analysis,
+
+            page_window,
+
+            heading.number,
+
+            heading.title,
+        )
+        # print("=" * 80)
+        # print("ENTERING KNOWLEDGE EXTRACTOR")
+        # print("=" * 80)
+        response = self.client.generate(
+
+            AIRequest(
+
+                system_prompt=self.system_prompt,
+
+                user_prompt=user_prompt,
+
+                temperature=0.0,
+            )
+
+        )
+
+        if not response.success:
+
+            raise RuntimeError(
+                response.error
+            )
+
+        data = json.loads(
+            response.content
+        )
+        # print("=" * 80)
+        # print("KNOWLEDGE EXTRACTOR RESPONSE")
+        # print("=" * 80)
+        # print(response.content)
+        # print("=" * 80)
+
+        return KnowledgeCard(
+
+            id=str(uuid4()),
+
+            regulation_id=regulation_id,
+
+            #title=data["title"],
+            title=data.get("title", ""),
+
+            #summary=data["summary"],
+            summary=data.get("summary", ""),
+
+            #purpose=data["purpose"],
+            purpose=data.get("purpose", ""),
+
+            # scope=data.get(
+            #     "scope",
+            #     "",
+            # ),
+            scope=data.get("scope", ""),
+
+            definitions=data.get(
+                "definitions",
+                [],
+            ),
+
+            permissions=data.get(
+                "permissions",
+                [],
+            ),
+
+            conditions=data.get(
+                "conditions",
+                [],
+            ),
+
+            prohibitions=data.get(
+                "prohibitions",
+                [],
+            ),
+
+            measurements=data.get(
+                "measurements",
+                [],
+            ),
+
+            exceptions=data.get(
+                "exceptions",
+                [],
+            ),
+
+            applicability=data.get(
+                "applicability",
+                [],
+            ),
+
+            # authority=data.get(
+            #     "authority",
+            #     "",
+            # ),
+            authority=data.get("authority", ""),
+
+            inputs=data.get(
+                "inputs",
+                [],
+            ),
+
+            outputs=data.get(
+                "outputs",
+                [],
+            ),
+
+            references=data.get(
+                "references",
+                [],
+            ),
+
+            related_regulations=data.get(
+                "related_regulations",
+                [],
+            ),
+
+            keywords=data.get(
+                "keywords",
+                [],
+            ),
+
+            examples=data.get(
+                "examples",
+                [],
+            ),
+
+            notes=data.get(
+                "notes",
+                [],
+            ),
+
+            metadata={},
+        )
+
+    # ---------------------------------------------------------
+
+    def _build_prompt(
+    self,
+    analysis: PageAnalysis,
+    page_window,
+    regulation_number: str,
+    regulation_title: str,
+) -> str:
+
+        heading = analysis.regulations[0]
+
+        prompt = f"""
+    ========================================================
+    CURRENT REGULATION
+    ========================================================
+
+    Number:
+    {heading.number}
+
+    Title:
+    {heading.title}
+
+    ========================================================
+    IMPORTANT
+    ========================================================
+
+    Create ONE Knowledge Card ONLY for the regulation above.
+
+    The Previous Page and Next Page are supplied ONLY in case
+    this regulation continues across pages.
+
+    DO NOT summarise the whole page.
+
+    DO NOT merge multiple regulations.
+
+    DO NOT include information belonging to another regulation.
+
+    If another regulation starts,
+    STOP reading.
+
+    If another chapter starts,
+    STOP reading.
+
+    ========================================================
+    DOCUMENT ANALYSIS
+    ========================================================
+
+    Page Type:
+    {analysis.page_type}
+
+    Chapter:
+    {analysis.chapter_number}
+
+    Chapter Title:
+    {analysis.chapter_title}
+
+    Detected Regulations:
+    """
+
+        for r in analysis.regulations:
+
+            prompt += f"\n- {r.number} : {r.title}"
+
+        prompt += f"""
+
+    ========================================================
+    PREVIOUS PAGE
+    ========================================================
+
+    {page_window.previous_text}
+
+    ========================================================
+    CURRENT PAGE
+    ========================================================
+
+    {page_window.current_text}
+
+    ========================================================
+    NEXT PAGE
+    ========================================================
+
+    {page_window.next_text}
+
+    ========================================================
+    TABLES FOUND ON THIS PAGE
+    ========================================================
+
+    Some tables may belong to OTHER regulations.
+
+    Only use tables belonging to
+
+    Regulation {heading.number}
+
+    {heading.title}
+
+    Ignore tables belonging to other regulations.
+
+    If no table belongs to this regulation,
+    ignore all tables.
+
+    """
+
+        if hasattr(page_window, "tables") and page_window.tables:
+
+            for table in page_window.tables:
+
+                prompt += "\n"
+                prompt += "=" * 60
+                prompt += "\n"
+
+                prompt += f"TABLE {table.index}\n\n"
+
+                if table.title:
+
+                    prompt += f"Title : {table.title}\n\n"
+
+                prompt += (
+                    "IMPORTANT:\n"
+                    "Use this table ONLY if it belongs to the current regulation.\n\n"
+                )
+
+                prompt += "Headers\n"
+
+                prompt += " | ".join(
+                    table.headers
+                )
+
+                prompt += "\n\nRows\n"
+
+                for row in table.rows:
+
+                    prompt += " | ".join(row)
+
+                    prompt += "\n"
+
+                prompt += "\n"
+
+        else:
+
+            prompt += "\nNo tables detected.\n"
+
+        prompt += """
+
+    ========================================================
+    FINAL INSTRUCTIONS
+    ========================================================
+
+    Generate ONE Knowledge Card.
+
+    Focus ONLY on
+
+    Regulation Number:
+    """
+
+        prompt += f"{heading.number}\n"
+
+        prompt += "Regulation Title:\n"
+
+        prompt += f"{heading.title}\n\n"
+
+        prompt += """
+    Never create a knowledge card for another regulation.
+
+    Never merge neighbouring regulations.
+
+    Never use measurements from unrelated tables.
+
+    Return VALID JSON ONLY.
+    """
+
+        return prompt

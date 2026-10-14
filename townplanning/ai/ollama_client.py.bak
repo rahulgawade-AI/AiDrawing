@@ -1,0 +1,91 @@
+"""
+Production Ollama client.
+"""
+
+import json
+
+import requests
+
+from townplanning.core.settings import get_settings
+
+from .ai_client import AIClient
+from .models import AIRequest
+from .models import AIResponse
+
+
+class OllamaClient(AIClient):
+
+    def __init__(self):
+
+        settings = get_settings()
+
+        self.host = settings.OLLAMA_HOST.rstrip("/")
+
+        self.model = settings.OLLAMA_MODEL
+        self.timeout = settings.OLLAMA_TIMEOUT
+
+    # --------------------------------------------------
+
+    def generate(
+        self,
+        request: AIRequest,
+    ) -> AIResponse:
+
+        payload = {
+
+            "model": self.model,
+
+            "prompt": (
+                request.system_prompt
+                + "\n\n"
+                + request.user_prompt
+            ),
+
+            "stream": False,
+
+            "format": "json",
+
+            "options": {
+
+                "temperature": request.temperature,
+                 "num_predict": 4096,
+
+            },
+        }
+
+        try:
+
+            response = requests.post(
+
+                f"{self.host}/api/generate",
+
+                json=payload,
+
+                timeout=self.timeout,
+            )
+
+            response.raise_for_status()
+
+            data = response.json()
+
+            return AIResponse(
+
+                success=True,
+
+                content=data["response"],
+
+                raw_response=data,
+            )
+
+        except Exception as exc:
+
+            return AIResponse(
+
+                success=False,
+
+                content="",
+
+                raw_response=None,
+
+                error=str(exc),
+            )

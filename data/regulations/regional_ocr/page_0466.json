@@ -1,0 +1,121 @@
+{
+  "schema": "udcpr.regional.ocr.v3",
+  "created_at": "2026-09-02T14:34:13.825828",
+  "pdf_page": 466,
+  "dpi": 200,
+  "image": "data/regulations/regional_ocr/page_0466.png",
+  "ocr_engine": "surya",
+  "ocr_mode": "full_page",
+  "language": "automatic_multilingual",
+  "text": "UDCPR-2020\nland and built-up area, over and above the area covered in the earlier permission. \n (Ancillary FSI सह) विचारात घेतले जाते. त्यामुळे चटई क्षेत्र निर्देशांकाच्या प्रमाणातच विकास शुल्क आकारणी होत आहे. त्यानुसार UDCPR प्रमाणे P-line मध्ये येणारे संपूर्ण बांधकाम क्षेत्रावर (Built-up area) विकास शुल्क आकारणे आवश्यक आहे. तसेच कलम १२४ ब (१) मध्ये जमिनी व इमारती यांच्या वापराचे वर्गीकरण करणेबाबत तरतुद आहे. त्यानुसार जमिनी व इमारती यांच्या वापराचे वर्गीकरण निश्चित करून, ज्या प्रधान / प्रमुख कारणासाठी त्याचा वापर प्रस्तावित आहे, त्याकरिताचे दरानुसार जमीन व इमारतीसाठी विकास शुल्क आकारणी करणे आवश्यक राहिले. \n \n \n १६ \n 6.3 \n  6.3 PERMISSIBLE FSI   Table 6G   Note xii  In case plots having approach by dead end road, (point access) the potential of plot mentioned in above table shall be permissible if length of such access road does not exceed 100 m. \n मुख्य रस्त्यापासून १०० मी. आत असणाऱ्या Dead end अथवा point access असणाऱ्या मिळकतीकरिता विनियम ६.३, Table 6-G, Note xii नुसार मुख्य रस्त्याप्रमाणे चटई क्षेत्र निर्देशांक अनुज्ञेय आहे. UDCPR मधील इतर तरतुदीनुसार इमारतीची उंची रस्तारुंदीसापेक्ष अनुज्ञेयतेबाबत विशिष्ट अशी तरतुद नाही. विनियम ३.३.९ - Access Provision for Special Buildings of Regulation No.1.3(93)(xiv) मधील तरतुद, इमारतीच्या उंचीबाबत विनियम ६.१०.१ मधील तरतुद, अशा तरतुदी एकत्रितपणे विचारात घेऊन परवानगी देणे आवश्यक आहे. तर पुणे महानगरपालिकेच्या बाबतीत विनियम ३.३.९ मधील तरतुद, इमारतीच्या उंचीबाबत विनियम ६.१०.१ मधील तरतुद आणि पुणे महानगरपालिका क्षेत्रासाठीचा विशिष्ट विनियम १०.१.१ येथील इमारत उंचीची तरतुद, अशा तरतुदी एकत्रितपणे विचारात घेऊन परवानगी देणे आवश्यक आहे. \n \n \n १७ \n 14.8 \n  14.8 Urban Renewal Scheme   14.8.7 Development of Reservations contemplated in Development Plan falling in the area of URC  Reg. No.14.8.14 (xvi) Any aspect of development under URS, which is not specified under this Regulation shall be governed by the relevant provisions of the UDCPR. \n विनियम १४.८.७ नुसार नागरी पुनरोत्थान योजनेमधील आरक्षित जागेवर अंमलबजावणी संस्थेने बांधकाम करून महानगरपालिकेस सुविधा हस्तांतरित करणेबाबत तरतुद आहे. सदर तरतुदीनुसार बांधीव घटक त्या-त्या प्रमाणात बांधून देण्याच्या बदल्यात मोबदला कशाप्रकारे अनुज्ञेय होईल, याबाबत स्पष्टीकरण होण्याच्या दृष्टीने विनियम १४.८.१४(xvi) नुसारची तरतुद विचारात घेता, URC मधील आरक्षणातील बांधीव क्षेत्र विकसित करून हस्तांतरित करण्याच्या मोबदल्यात विनियम ११.२.५ नुसार Construction Amenity TDR अनुज्ञेय करता येईल.\nRichards  (किशोर गोखले) अवर सचिव, महाराष्ट्र शासन\n450",
+  "lines": [
+    {
+      "block_index": 0,
+      "text": "UDCPR-2020",
+      "classification": "english",
+      "confidence": 0.9905007452660578,
+      "polygon": [
+        [
+          1975.6000000000001,
+          170.0
+        ],
+        [
+          2140.6,
+          170.0
+        ],
+        [
+          2140.6,
+          197.20000000000002
+        ],
+        [
+          1975.6000000000001,
+          197.20000000000002
+        ]
+      ],
+      "label": "PageHeader"
+    },
+    {
+      "block_index": 1,
+      "text": "land and built-up area, over and above the area covered in the earlier permission. \n (Ancillary FSI सह) विचारात घेतले जाते. त्यामुळे चटई क्षेत्र निर्देशांकाच्या प्रमाणातच विकास शुल्क आकारणी होत आहे. त्यानुसार UDCPR प्रमाणे P-line मध्ये येणारे संपूर्ण बांधकाम क्षेत्रावर (Built-up area) विकास शुल्क आकारणे आवश्यक आहे. तसेच कलम १२४ ब (१) मध्ये जमिनी व इमारती यांच्या वापराचे वर्गीकरण करणेबाबत तरतुद आहे. त्यानुसार जमिनी व इमारती यांच्या वापराचे वर्गीकरण निश्चित करून, ज्या प्रधान / प्रमुख कारणासाठी त्याचा वापर प्रस्तावित आहे, त्याकरिताचे दरानुसार जमीन व इमारतीसाठी विकास शुल्क आकारणी करणे आवश्यक राहिले. \n \n \n १६ \n 6.3 \n  6.3 PERMISSIBLE FSI   Table 6G   Note xii  In case plots having approach by dead end road, (point access) the potential of plot mentioned in above table shall be permissible if length of such access road does not exceed 100 m. \n मुख्य रस्त्यापासून १०० मी. आत असणाऱ्या Dead end अथवा point access असणाऱ्या मिळकतीकरिता विनियम ६.३, Table 6-G, Note xii नुसार मुख्य रस्त्याप्रमाणे चटई क्षेत्र निर्देशांक अनुज्ञेय आहे. UDCPR मधील इतर तरतुदीनुसार इमारतीची उंची रस्तारुंदीसापेक्ष अनुज्ञेयतेबाबत विशिष्ट अशी तरतुद नाही. विनियम ३.३.९ - Access Provision for Special Buildings of Regulation No.1.3(93)(xiv) मधील तरतुद, इमारतीच्या उंचीबाबत विनियम ६.१०.१ मधील तरतुद, अशा तरतुदी एकत्रितपणे विचारात घेऊन परवानगी देणे आवश्यक आहे. तर पुणे महानगरपालिकेच्या बाबतीत विनियम ३.३.९ मधील तरतुद, इमारतीच्या उंचीबाबत विनियम ६.१०.१ मधील तरतुद आणि पुणे महानगरपालिका क्षेत्रासाठीचा विशिष्ट विनियम १०.१.१ येथील इमारत उंचीची तरतुद, अशा तरतुदी एकत्रितपणे विचारात घेऊन परवानगी देणे आवश्यक आहे. \n \n \n १७ \n 14.8 \n  14.8 Urban Renewal Scheme   14.8.7 Development of Reservations contemplated in Development Plan falling in the area of URC  Reg. No.14.8.14 (xvi) Any aspect of development under URS, which is not specified under this Regulation shall be governed by the relevant provisions of the UDCPR. \n विनियम १४.८.७ नुसार नागरी पुनरोत्थान योजनेमधील आरक्षित जागेवर अंमलबजावणी संस्थेने बांधकाम करून महानगरपालिकेस सुविधा हस्तांतरित करणेबाबत तरतुद आहे. सदर तरतुदीनुसार बांधीव घटक त्या-त्या प्रमाणात बांधून देण्याच्या बदल्यात मोबदला कशाप्रकारे अनुज्ञेय होईल, याबाबत स्पष्टीकरण होण्याच्या दृष्टीने विनियम १४.८.१४(xvi) नुसारची तरतुद विचारात घेता, URC मधील आरक्षणातील बांधीव क्षेत्र विकसित करून हस्तांतरित करण्याच्या मोबदल्यात विनियम ११.२.५ नुसार Construction Amenity TDR अनुज्ञेय करता येईल.",
+      "classification": "mixed",
+      "confidence": 0.9905007452660578,
+      "polygon": [
+        [
+          233.2,
+          428.4
+        ],
+        [
+          2081.2,
+          428.4
+        ],
+        [
+          2081.2,
+          1127.1000000000001
+        ],
+        [
+          233.2,
+          1127.1000000000001
+        ]
+      ],
+      "label": "Table"
+    },
+    {
+      "block_index": 3,
+      "text": "Richards  (किशोर गोखले) अवर सचिव, महाराष्ट्र शासन",
+      "classification": "mixed",
+      "confidence": 0.9905007452660578,
+      "polygon": [
+        [
+          1628.0,
+          1190.0
+        ],
+        [
+          1927.2,
+          1190.0
+        ],
+        [
+          1927.2,
+          1309.0
+        ],
+        [
+          1628.0,
+          1309.0
+        ]
+      ],
+      "label": "Text"
+    },
+    {
+      "block_index": 4,
+      "text": "450",
+      "classification": "unknown",
+      "confidence": 0.9905007452660578,
+      "polygon": [
+        [
+          2074.6,
+          1473.9
+        ],
+        [
+          2140.6,
+          1473.9
+        ],
+        [
+          2140.6,
+          1504.5
+        ],
+        [
+          2074.6,
+          1504.5
+        ]
+      ],
+      "label": "PageFooter"
+    }
+  ],
+  "statistics": {
+    "line_count": 4,
+    "regional_lines": 0,
+    "english_lines": 1,
+    "mixed_lines": 2,
+    "regional_or_mixed_lines": 2,
+    "character_count": 2434
+  }
+}

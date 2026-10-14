@@ -1,0 +1,224 @@
+{
+  "status": "PARTIAL",
+  "image": "sample1.png",
+  "deterministic_resolution": {
+    "resolver": "PostgreSQLAuthoritativeTableResolver",
+    "status": "PARTIAL",
+    "resolved_field_count": 12,
+    "requested_field_count": 13,
+    "resolved_fields": [
+      "front_setback",
+      "rear_setback",
+      "side_setback_left",
+      "side_setback_right",
+      "basic_fsi",
+      "premium_fsi",
+      "tdr_fsi",
+      "maximum_fsi",
+      "car_parking_required",
+      "two_wheeler_parking_required",
+      "visitor_parking_required",
+      "parking_factor"
+    ],
+    "missing_fields": [
+      "maximum_height_m"
+    ],
+    "warnings": [
+      "Regulation 6.10 has paragraph/source evidence but no explicit table; passing paragraph evidence to OpenAI.",
+      "Regulation 8.1 has paragraph/source evidence but no explicit table; passing paragraph evidence to OpenAI.",
+      "Regulation 9.32 has paragraph/source evidence but no explicit table; passing paragraph evidence to OpenAI.",
+      "OpenAI could not establish requested constraint 'maximum_height_m' from selected regulatory evidence."
+    ],
+    "errors": [],
+    "missing_inputs": [],
+    "selected_tables": [
+      {
+        "regulation_number": "6.2.1",
+        "table_number": "6-D",
+        "table_title": "Table 6-D",
+        "source_id": null,
+        "reason": "Table selected from Chroma/source evidence and loaded from PostgreSQL."
+      },
+      {
+        "regulation_number": "6.3",
+        "table_number": "6-G",
+        "table_title": "Table 6-G",
+        "source_id": null,
+        "reason": "Table selected from Chroma/source evidence and loaded from PostgreSQL."
+      },
+      {
+        "regulation_number": "8.2.1",
+        "table_number": "8-B",
+        "table_title": "Table 8-B",
+        "source_id": null,
+        "reason": "Table selected from Chroma/source evidence and loaded from PostgreSQL."
+      },
+      {
+        "regulation_number": "8.2.2",
+        "table_number": "8-C",
+        "table_title": "Table 8-C",
+        "source_id": null,
+        "reason": "Table selected from Chroma/source evidence and loaded from PostgreSQL."
+      }
+    ]
+  },
+  "site": {
+    "plot_area_m2": 745.6,
+    "road_width_m": 18.0,
+    "road_name": "D.P. ROAD",
+    "north_direction": "North",
+    "survey_number": "78/5",
+    "plot_side_lengths_m": {
+      "dimension_1": 22.3,
+      "dimension_2": 17.8,
+      "dimension_3": 20.15,
+      "dimension_4": 6.25,
+      "dimension_5": 32.6
+    }
+  },
+  "user_requirements": {
+    "requested_units": 12,
+    "requested_unit_mix": [
+      {
+        "type": "2BHK",
+        "count": 6,
+        "target_carpet_area": 750.0
+      },
+      {
+        "type": "3BHK",
+        "count": 6,
+        "target_carpet_area": 1050.0
+      }
+    ],
+    "parking_mode": "Maximum practical parking",
+    "allow_stilt_parking": true,
+    "avoid_basement": false
+  },
+  "deterministic_constraints": {
+    "front_setback": {
+      "value": 4.5,
+      "unit": "m",
+      "source": {
+        "regulation_number": "6.2.1",
+        "table_number": "6-D",
+        "source": "postgresql"
+      },
+      "status": "verified"
+    },
+    "rear_setback": {
+      "value": 2,
+      "unit": "m",
+      "source": {
+        "regulation_number": "6.2.1",
+        "table_number": "6-D",
+        "source": "postgresql"
+      },
+      "status": "verified"
+    },
+    "side_setback_left": {
+      "value": 2,
+      "unit": "m",
+      "source": {
+        "regulation_number": "6.2.1",
+        "table_number": "6-D",
+        "source": "postgresql"
+      },
+      "status": "verified"
+    },
+    "side_setback_right": {
+      "value": 2,
+      "unit": "m",
+      "source": {
+        "regulation_number": "6.2.1",
+        "table_number": "6-D",
+        "source": "postgresql"
+      },
+      "status": "verified"
+    },
+    "basic_fsi": {
+      "value": 1.1,
+      "unit": "FSI",
+      "source": {
+        "regulation_number": "6.3",
+        "table_number": "6-G",
+        "source": "postgresql"
+      },
+      "status": "verified"
+    },
+    "premium_fsi": {
+      "value": 0.5,
+      "unit": "FSI",
+      "source": {
+        "regulation_number": "6.3",
+        "table_number": "6-G",
+        "source": "postgresql"
+      },
+      "status": "verified"
+    },
+    "tdr_fsi": {
+      "value": 0.9,
+      "unit": "FSI",
+      "source": {
+        "regulation_number": "6.3",
+        "table_number": "6-G",
+        "source": "postgresql"
+      },
+      "status": "verified"
+    },
+    "maximum_fsi": {
+      "value": 2.5,
+      "unit": "FSI",
+      "source": {
+        "regulation_number": "6.3",
+        "table_number": "6-G",
+        "source": "postgresql"
+      },
+      "status": "verified"
+    },
+    "car_parking_required": {
+      "value": "24 spaces (2 spaces per tenement for 12 tenements)",
+      "unit": "spaces",
+      "source": {
+        "regulation_number": "8.2.1",
+        "table_number": "8-B",
+        "source": "postgresql"
+      },
+      "status": "verified"
+    },
+    "two_wheeler_parking_required": {
+      "value": "12 spaces (1 space per tenement for 12 tenements)",
+      "unit": "spaces",
+      "source": {
+        "regulation_number": "8.2.1",
+        "table_number": "8-B",
+        "source": "postgresql"
+      },
+      "status": "verified"
+    },
+    "visitor_parking_required": {
+      "value": "5% of required parking",
+      "unit": "of required parking spaces",
+      "source": {
+        "regulation_number": "8.2.1",
+        "table_number": "8-B",
+        "source": "postgresql"
+      },
+      "status": "verified"
+    },
+    "parking_factor": {
+      "value": 1,
+      "unit": "factor",
+      "source": {
+        "regulation_number": "8.2.2",
+        "table_number": "8-C",
+        "source": "postgresql"
+      },
+      "status": "verified"
+    }
+  },
+  "parking_input": {
+    "carpet_area_unit": null,
+    "status": "INCOMPLETE",
+    "reason": "carpet_area_unit"
+  }
+}

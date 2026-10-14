@@ -1,0 +1,51 @@
+परिशिष्ट
+(केंद्र शासनाच्या गृहनिर्माण व शहरी मंत्रालय विभागाने जारी केलेल्या addendum to model building Bye-Laws 2016 या विनियमांचा अंतर्भाव राज्यातील सर्व नियोजन प्राधिकरणांच्या मंजूर विकास नियंत्रण नियमावलीमध्ये करणेबाबत विनियम)
+Architects / Developer &amp; Planning Authority Officer approving the plans shall ensure that the following provisions are incorporated in the building plans -
+a) Plan for creation of Common Telecommunication Infrastructure including the common duct to access the common space used as telecom room inside the building is also prepared and separate set of drawings showing the inter / intra connectivity access to the building with distribution network.
+b) In Building Solutions In Built Solutions (IBS) - Installation spaces : area for rooms or systems should be provided as given below : -
+(I) Telecom Room Space for the building with built-up area more than 465 sq.mt.
+Sr. No. 
+ Area to be covered by IBS 
+ Size of Telecom Room (all dimension in m.) 
+ 
+ 
+ 
+ 
+ 1 
+ Upto 465 sq.mt 
+ 3.0 m. x 2.4 m. 
+ 
+ 
+ 2 
+ 465 sq.mt. to 930 sq.mt 
+ 3.0 m. x 3.4 m. 
+ 
+ 
+ 3 
+ More than 930.0 sq.mt 
+ Additional Telecom Room required with same space norms
+(II) Telecom Room Space requirements for the smaller building with built-up area less than 465 sq.mt.
+Sr. No. 
+ Area to be covered by IBS 
+ Size of Telecom Room (all dimension in m.) 
+ 
+ 
+ 
+ 
+ 1 
+ Upto 93.0 sq.mt 
+ Wall cabinets, Self contained enclosed cabinets 
+ 
+ 
+ 2 
+ 93.0 sq.mt. to 465.0 sq.mt. 
+ i) Shallow Room - 0.6 m. x 2.6 m. ii) Walk - in Room 1.3 m. x 1.3 m
+(III) In Building Solutions In Built Solutions (IBS) -installation spaces, so provided, should be :
+• It should not susceptible to flooding 
+ • It should not exposed to water, moisture, fumes, gases or dust 
+ • It should be able to with stand designed equipment load (to be specified in design) 
+ • It should be located away from any vibrations to avoid dislocation / dislodgement
+c) At Layout Level -
+1) The placement and sequence of above-and below-ground utilities at the appropriate location in the right-of-way to be ensured for unconstrained movement as well as easy access for
+C:\Users\mantralay\Desktop\Building By Laws 25.08.2023.docx
+487
